@@ -4,7 +4,7 @@
             <a href="{{ route('admin.sections.quizzes.index', $section) }}" class="text-xs text-indigo-600 font-medium">&larr; Kembali</a>
             <h2 class="text-base font-bold text-slate-800">Tambah Soal Quiz</h2>
         </div>
-        <form method="POST" action="{{ route('admin.sections.quizzes.store', $section) }}" class="space-y-4">
+        <form method="POST" action="{{ route('admin.sections.quizzes.store', $section) }}" enctype="multipart/form-data" class="space-y-4">
             @csrf
             @include('admin.quizzes._form')
             <button type="submit"

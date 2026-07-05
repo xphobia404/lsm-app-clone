@@ -13,6 +13,7 @@ class Quiz extends Model
         'section_id',
         'order',
         'question',
+        'question_image',
         'option_a',
         'option_b',
         'option_c',
