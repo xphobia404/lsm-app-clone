@@ -25,6 +25,16 @@
                 <span class="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">{{ $i+1 }}</span>
                 {{ $quiz->question }}
             </p>
+
+            {{-- Gambar Soal --}}
+            @if($quiz->question_image)
+            <div class="mb-3">
+                <img src="{{ Storage::url($quiz->question_image) }}"
+                     alt="Gambar soal {{ $i+1 }}"
+                     class="max-h-48 w-full rounded-xl border border-slate-200 object-contain bg-slate-50">
+            </div>
+            @endif
+
             <div class="grid grid-cols-2 gap-1 mb-3">
                 @foreach($quiz->getOptions() as $key => $val)
                 <div class="rounded-xl px-3 py-2 text-xs

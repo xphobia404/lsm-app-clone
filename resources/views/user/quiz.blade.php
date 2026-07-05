@@ -40,9 +40,18 @@
                 </div>
 
                 {{-- Pertanyaan --}}
-                <p class="mb-5 text-sm font-semibold text-slate-800 leading-relaxed">
+                <p class="mb-3 text-sm font-semibold text-slate-800 leading-relaxed">
                     {{ $quiz->question }}
                 </p>
+
+                {{-- Gambar Soal --}}
+                @if($quiz->question_image)
+                <div class="mb-5">
+                    <img src="{{ Storage::url($quiz->question_image) }}"
+                         alt="Gambar soal {{ $i + 1 }}"
+                         class="w-full max-h-60 rounded-2xl border border-slate-200 object-contain bg-slate-50">
+                </div>
+                @endif
 
                 {{-- Opsi Jawaban --}}
                 <div class="space-y-3">
