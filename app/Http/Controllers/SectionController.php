@@ -5,81 +5,100 @@ namespace App\Http\Controllers;
 use App\Models\LearningSchema;
 use App\Models\Section;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 
 class SectionController extends Controller
 {
-    public function index(Request $request, LearningSchema $learningSchema): JsonResponse
+    public function index(Request $request, LearningSchema $learningSchema)
     {
-        $sections = $learningSchema->sections()
-            ->when($request->filled('is_active'), fn ($q) =>
-                $q->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN))
-            )
-            ->withCount(['contents', 'quizzes'])
-            ->ordered()
-            ->paginate($request->get('per_page', 15));
+        $query = $learningSchema->sections()->withCount(['contents', 'quizzes']);
 
-        return response()->json($sections);
+        if ($request->filled('search')) {
+            $query->where('title', 'like', "%{$request->search}%");
+        }
+
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->status === 'active');
+        }
+
+        $sections = $query->ordered()->paginate(10)->withQueryString();
+
+        return view('admin.sections.index', compact('learningSchema', 'sections'));
     }
 
-    public function store(Request $request, LearningSchema $learningSchema): JsonResponse
+    public function create(LearningSchema $learningSchema)
+    {
+        $section = null;
+        $nextOrder = $learningSchema->sections()->max('section_order') + 1;
+        return view('admin.sections.create', compact('learningSchema', 'section', 'nextOrder'));
+    }
+
+    public function store(Request $request, LearningSchema $learningSchema)
     {
         $validated = $request->validate([
             'title'         => 'required|string|max:255',
-            'description'   => 'nullable|string',
-            'section_order' => 'sometimes|integer|min:0',
+            'description'   => 'nullable|string|max:2000',
+            'section_order' => 'required|integer|min:1',
             'is_active'     => 'sometimes|boolean',
         ]);
 
-        if (!isset($validated['section_order'])) {
-            $validated['section_order'] = $learningSchema->sections()->max('section_order') + 1;
-        }
+        $validated['is_active'] = $request->boolean('is_active');
 
-        $section = $learningSchema->sections()->create($validated);
+        $learningSchema->sections()->create($validated);
 
-        return response()->json([
-            'message' => 'Section created successfully.',
-            'data'    => $section,
-        ], 201);
+        return redirect()
+            ->route('admin.learning-schemas.sections.index', $learningSchema)
+            ->with('success', 'Section berhasil ditambahkan.');
     }
 
-    public function show(LearningSchema $learningSchema, Section $section): JsonResponse
+    public function show(LearningSchema $learningSchema, Section $section)
     {
         $this->authorizeSection($learningSchema, $section);
-
-        $section->load(['contents' => fn ($q) => $q->active()->ordered(),
-                        'quizzes'  => fn ($q) => $q->active()->ordered(),
-                        'media'    => fn ($q) => $q->ordered()]);
-
-        return response()->json($section);
+        $section->load(['contents', 'quizzes', 'media']);
+        return view('admin.sections.show', compact('learningSchema', 'section'));
     }
 
-    public function update(Request $request, LearningSchema $learningSchema, Section $section): JsonResponse
+    public function edit(LearningSchema $learningSchema, Section $section)
+    {
+        $this->authorizeSection($learningSchema, $section);
+        return view('admin.sections.edit', compact('learningSchema', 'section'));
+    }
+
+    public function update(Request $request, LearningSchema $learningSchema, Section $section)
     {
         $this->authorizeSection($learningSchema, $section);
 
         $validated = $request->validate([
-            'title'         => 'sometimes|string|max:255',
-            'description'   => 'nullable|string',
-            'section_order' => 'sometimes|integer|min:0',
+            'title'         => 'required|string|max:255',
+            'description'   => 'nullable|string|max:2000',
+            'section_order' => 'required|integer|min:1',
             'is_active'     => 'sometimes|boolean',
         ]);
 
+        $validated['is_active'] = $request->boolean('is_active');
+
         $section->update($validated);
 
-        return response()->json([
-            'message' => 'Section updated successfully.',
-            'data'    => $section->fresh(),
-        ]);
+        return redirect()
+            ->route('admin.learning-schemas.sections.index', $learningSchema)
+            ->with('success', 'Section berhasil diperbarui.');
     }
 
-    public function destroy(LearningSchema $learningSchema, Section $section): JsonResponse
+    public function destroy(LearningSchema $learningSchema, Section $section)
     {
         $this->authorizeSection($learningSchema, $section);
-
         $section->delete();
 
-        return response()->json(['message' => 'Section deleted successfully.']);
+        return redirect()
+            ->route('admin.learning-schemas.sections.index', $learningSchema)
+            ->with('success', 'Section berhasil dihapus.');
+    }
+
+    public function toggleActive(LearningSchema $learningSchema, Section $section)
+    {
+        $this->authorizeSection($learningSchema, $section);
+        $section->update(['is_active' => ! $section->is_active]);
+        $status = $section->is_active ? 'diaktifkan' : 'dinonaktifkan';
+        return back()->with('success', "Section berhasil {$status}.");
     }
 
     private function authorizeSection(LearningSchema $learningSchema, Section $section): void
