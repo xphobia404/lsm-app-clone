@@ -11,11 +11,13 @@ class SectionController extends Controller
     public function userShow(LearningSchema $learningSchema, Section $section)
     {
         $section->load([
-            'contents' => fn ($q) => $q->active()->ordered(),
-            'quizzes'  => fn ($q) => $q->where('is_active', true),
+            'contents' => function ($q) {
+                $q->active()->ordered()
+                  ->with(['media' => fn ($m) => $m->where('is_active', true)->orderBy('media_order')]);
+            },
+            'quizzes' => fn ($q) => $q->where('is_active', true),
         ]);
 
-        // Urutan section dalam schema ini (untuk next/prev section)
         $allSections = $learningSchema->sections()
             ->where('is_active', true)
             ->orderBy('learning_schema_section.section_order')
@@ -30,7 +32,7 @@ class SectionController extends Controller
         ));
     }
 
-    // ── Admin methods ──────────────────────────────────────────────────────────
+    // ── Admin methods ──────────────────────────────────────────────────
 
     public function allIndex(Request $request)
     {
@@ -40,13 +42,11 @@ class SectionController extends Controller
         if ($request->filled('search')) {
             $query->where('title', 'like', "%{$request->search}%");
         }
-
         if ($request->filled('status')) {
             $query->where('is_active', $request->status === 'active');
         }
 
         $sections = $query->orderBy('title')->paginate(15)->withQueryString();
-
         return view('admin.sections.index', compact('sections'));
     }
 
@@ -59,13 +59,11 @@ class SectionController extends Controller
         if ($request->filled('search')) {
             $query->where('sections.title', 'like', "%{$request->search}%");
         }
-
         if ($request->filled('status')) {
             $query->where('sections.is_active', $request->status === 'active');
         }
 
         $sections = $query->paginate(15)->withQueryString();
-
         return view('admin.sections.index', [
             'sections'       => $sections,
             'learningSchema' => $learningSchema,
