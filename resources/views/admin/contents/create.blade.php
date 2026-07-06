@@ -12,7 +12,8 @@
 
     <h2 class="text-base font-bold text-slate-800">Tambah Konten Baru</h2>
 
-    <form method="POST" action="{{ route('admin.sections.contents.store', $section) }}" enctype="multipart/form-data" class="space-y-5">
+    <form method="POST" action="{{ route('admin.sections.contents.store', $section) }}"
+          enctype="multipart/form-data" class="space-y-5" id="contentForm">
         @csrf
 
         {{-- Informasi Konten --}}
@@ -83,12 +84,12 @@
 
 <script>
 (function () {
-    let idx     = 0;
-    const list  = document.getElementById('mediaList');
-    const empty = document.getElementById('mediaEmpty');
-    const btn   = document.getElementById('btnAddMedia');
+    const list   = document.getElementById('mediaList');
+    const empty  = document.getElementById('mediaEmpty');
+    const btn    = document.getElementById('btnAddMedia');
+    const form   = document.getElementById('contentForm');
 
-    const URL_TYPES = ['youtube', 'google_drive'];
+    const URL_TYPES   = ['youtube', 'google_drive'];
     const PLACEHOLDER = {
         youtube:      'https://www.youtube.com/watch?v=... atau https://youtu.be/...',
         google_drive: 'https://drive.google.com/file/d/.../view',
@@ -98,18 +99,20 @@
         google_drive: 'Link Google Drive',
     };
 
-    function buildRow(i) {
+    /* Bangun satu baris media — index sementara pakai 9999,
+       akan di-renumber sebelum submit */
+    function buildRow() {
         const wrap = document.createElement('div');
         wrap.className = 'media-row rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3';
         wrap.innerHTML = `
             <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-slate-600">Media #<span class="row-num">${list.children.length + 1}</span></span>
+                <span class="text-xs font-semibold text-slate-600">Media #<span class="row-num"></span></span>
                 <button type="button" class="btn-rm rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-500 active:bg-red-100">Hapus</button>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-[11px] font-semibold text-slate-600 mb-1">Tipe Media *</label>
-                    <select name="media[${i}][media_type]" class="sel-type w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
+                    <select data-field="media_type" class="sel-type w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
                         <option value="image">&#128247; Gambar (Upload)</option>
                         <option value="video">&#127909; Video (Upload)</option>
                         <option value="audio">&#127925; Audio (Upload)</option>
@@ -119,41 +122,43 @@
                 </div>
                 <div>
                     <label class="block text-[11px] font-semibold text-slate-600 mb-1">Urutan</label>
-                    <input type="number" name="media[${i}][media_order]" value="${i}" min="0"
+                    <input type="number" data-field="media_order" min="0"
                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
                 </div>
             </div>
             <div>
                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">Judul</label>
-                <input type="text" name="media[${i}][title]" placeholder="Judul media (opsional)"
+                <input type="text" data-field="title" placeholder="Judul media (opsional)"
                        class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
             </div>
             <div class="f-file">
                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">Upload File</label>
-                <input type="file" name="media[${i}][file]"
+                <input type="file" data-field="file"
                        class="w-full text-xs text-slate-500 file:mr-3 file:rounded-full file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-indigo-600">
             </div>
             <div class="f-url hidden">
                 <label class="lbl-url block text-[11px] font-semibold text-slate-600 mb-1">URL</label>
-                <input type="url" name="media[${i}][url]" placeholder="https://"
+                <input type="url" data-field="url" placeholder="https://"
                        class="inp-url w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
             </div>
             <div>
                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">Deskripsi</label>
-                <textarea name="media[${i}][description]" rows="2" placeholder="Deskripsi (opsional)"
+                <textarea data-field="description" rows="2" placeholder="Deskripsi (opsional)"
                           class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none"></textarea>
             </div>
             <label class="flex items-center gap-2 cursor-pointer">
-                <input type="hidden" name="media[${i}][is_active]" value="0">
-                <input type="checkbox" name="media[${i}][is_active]" value="1" checked class="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600">
+                <input type="hidden" data-field="is_active" value="0">
+                <input type="checkbox" data-field="is_active" value="1" checked class="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600">
                 <span class="text-[11px] font-medium text-slate-600">Aktif</span>
             </label>
         `;
-        const sel  = wrap.querySelector('.sel-type');
+
+        const sel   = wrap.querySelector('.sel-type');
         const fFile = wrap.querySelector('.f-file');
         const fUrl  = wrap.querySelector('.f-url');
         const lbl   = wrap.querySelector('.lbl-url');
         const inp   = wrap.querySelector('.inp-url');
+
         sel.addEventListener('change', () => {
             const t = sel.value;
             const isUrl = URL_TYPES.includes(t);
@@ -161,20 +166,46 @@
             fUrl.classList.toggle('hidden', !isUrl);
             if (isUrl) { lbl.textContent = LABEL[t]; inp.placeholder = PLACEHOLDER[t]; }
         });
+
         wrap.querySelector('.btn-rm').addEventListener('click', () => {
-            wrap.remove(); renumber(); updateEmpty();
+            wrap.remove();
+            renumber();
+            updateEmpty();
         });
+
         return wrap;
     }
 
+    /* Renumber label tampilan saja */
     function renumber() {
         list.querySelectorAll('.row-num').forEach((el, i) => el.textContent = i + 1);
     }
+
     function updateEmpty() {
         empty.classList.toggle('hidden', list.children.length > 0);
     }
 
-    btn.addEventListener('click', () => { list.appendChild(buildRow(idx++)); updateEmpty(); });
+    /* Sebelum submit: assign name attribute dengan index berurutan 0,1,2,... */
+    form.addEventListener('submit', function () {
+        const rows = list.querySelectorAll('.media-row');
+        rows.forEach((row, i) => {
+            row.querySelectorAll('[data-field]').forEach(el => {
+                const field = el.getAttribute('data-field');
+                el.name = `media[${i}][${field}]`;
+            });
+            /* Pastikan urutan juga terisi otomatis */
+            const orderInput = row.querySelector('[data-field="media_order"]');
+            if (orderInput && orderInput.value === '') orderInput.value = i;
+        });
+    });
+
+    btn.addEventListener('click', () => {
+        const row = buildRow();
+        list.appendChild(row);
+        renumber();
+        updateEmpty();
+    });
+
     updateEmpty();
 })();
 </script>
