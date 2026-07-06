@@ -74,6 +74,7 @@ Route::middleware(['auth', 'role:admin'])
 
         // ── Learning Schema Management ─────────────────────────────────
         Route::resource('learning-schemas', LearningSchemaController::class);
+        Route::post('/learning-schemas/{learningSchema}/toggle-active', [LearningSchemaController::class, 'toggleActive'])->name('learning-schemas.toggle-active');
 
         // ── Section Management (nested under learning-schema) ──────────
         Route::resource('learning-schemas.sections', SectionController::class);
