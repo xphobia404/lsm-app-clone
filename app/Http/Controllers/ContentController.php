@@ -36,6 +36,39 @@ class ContentController extends Controller
 
     public function store(Request $request, Section $section)
     {
+        // ============================================================
+        // DEBUG TEMPORARY — hapus setelah masalah ditemukan
+        // ============================================================
+        $debug = [
+            'POST media input'   => $request->input('media'),
+            'allFiles'           => array_map(function($row) {
+                $out = [];
+                foreach ($row as $field => $f) {
+                    if ($f instanceof \Illuminate\Http\UploadedFile) {
+                        $out[$field] = [
+                            'name'      => $f->getClientOriginalName(),
+                            'size'      => $f->getSize(),
+                            'mime'      => $f->getMimeType(),
+                            'isValid'   => $f->isValid(),
+                            'error'     => $f->getError(),
+                        ];
+                    } else {
+                        $out[$field] = $f;
+                    }
+                }
+                return $out;
+            }, $request->allFiles()['media'] ?? []),
+            '$_FILES raw'        => $_FILES,
+            'php upload_max'     => ini_get('upload_max_filesize'),
+            'php post_max'       => ini_get('post_max_size'),
+            'content_length'     => $_SERVER['CONTENT_LENGTH'] ?? 'N/A',
+        ];
+
+        dd($debug);
+        // ============================================================
+        // END DEBUG
+        // ============================================================
+
         $request->validate([
             'title'               => 'required|string|max:255',
             'body'                => 'nullable|string',
@@ -48,7 +81,6 @@ class ContentController extends Controller
             'media.*.url'         => 'nullable|string|max:2000',
             'media.*.media_order' => 'nullable|integer|min:0',
             'media.*.is_active'   => 'sometimes|boolean',
-            // Hanya batasi ukuran, TANPA mimes agar video/audio tidak diblokir
             'media.*.file'        => 'nullable|file|max:204800',
         ]);
 
@@ -159,11 +191,6 @@ class ContentController extends Controller
         $mediaInputs = $request->input('media', []);
         if (empty($mediaInputs)) return;
 
-        /*
-         * allFiles() mengembalikan semua file yang diupload dalam bentuk array nested.
-         * Ini lebih reliable daripada $request->file('media.0.file') untuk nested input.
-         * Struktur: $allFiles['media'][$idx]['file'] = UploadedFile
-         */
         $allFiles = $request->allFiles();
         $urlTypes = ['youtube', 'google_drive'];
 
@@ -180,7 +207,6 @@ class ContentController extends Controller
                 'is_active'   => isset($data['is_active']) ? (bool) $data['is_active'] : true,
             ];
 
-            // Proses upload file untuk tipe non-URL
             if (! $isUrl) {
                 $uploadedFile = $allFiles['media'][$idx]['file'] ?? null;
                 if ($uploadedFile !== null && $uploadedFile->isValid()) {
@@ -189,7 +215,6 @@ class ContentController extends Controller
                 }
             }
 
-            // Update media yang sudah ada
             if (! empty($data['id'])) {
                 $existing = Media::find((int) $data['id']);
                 if ($existing) {
