@@ -4,74 +4,97 @@ namespace App\Http\Controllers;
 
 use App\Models\LearningSchema;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 
 class LearningSchemaController extends Controller
 {
-    public function index(Request $request): JsonResponse
-    {
-        $query = LearningSchema::query();
+    // ───────────────────────────────────────────────────────
+    // ADMIN - return Blade views
+    // ───────────────────────────────────────────────────────
 
-        if ($request->filled('is_active')) {
-            $query->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
-        }
+    public function index(Request $request)
+    {
+        $query = LearningSchema::withCount('sections');
 
         if ($request->filled('search')) {
-            $query->where('name', 'like', "%{$request->search}%");
+            $query->where('title', 'like', "%{$request->search}%");
         }
 
-        $schemas = $query->withCount('sections')
-            ->latest()
-            ->paginate($request->get('per_page', 15));
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->status === 'active');
+        }
 
-        return response()->json($schemas);
+        $learningSchemas = $query->latest()->paginate(10)->withQueryString();
+
+        return view('admin.learning-schemas.index', compact('learningSchemas'));
     }
 
-    public function store(Request $request): JsonResponse
+    public function create()
+    {
+        $learningSchema = null;
+        return view('admin.learning-schemas.create', compact('learningSchema'));
+    }
+
+    public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'       => 'required|string|max:255',
-            'description'=> 'nullable|string',
-            'is_active'  => 'sometimes|boolean',
+            'title'       => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'is_active'   => 'sometimes|boolean',
         ]);
 
-        $schema = LearningSchema::create($validated);
+        $validated['is_active'] = $request->boolean('is_active');
 
-        return response()->json([
-            'message' => 'Learning schema created successfully.',
-            'data'    => $schema,
-        ], 201);
+        LearningSchema::create($validated);
+
+        return redirect()
+            ->route('admin.learning-schemas.index')
+            ->with('success', 'Learning schema berhasil ditambahkan.');
     }
 
-    public function show(LearningSchema $learningSchema): JsonResponse
+    public function show(LearningSchema $learningSchema)
     {
-        $learningSchema->load(['sections' => function ($q) {
-            $q->active()->ordered()->with(['contents', 'quizzes']);
-        }]);
-
-        return response()->json($learningSchema);
+        // User-facing show (read only)
+        $learningSchema->load(['sections' => fn ($q) => $q->active()->ordered()->with(['contents', 'quizzes'])]);
+        return view('user.schemas.show', compact('learningSchema'));
     }
 
-    public function update(Request $request, LearningSchema $learningSchema): JsonResponse
+    public function edit(LearningSchema $learningSchema)
+    {
+        return view('admin.learning-schemas.edit', compact('learningSchema'));
+    }
+
+    public function update(Request $request, LearningSchema $learningSchema)
     {
         $validated = $request->validate([
-            'name'       => 'sometimes|string|max:255',
-            'description'=> 'nullable|string',
-            'is_active'  => 'sometimes|boolean',
+            'title'       => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'is_active'   => 'sometimes|boolean',
         ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
 
         $learningSchema->update($validated);
 
-        return response()->json([
-            'message' => 'Learning schema updated successfully.',
-            'data'    => $learningSchema->fresh(),
-        ]);
+        return redirect()
+            ->route('admin.learning-schemas.index')
+            ->with('success', 'Learning schema berhasil diperbarui.');
     }
 
-    public function destroy(LearningSchema $learningSchema): JsonResponse
+    public function destroy(LearningSchema $learningSchema)
     {
         $learningSchema->delete();
 
-        return response()->json(['message' => 'Learning schema deleted successfully.']);
+        return redirect()
+            ->route('admin.learning-schemas.index')
+            ->with('success', 'Learning schema berhasil dihapus.');
+    }
+
+    public function toggleActive(LearningSchema $learningSchema)
+    {
+        $learningSchema->update(['is_active' => ! $learningSchema->is_active]);
+
+        $status = $learningSchema->is_active ? 'diaktifkan' : 'dinonaktifkan';
+
+        return back()->with('success', "Learning schema berhasil {$status}.");
     }
 }
