@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\LearningSchemaController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\ContentController;
@@ -73,12 +74,20 @@ Route::middleware(['auth', 'role:admin'])
 
         Route::get('/dashboard', [AdminDashboardController::class, 'dashboard'])->name('dashboard');
 
-        // ── Users ──────────────────────────────────────────────────────────
+        // ── Users ────────────────────────────────────────────────────────
         Route::resource('users', UserController::class);
         Route::post('users/{user}/toggle-active',
             [UserController::class, 'toggleActive'])->name('users.toggle-active');
 
-        // ── Learning Schemas ───────────────────────────────────────────────
+        // Enrollment routes
+        Route::patch('users/{user}/enrollment/status',
+            [EnrollmentController::class, 'updateStatus'])->name('users.enrollment.status');
+        Route::post('users/{user}/enrollment/enroll',
+            [EnrollmentController::class, 'enroll'])->name('users.enrollment.enroll');
+        Route::delete('users/{user}/enrollment/drop',
+            [EnrollmentController::class, 'drop'])->name('users.enrollment.drop');
+
+        // ── Learning Schemas ──────────────────────────────────────────────
         Route::resource('learning-schemas', LearningSchemaController::class);
         Route::post('learning-schemas/{learningSchema}/toggle-active',
             [LearningSchemaController::class, 'toggleActive'])->name('learning-schemas.toggle-active');
@@ -87,7 +96,6 @@ Route::middleware(['auth', 'role:admin'])
         Route::delete('learning-schemas/{learningSchema}/sections/{section}/detach',
             [LearningSchemaController::class, 'detachSection'])->name('learning-schemas.sections.detach');
 
-        // Sections filtered by schema (tombol "Sections" di learning-schemas index)
         Route::get('learning-schemas/{learningSchema}/sections',
             [SectionController::class, 'schemaIndex'])->name('learning-schemas.sections.index');
 
