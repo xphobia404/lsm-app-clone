@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('media', function (Blueprint $table) {
             $table->id();
             $table->morphs('mediable'); // mediable_type, mediable_id
-            $table->enum('media_type', ['image', 'video', 'audio', 'url']);
+            $table->enum('media_type', ['image','video','audio','url','youtube','google_drive']);
             $table->string('title')->nullable();
             $table->text('description')->nullable();
             $table->string('file_path')->nullable(); // file lokal
