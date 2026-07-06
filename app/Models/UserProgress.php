@@ -2,18 +2,15 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class UserProgress extends Model
 {
-    use HasFactory;
-
     protected $table = 'user_progress';
 
     protected $fillable = [
         'user_id',
-        'learning_schema_id',
         'section_id',
         'status',
         'progress_percentage',
@@ -21,16 +18,26 @@ class UserProgress extends Model
         'completed_at',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'progress_percentage' => 'decimal:2',
+        'started_at'          => 'datetime',
+        'completed_at'        => 'datetime',
+    ];
+
+    // ── Relationships ───────────────────────────────────────────────
+
+    public function user(): BelongsTo
     {
-        return [
-            'progress_percentage' => 'decimal:2',
-            'started_at'          => 'datetime',
-            'completed_at'        => 'datetime',
-        ];
+        return $this->belongsTo(User::class);
     }
 
-    // Scopes
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(Section::class);
+    }
+
+    // ── Scopes ──────────────────────────────────────────────────
+
     public function scopeCompleted($query)
     {
         return $query->where('status', 'completed');
@@ -41,35 +48,39 @@ class UserProgress extends Model
         return $query->where('status', 'in_progress');
     }
 
+    public function scopeNotStarted($query)
+    {
+        return $query->where('status', 'not_started');
+    }
+
     public function scopeForUser($query, int $userId)
     {
         return $query->where('user_id', $userId);
     }
 
-    // Relationships
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
+    // ── Helpers ─────────────────────────────────────────────────
 
-    public function learningSchema()
-    {
-        return $this->belongsTo(LearningSchema::class);
-    }
-
-    public function section()
-    {
-        return $this->belongsTo(Section::class);
-    }
-
-    // Helpers
     public function isCompleted(): bool
     {
         return $this->status === 'completed';
     }
 
-    public function isStarted(): bool
+    public function isInProgress(): bool
     {
-        return in_array($this->status, ['in_progress', 'completed']);
+        return $this->status === 'in_progress';
+    }
+
+    public function isNotStarted(): bool
+    {
+        return $this->status === 'not_started';
+    }
+
+    /**
+     * Resolve learning schemas yang mengandung section ini.
+     * Dipakai kalau perlu tahu schema mana yang di-progress user.
+     */
+    public function getLearningSchemas()
+    {
+        return $this->section->learningSchemas ?? collect();
     }
 }

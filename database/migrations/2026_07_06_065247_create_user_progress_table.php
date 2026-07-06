@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('user_progress', function (Blueprint $table) {
@@ -16,15 +13,9 @@ return new class extends Migration
             $table->foreignId('user_id')
                 ->constrained()
                 ->cascadeOnDelete();
-
-            $table->foreignId('learning_schema_id')
-                ->constrained('learning_schemas')
-                ->cascadeOnDelete();
-
             $table->foreignId('section_id')
                 ->constrained()
                 ->cascadeOnDelete();
-
             $table->enum('status', ['not_started', 'in_progress', 'completed'])
                 ->default('not_started');
             $table->decimal('progress_percentage', 5, 2)->default(0);
@@ -33,13 +24,10 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['user_id', 'section_id']);
-            $table->index(['user_id', 'learning_schema_id']);
+            $table->index(['user_id', 'status']);
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('user_progress');
