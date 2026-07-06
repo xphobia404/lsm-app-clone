@@ -43,10 +43,21 @@
 
         @foreach($contents as $i => $content)
         @php
-            $mediaItems = $content->media ?? collect();
-            $images     = $mediaItems->where('media_type', 'image');
-            $videoMedia = $mediaItems->where('media_type', 'video')->first();
+            $media    = $content->media ?? collect();
+            $images   = $media->filter(fn($m) => $m->isImage());
+            $videos   = $media->filter(fn($m) => $m->isVideo());
+            $audios   = $media->filter(fn($m) => $m->isAudio());
+            $hasImage = $images->isNotEmpty();
+            $hasBody  = !empty(trim(strip_tags($content->body ?? '')));
+
+            $embedVideo = function(string $url): string {
+                if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/', $url, $m)) {
+                    return 'https://www.youtube.com/embed/' . $m[1];
+                }
+                return $url;
+            };
         @endphp
+
         <div class="slide-panel px-4 py-5" style="width:{{ round(100/$totalSlides,4) }}%; flex-shrink:0">
 
             {{-- Header --}}
@@ -58,124 +69,118 @@
                 </div>
             </div>
 
-            {{-- ── TEXT ── --}}
-            @if($content->isText())
-                {{-- Body HTML --}}
-                @if($content->body)
-                <div class="content-body text-sm text-slate-700 mb-4">
+            {{-- ════ BLOK 1: VIDEO — selalu paling atas ════ --}}
+            @php
+                $vRaw = '';
+                if ($content->isVideo() && $content->url) {
+                    $vRaw = $content->url;
+                } elseif ($videos->isNotEmpty()) {
+                    $vRaw = $videos->first()->getDisplayUrl() ?? '';
+                } elseif ($content->isVideo() && $content->body) {
+                    $vRaw = $content->body;
+                }
+                $vEmbed = $vRaw ? $embedVideo($vRaw) : '';
+            @endphp
+            @if($vEmbed)
+            <div class="mb-4 rounded-2xl overflow-hidden bg-slate-900" style="position:relative; padding-top:56.25%">
+                <iframe src="{{ $vEmbed }}"
+                        class="absolute inset-0 h-full w-full"
+                        frameborder="0" allowfullscreen
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+            </div>
+            @endif
+
+            {{-- ════ BLOK 2: GAMBAR KIRI (120×120) + TEKS KANAN ════ --}}
+            @if($hasImage || ($hasBody && !$content->isUrl() && !$content->isFile()))
+            <div class="mb-4 {{ $hasImage ? 'flex gap-3 items-start' : '' }}">
+
+                {{-- Gambar kiri, fixed 120x120 --}}
+                @if($hasImage)
+                <div class="shrink-0 flex flex-col gap-2" style="width:120px">
+                    @foreach($images as $img)
+                    <div style="width:120px; height:120px; border-radius:12px; overflow:hidden; background:#f1f5f9">
+                        <img src="{{ $img->getDisplayUrl() }}"
+                             alt="{{ $img->title ?? $content->title }}"
+                             style="width:120px; height:120px; object-fit:cover"
+                             loading="lazy">
+                    </div>
+                    @if($img->description)
+                    <p class="text-[9px] text-slate-400 text-center leading-tight">{{ $img->description }}</p>
+                    @endif
+                    @endforeach
+                </div>
+                @endif
+
+                {{-- Teks kanan --}}
+                @if($hasBody)
+                <div class="{{ $hasImage ? 'flex-1 min-w-0' : 'w-full' }} content-body text-sm text-slate-700 leading-relaxed">
                     {!! $content->body !!}
                 </div>
                 @endif
+            </div>
+            @endif
 
-                {{-- Gambar dari relasi media --}}
-                @foreach($images as $img)
-                @php
-                    $imgSrc = $img->file_path
-                        ? asset('storage/' . $img->file_path)
-                        : $img->url;
-                @endphp
-                @if($imgSrc)
-                <figure class="mb-3">
-                    <img src="{{ $imgSrc }}"
-                         alt="{{ $img->title ?? $content->title }}"
-                         class="w-full rounded-2xl object-cover"
-                         loading="lazy">
-                    @if($img->description)
-                    <figcaption class="mt-1 text-center text-[10px] text-slate-400">{{ $img->description }}</figcaption>
+            {{-- Tipe URL: card link --}}
+            @if($content->isUrl())
+            <a href="{{ $content->url }}" target="_blank" rel="noopener noreferrer"
+               class="mb-3 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-4">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+                    <svg class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-indigo-700">Buka Tautan</p>
+                    <p class="truncate text-[10px] text-indigo-400">{{ $content->url }}</p>
+                </div>
+            </a>
+            @if($hasBody)
+            <div class="mb-3 content-body text-xs text-slate-500">{!! $content->body !!}</div>
+            @endif
+            @endif
+
+            {{-- Tipe File: card download --}}
+            @if($content->isFile())
+            <a href="{{ $content->url }}" target="_blank" rel="noopener noreferrer"
+               class="mb-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+                    <svg class="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-slate-700">Unduh File</p>
+                    <p class="text-[10px] text-slate-400">Tap untuk membuka</p>
+                </div>
+            </a>
+            @if($hasBody)
+            <div class="mb-3 content-body text-xs text-slate-500">{!! $content->body !!}</div>
+            @endif
+            @endif
+
+            {{-- ════ BLOK 3: AUDIO — selalu paling bawah ════ --}}
+            @if($audios->isNotEmpty())
+            <div class="mt-3 space-y-3">
+                @foreach($audios as $audio)
+                @php $audioSrc = $audio->getDisplayUrl(); @endphp
+                @if($audioSrc)
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    @if($audio->title)
+                    <p class="mb-2 text-xs font-semibold text-slate-600">🎵 {{ $audio->title }}</p>
                     @endif
-                </figure>
-                @endif
-                @endforeach
-
-                {{-- Video dari relasi media (jika ada) --}}
-                @if($videoMedia)
-                @php
-                    $vUrl = $videoMedia->url ?? '';
-                    if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/', $vUrl, $vm)) {
-                        $vUrl = 'https://www.youtube.com/embed/' . $vm[1];
-                    }
-                @endphp
-                <div class="relative rounded-2xl overflow-hidden bg-black mb-4" style="padding-top:56.25%">
-                    <iframe src="{{ $vUrl }}" class="absolute inset-0 h-full w-full"
-                            frameborder="0" allowfullscreen
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+                    <audio controls class="w-full" style="height:40px; border-radius:8px">
+                        <source src="{{ $audioSrc }}">
+                        Browser tidak mendukung audio.
+                    </audio>
+                    @if($audio->description)
+                    <p class="mt-1 text-[10px] text-slate-400">{{ $audio->description }}</p>
+                    @endif
                 </div>
                 @endif
-
-            {{-- ── VIDEO ── --}}
-            @elseif($content->isVideo())
-                @php
-                    // Prioritas: field url konten → video dari media → body sebagai URL
-                    $vRaw = $content->url ?? ($videoMedia?->url ?? ($content->body ?? ''));
-                    $vEmbed = $vRaw;
-                    if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/', $vRaw, $vm)) {
-                        $vEmbed = 'https://www.youtube.com/embed/' . $vm[1];
-                    }
-                @endphp
-                @if($vEmbed)
-                <div class="relative rounded-2xl overflow-hidden bg-black mb-4" style="padding-top:56.25%">
-                    <iframe src="{{ $vEmbed }}" class="absolute inset-0 h-full w-full"
-                            frameborder="0" allowfullscreen
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
-                </div>
-                @endif
-
-                {{-- Deskripsi body --}}
-                @if($content->body && $content->body !== $content->url)
-                <div class="content-body text-sm text-slate-600">{!! $content->body !!}</div>
-                @endif
-
-                {{-- Gambar pendamping (jika ada) --}}
-                @foreach($images as $img)
-                @php $imgSrc = $img->file_path ? asset('storage/'.$img->file_path) : $img->url; @endphp
-                @if($imgSrc)
-                <figure class="mt-3">
-                    <img src="{{ $imgSrc }}" alt="{{ $img->title ?? '' }}"
-                         class="w-full rounded-2xl object-cover" loading="lazy">
-                    @if($img->description)
-                    <figcaption class="mt-1 text-center text-[10px] text-slate-400">{{ $img->description }}</figcaption>
-                    @endif
-                </figure>
-                @endif
                 @endforeach
-
-            {{-- ── URL ── --}}
-            @elseif($content->isUrl())
-                <a href="{{ $content->url }}" target="_blank" rel="noopener noreferrer"
-                   class="flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-4 mb-3">
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100">
-                        <svg class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                        </svg>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-semibold text-indigo-700">Buka Tautan</p>
-                        <p class="truncate text-[10px] text-indigo-400">{{ $content->url }}</p>
-                    </div>
-                </a>
-                @if($content->body)
-                <div class="content-body text-xs text-slate-500">{!! $content->body !!}</div>
-                @endif
-
-            {{-- ── FILE ── --}}
-            @elseif($content->isFile())
-                <a href="{{ $content->url }}" target="_blank" rel="noopener noreferrer"
-                   class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 mb-3">
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
-                        <svg class="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-sm font-semibold text-slate-700">Unduh File</p>
-                        <p class="text-[10px] text-slate-400">Tap untuk membuka</p>
-                    </div>
-                </a>
-                @if($content->body)
-                <div class="content-body text-xs text-slate-500">{!! $content->body !!}</div>
-                @endif
+            </div>
             @endif
 
         </div>{{-- /slide --}}
