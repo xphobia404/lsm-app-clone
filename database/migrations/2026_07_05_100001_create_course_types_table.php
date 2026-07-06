@@ -1,10 +1,27 @@
 <?php
-// FILE INI SUDAH DIKONSOLIDASIKAN KE: 2024_01_01_000002_create_course_types_table.php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up(): void   { /* no-op: already in create_course_types_table */ }
-    public function down(): void { /* no-op */ }
+    public function up(): void
+    {
+        Schema::create('course_types', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');           // e.g. P3K, HSE
+            $table->string('slug')->unique();
+            $table->text('description')->nullable();
+            $table->string('icon')->nullable(); // emoji or icon class
+            $table->boolean('is_active')->default(true);
+            $table->unsignedInteger('order')->default(0);
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('course_types');
+    }
 };
