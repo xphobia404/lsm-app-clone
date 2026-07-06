@@ -28,12 +28,19 @@
     <div class="space-y-3">
         @forelse($schemas as $schema)
         @php
-            $sectionIds  = $schema->sections->pluck('id') ?? collect();
-            $totalSec    = $schema->sections_count ?? 0;
-            $doneSec     = 0;
-            foreach (($schema->sections ?? collect()) as $sec) {
-                if (($progressMap[$sec->id]->first()?->status ?? null) === 'completed') $doneSec++;
+            {{-- $progressMap adalah Collection grouped by section_id
+                 Hitung done dengan cara aman --}}
+            $totalSec = $schema->sections_count ?? 0;
+            $doneSec  = 0;
+            if (isset($schema->sections)) {
+                foreach ($schema->sections as $sec) {
+                    $st = $progressMap->has($sec->id)
+                        ? $progressMap->get($sec->id)->first()?->status
+                        : null;
+                    if ($st === 'completed') $doneSec++;
+                }
             }
+            $pct = $totalSec > 0 ? round(($doneSec / $totalSec) * 100) : 0;
         @endphp
 
         <a href="{{ route('user.schemas.show', $schema) }}"
@@ -58,20 +65,22 @@
                     </svg>
                 </div>
 
-                {{-- Progress --}}
-                <div class="mt-3">
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="text-[10px] text-slate-400">Progress</span>
-                        <span class="text-[10px] font-semibold text-slate-600">
-                            {{ $doneSec }} / {{ $totalSec }} section
-                        </span>
-                    </div>
-                    @php $pct = $totalSec > 0 ? round(($doneSec / $totalSec) * 100) : 0; @endphp
+                {{-- Stats row --}}
+                <div class="mt-2 flex items-center gap-3">
+                    <span class="text-[10px] text-slate-400">{{ $totalSec }} section</span>
+                    @if($doneSec > 0)
+                    <span class="text-[10px] text-emerald-600 font-medium">{{ $doneSec }} selesai</span>
+                    @endif
+                </div>
+
+                {{-- Progress bar --}}
+                <div class="mt-2">
                     <div class="h-1.5 w-full rounded-full bg-slate-100">
                         <div class="h-1.5 rounded-full transition-all
                                     {{ $pct === 100 ? 'bg-emerald-500' : 'bg-indigo-500' }}"
                              style="width: {{ $pct }}%"></div>
                     </div>
+                    <p class="mt-0.5 text-right text-[10px] text-slate-400">{{ $pct }}%</p>
                 </div>
             </div>
         </a>

@@ -16,11 +16,11 @@
 
     {{-- Hero card --}}
     @php
-        $sections    = $learningSchema->sections;
-        $total       = $sections->count();
-        $done        = $sections->filter(fn($s) => ($progressMap[$s->id] ?? null) === 'completed')->count();
-        $inProgress  = $sections->filter(fn($s) => ($progressMap[$s->id] ?? null) === 'in_progress')->count();
-        $pct         = $total > 0 ? round(($done / $total) * 100) : 0;
+        $sections   = $learningSchema->sections;
+        $total      = $sections->count();
+        // $progressMap adalah Collection hasil pluck — pakai ->get() bukan []
+        $done       = $sections->filter(fn($s) => $progressMap->get($s->id) === 'completed')->count();
+        $pct        = $total > 0 ? round(($done / $total) * 100) : 0;
     @endphp
 
     <div class="mb-5 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-5 text-white shadow-lg">
@@ -60,7 +60,7 @@
     <div class="space-y-2">
         @forelse($sections as $i => $section)
         @php
-            $status = $progressMap[$section->id] ?? null;
+            $status = $progressMap->get($section->id); {{-- pakai ->get() bukan [] --}}
         @endphp
         <a href="{{ route('user.sections.show', [$learningSchema, $section]) }}"
            class="flex items-center gap-3 rounded-2xl bg-white border border-slate-100
