@@ -12,9 +12,6 @@
 
     <h2 class="text-base font-bold text-slate-800">Edit Konten</h2>
 
-    {{-- Hidden input untuk track media yang dihapus --}}
-    <input type="hidden" id="deletedMedia" name="deleted_media" value="">
-
     <form method="POST" action="{{ route('admin.sections.contents.update', [$section, $content]) }}" enctype="multipart/form-data" class="space-y-5">
         @csrf @method('PUT')
         <input type="hidden" id="deletedMediaField" name="deleted_media" value="">
@@ -79,7 +76,7 @@
                     <span class="ml-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-600">{{ $content->media->count() }}</span>
                 </h3>
                 <button type="button" id="btnAddMedia"
-                        class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100 transition">
+                        class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-600 active:bg-indigo-100 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                     Tambah Media
                 </button>
@@ -90,7 +87,7 @@
                 <div class="media-row rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3" data-id="{{ $m->id }}">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-semibold text-slate-600">Media #<span class="row-num">{{ $i + 1 }}</span></span>
-                        <button type="button" class="btn-remove-media rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-500 hover:bg-red-100 transition">Hapus</button>
+                        <button type="button" class="btn-remove-media rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-500 active:bg-red-100 transition">Hapus</button>
                     </div>
                     <input type="hidden" name="media[{{ $i }}][id]" value="{{ $m->id }}">
                     <div class="grid grid-cols-2 gap-3">
@@ -114,7 +111,6 @@
                         <input type="text" name="media[{{ $i }}][title]" value="{{ $m->title }}"
                                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
                     </div>
-                    {{-- file path saat ini --}}
                     @if($m->file_path)
                     <div class="flex items-center gap-2 rounded-xl bg-green-50 border border-green-100 px-3 py-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -125,7 +121,7 @@
                     <div class="field-file {{ $m->media_type === 'url' ? 'hidden' : '' }}">
                         <label class="block text-[11px] font-semibold text-slate-600 mb-1">{{ $m->file_path ? 'Ganti File (opsional)' : 'Upload File' }}</label>
                         <input type="file" name="media[{{ $i }}][file]"
-                               class="w-full text-xs text-slate-500 file:mr-3 file:rounded-full file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-indigo-600 hover:file:bg-indigo-100">
+                               class="w-full text-xs text-slate-500 file:mr-3 file:rounded-full file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-indigo-600">
                     </div>
                     <div class="field-url {{ $m->media_type !== 'url' ? 'hidden' : '' }}">
                         <label class="block text-[11px] font-semibold text-slate-600 mb-1">URL</label>
@@ -165,18 +161,17 @@
 
 </div>
 
-@push('scripts')
 <script>
 (function () {
-    let mediaIndex = {{ $content->media->count() }};
-    const list     = document.getElementById('mediaList');
-    const empty    = document.getElementById('mediaEmpty');
-    const btnAdd   = document.getElementById('btnAddMedia');
-    const deletedField = document.getElementById('deletedMediaField');
-    const typeSelect   = document.getElementById('contentType');
-    const fieldBody    = document.getElementById('fieldBody');
-    const fieldUrl     = document.getElementById('fieldUrl');
-    let deletedIds = [];
+    let mediaIndex   = {{ $content->media->count() }};
+    const list       = document.getElementById('mediaList');
+    const empty      = document.getElementById('mediaEmpty');
+    const btnAdd     = document.getElementById('btnAddMedia');
+    const deletedField  = document.getElementById('deletedMediaField');
+    const typeSelect = document.getElementById('contentType');
+    const fieldBody  = document.getElementById('fieldBody');
+    const fieldUrl   = document.getElementById('fieldUrl');
+    let deletedIds   = [];
 
     // Toggle body/url
     function toggleFields() {
@@ -191,9 +186,6 @@
         empty.classList.toggle('hidden', list.children.length > 0);
     }
 
-    // Attach events to existing rows
-    list.querySelectorAll('.media-row').forEach(row => attachRow(row));
-
     function attachRow(wrap) {
         const sel = wrap.querySelector('.media-type-select');
         if (sel) {
@@ -204,7 +196,6 @@
             }
             sel.addEventListener('change', toggleMedia);
         }
-
         wrap.querySelector('.btn-remove-media').addEventListener('click', () => {
             const mid = wrap.dataset.id;
             if (mid) {
@@ -217,13 +208,16 @@
         });
     }
 
+    // Attach to server-rendered rows
+    list.querySelectorAll('.media-row').forEach(row => attachRow(row));
+
     function buildRow(idx) {
         const wrap = document.createElement('div');
         wrap.className = 'media-row rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3';
         wrap.innerHTML = `
             <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold text-slate-600">Media #<span class="row-num">${list.children.length + 1}</span></span>
-                <button type="button" class="btn-remove-media rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-500 hover:bg-red-100 transition">Hapus</button>
+                <button type="button" class="btn-remove-media rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-500 active:bg-red-100 transition">Hapus</button>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
@@ -249,7 +243,7 @@
             <div class="field-file">
                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">Upload File</label>
                 <input type="file" name="media[${idx}][file]"
-                       class="w-full text-xs text-slate-500 file:mr-3 file:rounded-full file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-indigo-600 hover:file:bg-indigo-100">
+                       class="w-full text-xs text-slate-500 file:mr-3 file:rounded-full file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-indigo-600">
             </div>
             <div class="field-url hidden">
                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">URL</label>
@@ -284,5 +278,4 @@
     updateEmpty();
 })();
 </script>
-@endpush
 </x-admin-layout>

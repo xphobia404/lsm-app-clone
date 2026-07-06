@@ -11,6 +11,7 @@
     <title>{{ $title }} — {{ config('app.name', 'LSM App') }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    @stack('styles')
     <style>
         html { scroll-padding-top: 104px; }
         body { padding-top: 100px; }
@@ -105,6 +106,7 @@
         </div>
     </nav>
 
+    @stack('scripts')
 </body>
 
 </html>

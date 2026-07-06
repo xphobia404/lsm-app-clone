@@ -75,15 +75,13 @@
             <div class="flex items-center justify-between">
                 <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Media Lampiran</h3>
                 <button type="button" id="btnAddMedia"
-                        class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100 transition">
+                        class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-600 active:bg-indigo-100 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                     Tambah Media
                 </button>
             </div>
 
-            <div id="mediaList" class="space-y-3">
-                {{-- rows will be injected by JS --}}
-            </div>
+            <div id="mediaList" class="space-y-3"></div>
 
             <p id="mediaEmpty" class="text-xs text-slate-400 italic">Belum ada media. Klik "Tambah Media" untuk menambahkan.</p>
         </div>
@@ -102,13 +100,12 @@
     </form>
 </div>
 
-@push('scripts')
 <script>
 (function () {
     let mediaIndex = 0;
-    const list    = document.getElementById('mediaList');
-    const empty   = document.getElementById('mediaEmpty');
-    const btnAdd  = document.getElementById('btnAddMedia');
+    const list       = document.getElementById('mediaList');
+    const empty      = document.getElementById('mediaEmpty');
+    const btnAdd     = document.getElementById('btnAddMedia');
     const typeSelect = document.getElementById('contentType');
     const fieldBody  = document.getElementById('fieldBody');
     const fieldUrl   = document.getElementById('fieldUrl');
@@ -126,50 +123,50 @@
         empty.classList.toggle('hidden', list.children.length > 0);
     }
 
-    function buildRow(idx, data = {}) {
+    function buildRow(idx) {
         const wrap = document.createElement('div');
         wrap.className = 'media-row rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3';
         wrap.dataset.idx = idx;
         wrap.innerHTML = `
             <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold text-slate-600">Media #<span class="row-num">${list.children.length + 1}</span></span>
-                <button type="button" class="btn-remove-media rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-500 hover:bg-red-100 transition">Hapus</button>
+                <button type="button" class="btn-remove-media rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-500 active:bg-red-100 transition">Hapus</button>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-[11px] font-semibold text-slate-600 mb-1">Tipe Media *</label>
                     <select name="media[${idx}][media_type]" class="media-type-select w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
-                        <option value="image" ${data.media_type==='image'?'selected':''}>Image</option>
-                        <option value="video" ${data.media_type==='video'?'selected':''}>Video</option>
-                        <option value="audio" ${data.media_type==='audio'?'selected':''}>Audio</option>
-                        <option value="url"   ${data.media_type==='url'  ?'selected':''}>URL</option>
+                        <option value="image">Image</option>
+                        <option value="video">Video</option>
+                        <option value="audio">Audio</option>
+                        <option value="url">URL</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-[11px] font-semibold text-slate-600 mb-1">Urutan</label>
-                    <input type="number" name="media[${idx}][media_order]" value="${data.media_order ?? idx}" min="0"
+                    <input type="number" name="media[${idx}][media_order]" value="${idx}" min="0"
                            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
                 </div>
             </div>
             <div>
                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">Judul</label>
-                <input type="text" name="media[${idx}][title]" value="${data.title ?? ''}" placeholder="Judul media (opsional)"
+                <input type="text" name="media[${idx}][title]" placeholder="Judul media (opsional)"
                        class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
             </div>
             <div class="field-file">
                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">Upload File</label>
                 <input type="file" name="media[${idx}][file]"
-                       class="w-full text-xs text-slate-500 file:mr-3 file:rounded-full file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-indigo-600 hover:file:bg-indigo-100">
+                       class="w-full text-xs text-slate-500 file:mr-3 file:rounded-full file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-indigo-600">
             </div>
             <div class="field-url hidden">
                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">URL</label>
-                <input type="url" name="media[${idx}][url]" value="${data.url ?? ''}" placeholder="https://..."
+                <input type="url" name="media[${idx}][url]" placeholder="https://..."
                        class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
             </div>
             <div>
                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">Deskripsi</label>
                 <textarea name="media[${idx}][description]" rows="2" placeholder="Deskripsi (opsional)"
-                          class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">${data.description ?? ''}</textarea>
+                          class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none"></textarea>
             </div>
             <label class="flex items-center gap-2 cursor-pointer">
                 <input type="hidden" name="media[${idx}][is_active]" value="0">
@@ -179,7 +176,6 @@
             </label>
         `;
 
-        // Toggle file/url based on media_type
         const sel = wrap.querySelector('.media-type-select');
         function toggleMedia() {
             const isUrl = sel.value === 'url';
@@ -187,7 +183,6 @@
             wrap.querySelector('.field-url').classList.toggle('hidden', !isUrl);
         }
         sel.addEventListener('change', toggleMedia);
-        toggleMedia();
 
         wrap.querySelector('.btn-remove-media').addEventListener('click', () => {
             wrap.remove();
@@ -210,5 +205,4 @@
     updateEmpty();
 })();
 </script>
-@endpush
 </x-admin-layout>
