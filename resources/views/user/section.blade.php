@@ -1,18 +1,16 @@
 {{-- resources/views/user/section.blade.php --}}
 <x-reader-layout :title="$section->title">
 @php
-    $contents    = $section->contents;   // sudah active+ordered
+    $contents    = $section->contents;
     $quizzes     = $section->quizzes;
     $totalSlides = $contents->count() + ($quizzes->isNotEmpty() ? 1 : 0);
     $hasQuiz     = $quizzes->isNotEmpty();
-    if ($totalSlides === 0) $totalSlides = 1; // minimal 1 agar tidak div-by-zero
+    if ($totalSlides === 0) $totalSlides = 1;
 @endphp
 
 <div class="flex flex-col" style="min-height:100dvh">
 
-{{-- ================================================================
-     TOP BAR (fixed)
-================================================================ --}}
+{{-- TOP BAR --}}
 <div class="fixed top-0 left-0 right-0 z-50 flex items-center gap-3 border-b border-slate-100 bg-white px-4 py-3"
      style="backdrop-filter:blur(8px)">
 
@@ -42,20 +40,16 @@
          style="width:{{ round(1 / $totalSlides * 100) }}%"></div>
 </div>
 
-{{-- ================================================================
-     SLIDER AREA (scrollable content zone)
-================================================================ --}}
+{{-- SLIDER AREA --}}
 <div class="overflow-hidden flex-1" style="padding-top:57px; padding-bottom:80px">
     <div id="slides-track"
          class="flex transition-transform duration-300 ease-in-out"
          style="width:{{ $totalSlides * 100 }}%">
 
-        {{-- CONTENT SLIDES --}}
         @foreach($contents as $i => $content)
         <div class="slide-panel px-4 py-5"
              style="width:{{ round(100 / $totalSlides, 4) }}%; flex-shrink:0">
 
-            {{-- Header --}}
             <div class="mb-4 flex items-center gap-2">
                 <span class="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-xs font-extrabold text-indigo-600">
                     {{ $i + 1 }}
@@ -66,16 +60,14 @@
                 </div>
             </div>
 
-            {{-- Body --}}
             @if($content->isText())
-                {{-- Render as HTML (supports images, formatting dari rich editor) --}}
                 <div class="content-body text-sm text-slate-700">
                     {!! $content->body !!}
                 </div>
 
             @elseif($content->isVideo())
                 @php
-                    $rawUrl  = $content->url ?? $content->body ?? '';
+                    $rawUrl   = $content->url ?? $content->body ?? '';
                     $embedUrl = $rawUrl;
                     if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/', $rawUrl, $m)) {
                         $embedUrl = 'https://www.youtube.com/embed/' . $m[1];
@@ -185,20 +177,18 @@
         </div>
         @endif
 
-    </div>{{-- /slides-track --}}
+    </div>
 </div>
 
-{{-- ================================================================
-     BOTTOM NAV (fixed, z-50 lebih tinggi dari apapun)
-================================================================ --}}
+{{-- BOTTOM NAV --}}
 <div class="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-100 bg-white px-4 py-3"
      style="padding-bottom:max(12px, env(safe-area-inset-bottom))">
     <div class="flex items-center gap-3">
 
+        {{-- Prev: TANPA atribut disabled - JS yang kontrol sepenuhnya --}}
         <button id="btn-prev"
                 class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-400 transition active:bg-slate-50"
-                style="opacity:0.3; pointer-events:none"
-                disabled>
+                style="opacity:0.3; pointer-events:none">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
             </svg>
@@ -222,11 +212,8 @@
     </div>
 </div>
 
-</div>{{-- /flex wrapper --}}
+</div>
 
-{{-- ================================================================
-     JS
-================================================================ --}}
 <script>
 (function () {
     const total   = {{ $totalSlides }};
@@ -238,42 +225,33 @@
     const dots    = document.querySelectorAll('.dot');
     let cur = 0;
 
+    function setPrev(enabled) {
+        btnPrev.style.opacity       = enabled ? '1'    : '0.3';
+        btnPrev.style.pointerEvents = enabled ? 'auto' : 'none';
+        btnPrev.style.cursor        = enabled ? 'pointer' : 'default';
+    }
+
     function goTo(n) {
         if (n < 0 || n >= total) return;
         cur = n;
 
-        // geser track
         track.style.transform = `translateX(-${(100 / total) * cur}%)`;
+        counter.textContent   = cur + 1;
+        bar.style.width       = ((cur + 1) / total * 100) + '%';
 
-        // counter & bar
-        counter.textContent = cur + 1;
-        bar.style.width = ((cur + 1) / total * 100) + '%';
-
-        // dots
         dots.forEach((d, i) => {
-            if (i === cur) {
-                d.style.width = '20px'; d.style.background = '#6366f1';
-            } else {
-                d.style.width = '8px'; d.style.background = '#e2e8f0';
-            }
+            d.style.width      = i === cur ? '20px' : '8px';
+            d.style.background = i === cur ? '#6366f1' : '#e2e8f0';
         });
 
-        // prev
-        if (cur === 0) {
-            btnPrev.style.opacity = '0.3';
-            btnPrev.style.pointerEvents = 'none';
-        } else {
-            btnPrev.style.opacity = '1';
-            btnPrev.style.pointerEvents = 'auto';
-        }
+        setPrev(cur > 0);
 
-        // next label
         const isLast = cur === total - 1;
         if (isLast) {
-            btnNext.innerHTML = `Selesai <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`;
+            btnNext.innerHTML = 'Selesai&nbsp;<svg style="display:inline;vertical-align:middle" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
             btnNext.style.background = 'linear-gradient(135deg,#10b981,#059669)';
         } else {
-            btnNext.innerHTML = `Lanjut <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>`;
+            btnNext.innerHTML = 'Lanjut&nbsp;<svg style="display:inline;vertical-align:middle" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>';
             btnNext.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)';
         }
 
@@ -289,11 +267,11 @@
         }
     });
 
-    // swipe
+    // swipe support
     let sx = 0;
     const area = track.parentElement;
     area.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
-    area.addEventListener('touchend', e => {
+    area.addEventListener('touchend',   e => {
         const diff = sx - e.changedTouches[0].clientX;
         if (Math.abs(diff) > 50) diff > 0 ? goTo(cur + 1) : goTo(cur - 1);
     });
