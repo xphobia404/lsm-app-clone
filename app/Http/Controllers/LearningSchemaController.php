@@ -52,12 +52,15 @@ class LearningSchemaController extends Controller
     public function show(LearningSchema $learningSchema)
     {
         $learningSchema->load([
-            'sections' => fn ($q) => $q->withCount(['contents', 'quizzes']),
+            // Fix: hanya tampilkan sections yang aktif di halaman detail admin
+            'sections' => fn ($q) => $q->where('sections.is_active', true)
+                ->withCount(['contents', 'quizzes'])
+                ->orderBy('learning_schema_section.section_order'),
         ]);
 
         $availableSections = Section::whereDoesntHave('learningSchemas', fn ($q) =>
             $q->where('learning_schemas.id', $learningSchema->id)
-        )->orderBy('title')->get(['id', 'title', 'is_active']);
+        )->where('is_active', true)->orderBy('title')->get(['id', 'title', 'is_active']);
 
         return view('admin.learning-schemas.show', compact('learningSchema', 'availableSections'));
     }
