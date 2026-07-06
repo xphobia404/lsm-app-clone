@@ -11,8 +11,6 @@ use Illuminate\Support\Facades\Storage;
 
 class ContentController extends Controller
 {
-    // ── ADMIN ────────────────────────────────────────────────────────
-
     public function index(Request $request, Section $section)
     {
         $contents = $section->contents()
@@ -37,8 +35,6 @@ class ContentController extends Controller
 
     public function store(Request $request, Section $section)
     {
-        // TIDAK pakai rule 'file' karena trigger FileinfoMimeTypeGuesser error
-        // Upload dihandle manual di syncMedia()
         $request->validate([
             'title'               => 'required|string|max:255',
             'body'                => 'nullable|string',
@@ -51,8 +47,6 @@ class ContentController extends Controller
             'media.*.url'         => 'nullable|string|max:2000',
             'media.*.media_order' => 'nullable|integer|min:0',
             'media.*.is_active'   => 'sometimes|boolean',
-            // 'media.*.file' — sengaja TIDAK divalidasi via Laravel rule
-            // karena FileinfoMimeTypeGuesser crash saat fileinfo ext tidak aktif
         ]);
 
         $order = $request->input('content_order')
@@ -65,11 +59,21 @@ class ContentController extends Controller
             'is_active'     => $request->boolean('is_active'),
         ]);
 
-        $this->syncMedia($request, $content);
-
-        return redirect()
-            ->route('admin.sections.contents.index', $section)
-            ->with('success', 'Konten berhasil ditambahkan.');
+        // ── DEBUG syncMedia ─────────────────────────────────────────
+        $debugResult = $this->syncMediaDebug($request, $content);
+        dd([
+            'content_id'   => $content->id,
+            'media_input'  => $request->input('media'),
+            'allFiles_raw' => $this->describeFiles($request->allFiles()),
+            '_FILES_raw'   => $this->describeRawFiles($_FILES),
+            'syncResult'   => $debugResult,
+            'storage_path' => storage_path('app/public/media'),
+            'storage_exists' => is_dir(storage_path('app/public/media')),
+            'storage_writable' => is_writable(storage_path('app/public')),
+            'php_upload_max'   => ini_get('upload_max_filesize'),
+            'php_post_max'     => ini_get('post_max_size'),
+        ]);
+        // ── END DEBUG ───────────────────────────────────────────────
     }
 
     public function show(Section $section, Content $content)
@@ -103,7 +107,6 @@ class ContentController extends Controller
             'media.*.url'         => 'nullable|string|max:2000',
             'media.*.media_order' => 'nullable|integer|min:0',
             'media.*.is_active'   => 'sometimes|boolean',
-            // 'media.*.file' — sengaja TIDAK divalidasi
             'deleted_media'       => 'nullable|string',
         ]);
 
@@ -178,13 +181,10 @@ class ContentController extends Controller
                 'is_active'   => isset($data['is_active']) ? (bool) $data['is_active'] : true,
             ];
 
-            // Upload file — handle manual tanpa rule Laravel
             if (! $isUrl) {
                 /** @var UploadedFile|null $uploadedFile */
                 $uploadedFile = $allFiles['media'][$idx]['file'] ?? null;
-
                 if ($uploadedFile instanceof UploadedFile && $uploadedFile->getError() === UPLOAD_ERR_OK) {
-                    // Simpan dengan ekstensi asli dari nama file
                     $ext  = $uploadedFile->getClientOriginalExtension();
                     $name = uniqid('media_', true) . ($ext ? '.' . $ext : '');
                     $path = $uploadedFile->storeAs('media', $name, 'public');
@@ -192,7 +192,6 @@ class ContentController extends Controller
                 }
             }
 
-            // Update media yang sudah ada
             if (! empty($data['id'])) {
                 $existing = Media::find((int) $data['id']);
                 if ($existing) {
@@ -206,5 +205,98 @@ class ContentController extends Controller
 
             $content->media()->create($payload);
         }
+    }
+
+    // ── DEBUG HELPERS (hapus setelah selesai debug) ──────────────────
+
+    private function syncMediaDebug(Request $request, Content $content): array
+    {
+        $mediaInputs = $request->input('media', []);
+        $allFiles    = $request->allFiles();
+        $urlTypes    = ['youtube', 'google_drive'];
+        $results     = [];
+
+        foreach ($mediaInputs as $idx => $data) {
+            $type  = $data['media_type'] ?? 'image';
+            $isUrl = in_array($type, $urlTypes);
+
+            $row = [
+                'idx'       => $idx,
+                'type'      => $type,
+                'isUrl'     => $isUrl,
+                'file_slot' => isset($allFiles['media'][$idx]['file']) ? 'ADA' : 'TIDAK ADA',
+            ];
+
+            if (! $isUrl) {
+                $f = $allFiles['media'][$idx]['file'] ?? null;
+                if ($f instanceof UploadedFile) {
+                    $row['file_detail'] = [
+                        'name'    => $f->getClientOriginalName(),
+                        'size'    => $f->getSize(),
+                        'error'   => $f->getError(),
+                        'tmpPath' => $f->getRealPath(),
+                        'ext'     => $f->getClientOriginalExtension(),
+                    ];
+                    if ($f->getError() === UPLOAD_ERR_OK) {
+                        $ext  = $f->getClientOriginalExtension();
+                        $name = uniqid('media_', true) . ($ext ? '.' . $ext : '');
+                        try {
+                            $path = $f->storeAs('media', $name, 'public');
+                            $row['stored_path'] = $path;
+                            $row['store_ok']    = true;
+                        } catch (\Throwable $e) {
+                            $row['store_error'] = $e->getMessage();
+                            $row['store_ok']    = false;
+                        }
+                    } else {
+                        $row['upload_error_code'] = $f->getError();
+                    }
+                } else {
+                    $row['file_detail'] = 'bukan UploadedFile: ' . gettype($f);
+                }
+            }
+
+            $results[] = $row;
+        }
+
+        return $results;
+    }
+
+    private function describeFiles(array $files): array
+    {
+        $out = [];
+        foreach ($files as $key => $val) {
+            if (is_array($val)) {
+                $out[$key] = $this->describeFiles($val);
+            } elseif ($val instanceof UploadedFile) {
+                $out[$key] = [
+                    'name'  => $val->getClientOriginalName(),
+                    'size'  => $val->getSize(),
+                    'error' => $val->getError(),
+                    'tmp'   => $val->getRealPath(),
+                ];
+            } else {
+                $out[$key] = $val;
+            }
+        }
+        return $out;
+    }
+
+    private function describeRawFiles(array $files): array
+    {
+        // Hanya tampilkan struktur $_FILES tanpa data biner
+        $out = [];
+        foreach ($files as $key => $info) {
+            if (is_array($info)) {
+                $out[$key] = [
+                    'name'     => $info['name']     ?? null,
+                    'type'     => $info['type']     ?? null,
+                    'tmp_name' => $info['tmp_name'] ?? null,
+                    'error'    => $info['error']    ?? null,
+                    'size'     => $info['size']     ?? null,
+                ];
+            }
+        }
+        return $out;
     }
 }
