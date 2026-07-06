@@ -49,6 +49,10 @@ Route::middleware(['auth', 'role:user', 'check.active'])
         Route::get('/schemas',                   [LearningSchemaController::class, 'userIndex'])->name('schemas.index');
         Route::get('/schemas/{learningSchema}',  [LearningSchemaController::class, 'userShow'])->name('schemas.show');
 
+        // Section detail
+        Route::get('/schemas/{learningSchema}/sections/{section}',
+            [SectionController::class, 'userShow'])->name('sections.show');
+
         // Konten
         Route::get('/sections/{section}/contents/{content}',
             [ContentController::class, 'userShow'])->name('contents.show');

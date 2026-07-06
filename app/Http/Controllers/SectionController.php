@@ -9,6 +9,19 @@ use Illuminate\Http\Request;
 class SectionController extends Controller
 {
     /**
+     * Halaman detail section untuk user.
+     *
+     * Route: GET app/schemas/{learningSchema}/sections/{section}
+     * Name : user.sections.show
+     */
+    public function userShow(LearningSchema $learningSchema, Section $section)
+    {
+        $section->load(['contents', 'quizzes']);
+
+        return view('user.section', compact('learningSchema', 'section'));
+    }
+
+    /**
      * Flat list semua section (halaman Sections di bottom nav admin).
      */
     public function allIndex(Request $request)
@@ -54,7 +67,7 @@ class SectionController extends Controller
 
         return view('admin.sections.index', [
             'sections'       => $sections,
-            'learningSchema' => $learningSchema,  // untuk breadcrumb & back button di blade
+            'learningSchema' => $learningSchema,
         ]);
     }
 
