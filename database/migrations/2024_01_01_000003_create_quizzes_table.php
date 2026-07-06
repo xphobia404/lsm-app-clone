@@ -18,6 +18,10 @@ return new class extends Migration
             $table->string('option_c')->nullable();
             $table->string('option_d')->nullable();
             $table->enum('correct_answer', ['a', 'b', 'c', 'd']);
+            $table->foreignId('media_id')
+                ->nullable()
+                ->constrained('media')
+                ->nullOnDelete();
             $table->text('explanation')->nullable();
             $table->timestamps();
         });

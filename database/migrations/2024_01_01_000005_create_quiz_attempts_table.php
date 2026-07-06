@@ -13,11 +13,8 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('section_id')->constrained()->cascadeOnDelete();
             $table->unsignedInteger('attempt_number');
-            // answers: { "quiz_id": "a", "quiz_id": "c", ... }
             $table->json('answers')->nullable();
-            // score = jumlah soal benar (raw)
             $table->unsignedInteger('score')->default(0);
-            // score_percent = persentase benar (0-100)
             $table->unsignedTinyInteger('score_percent')->default(0);
             $table->boolean('passed')->default(false);
             $table->timestamp('submitted_at')->nullable();

@@ -15,6 +15,11 @@ return new class extends Migration
             $table->string('password');
             $table->enum('role', ['admin', 'user'])->default('user');
             $table->boolean('is_active')->default(true);
+            $table->foreignId('course_type_id')
+                ->nullable()
+                ->after('is_active')
+                ->constrained('course_types')
+                ->nullOnDelete();
             $table->timestamp('last_login_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
