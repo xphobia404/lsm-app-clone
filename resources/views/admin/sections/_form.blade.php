@@ -11,10 +11,6 @@
 @endif
 
 @php
-    // Tentukan nilai is_active yang akan ditampilkan:
-    // 1. Kalau ada old input (setelah validation fail) → pakai old
-    // 2. Kalau edit (ada $section) → pakai nilai dari DB (cast ke int supaya konsisten)
-    // 3. Kalau create (null) → default aktif = 1
     $isActiveVal = old('is_active', $section ? (int) $section->is_active : 1);
 @endphp
 
@@ -70,12 +66,11 @@
                    {{ in_array($ls->id, old('learning_schema_ids', $attachedSchemaIds ?? [])) ? 'checked' : '' }}
                    class="h-4 w-4 rounded accent-indigo-600">
             <span class="flex-1 text-sm text-slate-700">{{ $ls->title }}</span>
-            @unless($ls->is_active)
-            <span class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-slate-500">Nonaktif</span>
-            @endunless
+            {{-- Semua materi di list ini sudah aktif, badge nonaktif tidak perlu lagi --}}
+            <span class="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-600">Aktif</span>
         </label>
         @empty
-        <p class="px-4 py-3 text-xs text-slate-400 italic">Belum ada materi. Buat materi terlebih dahulu.</p>
+        <p class="px-4 py-3 text-xs text-slate-400 italic">Belum ada materi aktif. Aktifkan materi terlebih dahulu.</p>
         @endforelse
     </div>
     @error('learning_schema_ids')
