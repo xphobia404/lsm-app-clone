@@ -9,6 +9,7 @@ use App\Http\Controllers\SectionController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\UserDashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -28,7 +29,7 @@ Route::get('/', function () {
     if (auth()->check()) {
         return auth()->user()->role === 'admin'
             ? redirect()->route('admin.dashboard')
-            : redirect()->route('user.schemas.index');
+            : redirect()->route('user.dashboard');
     }
     return redirect()->route('login');
 });
@@ -43,7 +44,7 @@ Route::middleware(['auth', 'role:user', 'check.active'])
     ->name('user.')
     ->group(function () {
 
-        Route::get('/dashboard', fn () => redirect()->route('user.schemas.index'))->name('dashboard');
+        Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
 
         // Materi
         Route::get('/schemas',                   [LearningSchemaController::class, 'userIndex'])->name('schemas.index');
