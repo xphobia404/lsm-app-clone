@@ -14,9 +14,9 @@ return new class extends Migration
             $table->unsignedInteger('order')->default(0);
             $table->text('question');
             $table->string('option_a');
-            $table->string('option_b');
-            $table->string('option_c');
-            $table->string('option_d');
+            $table->string('option_b')->nullable();
+            $table->string('option_c')->nullable();
+            $table->string('option_d')->nullable();
             $table->enum('correct_answer', ['a', 'b', 'c', 'd']);
             $table->text('explanation')->nullable();
             $table->timestamps();
