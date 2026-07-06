@@ -8,11 +8,9 @@
         </div>
     </div>
     @include('admin.users._form', [
-        'method'          => 'PUT',
-        'action'          => route('admin.users.update', $user),
-        'user'            => $user,
-        'courseTypes'     => $courseTypes,
-        'selectedTypeIds' => $selectedTypeIds,
+        'method' => 'PUT',
+        'action' => route('admin.users.update', $user),
+        'user'   => $user,
     ])
 </div>
 </x-admin-layout>
