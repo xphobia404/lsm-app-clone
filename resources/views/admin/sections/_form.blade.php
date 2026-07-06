@@ -10,6 +10,14 @@
 </div>
 @endif
 
+@php
+    // Tentukan nilai is_active yang akan ditampilkan:
+    // 1. Kalau ada old input (setelah validation fail) → pakai old
+    // 2. Kalau edit (ada $section) → pakai nilai dari DB (cast ke int supaya konsisten)
+    // 3. Kalau create (null) → default aktif = 1
+    $isActiveVal = old('is_active', $section ? (int) $section->is_active : 1);
+@endphp
+
 {{-- Judul --}}
 <div class="space-y-1">
     <label for="title" class="block text-xs font-semibold text-slate-700">
@@ -80,13 +88,15 @@
     <label class="block text-xs font-semibold text-slate-700">Status Section</label>
     <div class="flex gap-4">
         <label class="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="is_active" value="1" class="text-indigo-600 focus:ring-indigo-300"
-                {{ old('is_active', $section ? ($section->is_active ? '1' : '0') : '1') == '1' ? 'checked' : '' }}>
+            <input type="radio" name="is_active" value="1"
+                   {{ (int) $isActiveVal === 1 ? 'checked' : '' }}
+                   class="text-indigo-600 focus:ring-indigo-300">
             <span class="text-sm text-slate-700">Aktif</span>
         </label>
         <label class="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="is_active" value="0" class="text-indigo-600 focus:ring-indigo-300"
-                {{ old('is_active', $section ? ($section->is_active ? '1' : '0') : '1') == '0' ? 'checked' : '' }}>
+            <input type="radio" name="is_active" value="0"
+                   {{ (int) $isActiveVal === 0 ? 'checked' : '' }}
+                   class="text-indigo-600 focus:ring-indigo-300">
             <span class="text-sm text-slate-700">Nonaktif</span>
         </label>
     </div>

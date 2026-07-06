@@ -10,6 +10,13 @@
 </div>
 @endif
 
+@php
+    // 1. old input (setelah validation fail) → pakai old
+    // 2. edit (ada $learningSchema) → cast ke int dari DB
+    // 3. create (null) → default aktif = 1
+    $isActiveVal = old('is_active', $learningSchema ? (int) $learningSchema->is_active : 1);
+@endphp
+
 {{-- Judul --}}
 <div class="space-y-1">
     <label for="title" class="block text-xs font-semibold text-slate-700">
@@ -52,13 +59,15 @@
     <label class="block text-xs font-semibold text-slate-700">Status Materi</label>
     <div class="flex gap-4">
         <label class="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="is_active" value="1" class="text-indigo-600 focus:ring-indigo-300"
-                {{ old('is_active', $learningSchema ? ($learningSchema->is_active ? '1' : '0') : '1') == '1' ? 'checked' : '' }}>
+            <input type="radio" name="is_active" value="1"
+                   {{ (int) $isActiveVal === 1 ? 'checked' : '' }}
+                   class="text-indigo-600 focus:ring-indigo-300">
             <span class="text-sm text-slate-700">Aktif</span>
         </label>
         <label class="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="is_active" value="0" class="text-indigo-600 focus:ring-indigo-300"
-                {{ old('is_active', $learningSchema ? ($learningSchema->is_active ? '1' : '0') : '1') == '0' ? 'checked' : '' }}>
+            <input type="radio" name="is_active" value="0"
+                   {{ (int) $isActiveVal === 0 ? 'checked' : '' }}
+                   class="text-indigo-600 focus:ring-indigo-300">
             <span class="text-sm text-slate-700">Nonaktif</span>
         </label>
     </div>
