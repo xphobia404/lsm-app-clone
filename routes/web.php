@@ -7,6 +7,7 @@ use App\Http\Controllers\LearningSchemaController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\QuizController;
+use App\Http\Controllers\Admin\AdminDashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -65,7 +66,7 @@ Route::middleware(['auth', 'role:admin'])
     ->name('admin.')
     ->group(function () {
 
-        Route::get('/dashboard', fn () => view('admin.dashboard'))->name('dashboard');
+        Route::get('/dashboard', [AdminDashboardController::class, 'dashboard'])->name('dashboard');
 
         // ── User Management ────────────────────────────────────────────
         Route::resource('users', UserController::class);
