@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\LearningSchema;
 use App\Models\UserProgress;
-use Illuminate\Support\Facades\DB;
 
 class UserDashboardController extends Controller
 {
     public function index()
     {
         $user = auth()->user();
+
+        // Hanya schema yang di-enroll admin ke user ini
+        $schemas = $user->learningSchemas()
+            ->with(['sections' => fn ($q) => $q->where('is_active', true)])
+            ->get();
 
         // Semua progress user
         $allProgress = UserProgress::forUser($user->id)
@@ -32,12 +35,6 @@ class UserDashboardController extends Controller
             ? (int) round($quizAttempts->avg(fn ($a) => $a->getScorePercentage()))
             : 0;
 
-        // Semua learning schema aktif beserta progres per-schema
-        $schemas = LearningSchema::active()
-            ->with(['sections' => fn ($q) => $q->where('is_active', true)])
-            ->latest()
-            ->get();
-
         $progressMap = $allProgress->pluck('status', 'section_id');
 
         $schemaStats = $schemas->map(function ($schema) use ($progressMap) {
@@ -48,15 +45,16 @@ class UserDashboardController extends Controller
             $pct        = $total > 0 ? (int) round(($done / $total) * 100) : 0;
 
             return [
-                'schema'  => $schema,
-                'total'   => $total,
-                'done'    => $done,
-                'ongoing' => $ongoing,
-                'pct'     => $pct,
+                'schema'       => $schema,
+                'total'        => $total,
+                'done'         => $done,
+                'ongoing'      => $ongoing,
+                'pct'          => $pct,
+                'enrollStatus' => $schema->pivot->status ?? 'active',
             ];
         });
 
-        // Section yang sedang in_progress (lanjutkan belajar)
+        // Section yang sedang in_progress
         $continueSections = $allProgress
             ->where('status', 'in_progress')
             ->sortByDesc('updated_at')

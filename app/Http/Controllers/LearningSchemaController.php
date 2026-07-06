@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\LearningSchema;
 use App\Models\Section;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class LearningSchemaController extends Controller
 {
@@ -131,18 +130,18 @@ class LearningSchemaController extends Controller
 
     public function userIndex(Request $request)
     {
-        $schemas = LearningSchema::active()
+        $user = auth()->user();
+
+        // Hanya schema yang di-enroll admin ke user ini
+        $schemas = $user->learningSchemas()
             ->with(['sections' => fn ($q) => $q->where('is_active', true)])
             ->when($request->filled('search'), fn ($q) =>
                 $q->where('title', 'like', "%{$request->search}%")
             )
-            ->latest()
             ->paginate(12)
             ->withQueryString();
 
-        $user = auth()->user();
-
-        // progressMap: section_id => status (string)
+        // progressMap: section_id => status string
         $allSectionIds = $schemas->flatMap(fn ($s) => $s->sections->pluck('id'));
         $progressMap   = $user->progresses()
             ->whereIn('section_id', $allSectionIds)
@@ -153,7 +152,12 @@ class LearningSchemaController extends Controller
 
     public function userShow(LearningSchema $learningSchema)
     {
-        abort_if(! $learningSchema->is_active, 404);
+        // Pastikan user memang di-enroll ke schema ini
+        abort_unless(
+            auth()->user()->isEnrolledIn($learningSchema->id),
+            403,
+            'Kamu belum terdaftar di materi ini.'
+        );
 
         $learningSchema->load([
             'sections' => fn ($q) => $q->where('is_active', true)
