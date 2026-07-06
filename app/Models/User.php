@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -34,7 +35,20 @@ class User extends Authenticatable
         ];
     }
 
-    // Scopes
+    // ── Relationships ───────────────────────────────────────────────
+
+    public function progresses(): HasMany
+    {
+        return $this->hasMany(UserProgress::class);
+    }
+
+    public function quizAttempts(): HasMany
+    {
+        return $this->hasMany(QuizAttempt::class);
+    }
+
+    // ── Scopes ──────────────────────────────────────────────────
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
@@ -45,20 +59,44 @@ class User extends Authenticatable
         return $query->where('role', 'admin');
     }
 
-    // Relationships
-    public function progresses()
+    public function scopeUsers($query)
     {
-        return $this->hasMany(UserProgress::class);
+        return $query->where('role', 'user');
     }
 
-    public function quizAttempts()
+    /**
+     * Scope search by name, username, or email.
+     * Contoh: User::search('budi')->get()
+     */
+    public function scopeSearch($query, string $keyword)
     {
-        return $this->hasMany(QuizAttempt::class);
+        return $query->where(function ($q) use ($keyword) {
+            $q->where('name', 'like', "%{$keyword}%")
+              ->orWhere('username', 'like', "%{$keyword}%")
+              ->orWhere('email', 'like', "%{$keyword}%");
+        });
     }
 
-    // Helpers
+    // ── Helpers ──────────────────────────────────────────────────
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    public function isUser(): bool
+    {
+        return $this->role === 'user';
+    }
+
+    /**
+     * Update last_login_at ke waktu sekarang.
+     * Dipanggil setelah Auth::attempt() berhasil di LoginController.
+     */
+    public function touchLastLogin(): void
+    {
+        $this->timestamps = false; // jangan update updated_at
+        $this->update(['last_login_at' => now()]);
+        $this->timestamps = true;
     }
 }
