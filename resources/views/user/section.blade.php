@@ -11,35 +11,32 @@
 <style>
 .media-split {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     align-items: flex-start;
 }
+/* Gambar: 1/4 lebar */
 .media-split__img {
-    flex: 1 1 0;
+    flex: 0 0 25%;
+    max-width: 25%;
     min-width: 0;
-}
-.media-split__img img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 14px;
-    display: block;
 }
 .media-split__img-wrap {
     width: 100%;
     aspect-ratio: 1 / 1;
-    border-radius: 14px;
+    border-radius: 12px;
     overflow: hidden;
     background: #f1f5f9;
 }
+.media-split__img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+/* Teks: 3/4 lebar */
 .media-split__text {
     flex: 1 1 0;
     min-width: 0;
-}
-/* Kalau tidak ada teks, gambar tetap setengah lebar bukan full */
-.media-split--no-text .media-split__img {
-    flex: 0 0 50%;
-    max-width: 50%;
 }
 /* Gambar saja tanpa teks: tampil penuh */
 .media-img-only {
@@ -138,9 +135,8 @@
             </div>
             @endif
 
-            {{-- ════ BLOK 2: LAYOUT SETENGAH-SETENGAH (gambar | teks) ════ --}}
+            {{-- ════ BLOK 2: LAYOUT 1/4 gambar | 3/4 teks ════ --}}
             @if($hasImage && $hasBody)
-            {{-- Ada gambar DAN teks: 50% | 50% --}}
             <div class="mb-4 media-split">
                 <div class="media-split__img">
                     @foreach($images as $img)
@@ -160,7 +156,6 @@
             </div>
 
             @elseif($hasImage && !$hasBody)
-            {{-- Gambar saja tanpa teks: tampil penuh lebar --}}
             <div class="mb-4 space-y-2">
                 @foreach($images as $img)
                 <div class="media-img-only">
@@ -175,7 +170,6 @@
             </div>
 
             @elseif(!$hasImage && $hasBody && !$content->isUrl() && !$content->isFile())
-            {{-- Teks saja tanpa gambar: tampil penuh lebar --}}
             <div class="mb-4 content-body text-sm text-slate-700 leading-relaxed">
                 {!! $content->body !!}
             </div>
