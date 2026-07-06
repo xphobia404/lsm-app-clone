@@ -74,24 +74,62 @@
                 @csrf
                 <div class="space-y-4">
                     @foreach($quizzes as $i => $quiz)
-                    <div class="rounded-2xl bg-white border border-slate-100 shadow-sm px-5 py-5">
-                        <p class="text-xs font-bold text-indigo-500 mb-1">Soal {{ $i + 1 }}</p>
-                        <p class="text-sm font-semibold text-slate-800 mb-3">{{ $quiz->question }}</p>
+                    <div class="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
 
-                        <div class="space-y-2">
-                            @foreach(['a','b','c','d'] as $opt)
-                            @php $val = $quiz->{'option_'.$opt}; @endphp
-                            @if($val)
-                            <label class="flex items-start gap-3 cursor-pointer rounded-xl border border-slate-200 px-3 py-2.5 has-[:checked]:border-indigo-400 has-[:checked]:bg-indigo-50 transition">
-                                <input type="radio"
-                                       name="answers[{{ $quiz->id }}]"
-                                       value="{{ $opt }}"
-                                       class="mt-0.5 accent-indigo-600">
-                                <span class="text-sm text-slate-700">{{ strtoupper($opt) }}. {{ $val }}</span>
-                            </label>
-                            @endif
-                            @endforeach
+                        {{-- Nomor soal --}}
+                        <div class="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
+                            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">{{ $i + 1 }}</span>
+                            <p class="text-xs text-slate-500">Soal {{ $i + 1 }} dari {{ $quizzes->count() }}</p>
                         </div>
+
+                        <div class="px-4 py-4 space-y-3">
+                            {{-- Pertanyaan --}}
+                            <p class="text-sm font-semibold text-slate-800 leading-relaxed">{{ $quiz->question }}</p>
+
+                            {{-- Gambar soal --}}
+                            @if($quiz->activeMedia->isNotEmpty())
+                            <div class="space-y-2">
+                                @foreach($quiz->activeMedia as $img)
+                                <div class="rounded-xl overflow-hidden border border-slate-100">
+                                    @if($img->file_path)
+                                    <img src="{{ Storage::url($img->file_path) }}"
+                                         alt="{{ $img->title ?: 'Gambar soal ' . ($i + 1) }}"
+                                         loading="lazy"
+                                         class="w-full max-h-64 object-contain bg-slate-50">
+                                    @elseif($img->url)
+                                    <img src="{{ $img->url }}"
+                                         alt="{{ $img->title ?: 'Gambar soal ' . ($i + 1) }}"
+                                         loading="lazy"
+                                         class="w-full max-h-64 object-contain bg-slate-50">
+                                    @endif
+                                    @if($img->title)
+                                    <p class="px-3 py-1.5 text-xs text-slate-500 bg-slate-50">{{ $img->title }}</p>
+                                    @endif
+                                    @if($img->description)
+                                    <p class="px-3 pb-2 text-[10px] text-slate-400 italic">{{ $img->description }}</p>
+                                    @endif
+                                </div>
+                                @endforeach
+                            </div>
+                            @endif
+
+                            {{-- Pilihan jawaban --}}
+                            <div class="space-y-2">
+                                @foreach(['a','b','c','d'] as $opt)
+                                @php $val = $quiz->{'option_'.$opt}; @endphp
+                                @if($val)
+                                <label class="flex items-start gap-3 cursor-pointer rounded-xl border border-slate-200 px-3 py-2.5 has-[:checked]:border-indigo-400 has-[:checked]:bg-indigo-50 transition">
+                                    <input type="radio"
+                                           name="answers[{{ $quiz->id }}]"
+                                           value="{{ $opt }}"
+                                           class="mt-0.5 accent-indigo-600">
+                                    <span class="text-sm text-slate-700">{{ strtoupper($opt) }}. {{ $val }}</span>
+                                </label>
+                                @endif
+                                @endforeach
+                            </div>
+                        </div>
+
                     </div>
                     @endforeach
                 </div>

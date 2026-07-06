@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 class QuizController extends Controller
 {
-    // ── ADMIN ────────────────────────────────────────────────────────────
+    // ── ADMIN ────────────────────────────────────────────────────────────────────
 
     public function index(Request $request, Section $section)
     {
@@ -154,14 +154,20 @@ class QuizController extends Controller
         return back()->with('success', "Quiz berhasil {$label}.");
     }
 
-    // ── USER-FACING ──────────────────────────────────────────────────────
+    // ── USER-FACING ────────────────────────────────────────────────────────────────
 
     public function userIndex(Section $section)
     {
         abort_if(! $section->is_active, 404);
 
-        $quizzes = $section->quizzes()->active()->orderBy('quiz_order')->get();
-        $user    = auth()->user();
+        // eager-load gambar (type=image) saja yang aktif
+        $quizzes = $section->quizzes()
+            ->active()
+            ->with(['activeMedia' => fn ($q) => $q->where('media_type', 'image')])
+            ->orderBy('quiz_order')
+            ->get();
+
+        $user = auth()->user();
 
         $lastAttempt = QuizAttempt::where('user_id', $user->id)
             ->where('section_id', $section->id)
@@ -207,13 +213,11 @@ class QuizController extends Controller
             $results[$quiz->id] = [
                 'user_answer' => $userAnswer,
                 'is_correct'  => $isCorrect,
-                // Jawaban benar & explanation HANYA ditampilkan jika semua benar (passed)
             ];
         }
 
         $passed = $correctCount === $quizzes->count();
 
-        // Simpan attempt
         QuizAttempt::create([
             'user_id'         => auth()->id(),
             'section_id'      => $section->id,
@@ -222,7 +226,6 @@ class QuizController extends Controller
             'attempted_at'    => now(),
         ]);
 
-        // Update progress hanya jika 100% benar
         if ($passed) {
             auth()->user()->progresses()
                 ->where('section_id', $section->id)
@@ -236,7 +239,7 @@ class QuizController extends Controller
         ));
     }
 
-    // ── PRIVATE ──────────────────────────────────────────────────────────
+    // ── PRIVATE ────────────────────────────────────────────────────────────────
 
     private function syncMedia(Request $request, Quiz $quiz): void
     {
