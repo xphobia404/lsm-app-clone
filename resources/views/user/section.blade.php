@@ -7,7 +7,6 @@
     $hasQuiz     = $quizzes->isNotEmpty();
     if ($totalSlides === 0) $totalSlides = 1;
 
-    // Content IDs sebagai array JS
     $contentIdsJs = $contents->pluck('id')->toJson();
 @endphp
 
@@ -51,6 +50,20 @@
     display: block;
     border-radius: 14px;
 }
+.embed-wrap {
+    position: relative;
+    padding-top: 56.25%;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #0f172a;
+}
+.embed-wrap iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
 </style>
 
 <div class="flex flex-col" style="min-height:100dvh">
@@ -92,11 +105,14 @@
             $images   = $media->filter(fn($m) => $m->isImage());
             $videos   = $media->filter(fn($m) => $m->isVideo());
             $audios   = $media->filter(fn($m) => $m->isAudio());
+            $youtubes = $media->filter(fn($m) => $m->isYouTube());
+            $drives   = $media->filter(fn($m) => $m->isGoogleDrive());
             $hasImage = $images->isNotEmpty();
             $hasBody  = !empty(trim(strip_tags($content->body ?? '')));
 
+            // Embed URL untuk video dari field content.url (tipe video/url)
             $embedVideo = function(string $url): string {
-                if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/', $url, $m)) {
+                if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([\\w-]+)/', $url, $m)) {
                     return 'https://www.youtube.com/embed/' . $m[1];
                 }
                 return $url;
@@ -114,7 +130,7 @@
                 </div>
             </div>
 
-            {{-- VIDEO --}}
+            {{-- VIDEO (file upload atau URL langsung di content) --}}
             @php
                 $vRaw = '';
                 if ($content->isVideo() && $content->url) {
@@ -127,13 +143,58 @@
                 $vEmbed = $vRaw ? $embedVideo($vRaw) : '';
             @endphp
             @if($vEmbed)
-            <div class="mb-4 rounded-2xl overflow-hidden bg-slate-900" style="position:relative; padding-top:56.25%">
+            <div class="mb-4 embed-wrap">
                 <iframe src="{{ $vEmbed }}"
-                        class="absolute inset-0 h-full w-full"
                         frameborder="0" allowfullscreen
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
             </div>
             @endif
+
+            {{-- YOUTUBE MEDIA --}}
+            @foreach($youtubes as $yt)
+            @php $ytEmbed = $yt->getYouTubeEmbedUrl(); @endphp
+            @if($ytEmbed)
+            <div class="mb-4">
+                @if($yt->title)
+                <p class="mb-1.5 text-xs font-semibold text-slate-600 flex items-center gap-1">
+                    <svg class="h-3.5 w-3.5 text-red-500" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                    {{ $yt->title }}
+                </p>
+                @endif
+                <div class="embed-wrap">
+                    <iframe src="{{ $ytEmbed }}"
+                            frameborder="0" allowfullscreen
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>
+                </div>
+                @if($yt->description)
+                <p class="mt-1.5 text-[10px] text-slate-400 leading-relaxed">{{ $yt->description }}</p>
+                @endif
+            </div>
+            @endif
+            @endforeach
+
+            {{-- GOOGLE DRIVE MEDIA --}}
+            @foreach($drives as $drive)
+            @php $driveEmbed = $drive->getGoogleDriveEmbedUrl(); @endphp
+            @if($driveEmbed)
+            <div class="mb-4">
+                @if($drive->title)
+                <p class="mb-1.5 text-xs font-semibold text-slate-600 flex items-center gap-1">
+                    <svg class="h-3.5 w-3.5 text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M4.433 22.396l4-6.929H24l-4 6.929H4.433zm3.566-6.929L2.566 6.536l4-6.929 5.434 9.403-4.001 6.857zM13.567 8.01L18.992.107 24 9.01H13.567z"/></svg>
+                    {{ $drive->title }}
+                </p>
+                @endif
+                <div class="embed-wrap">
+                    <iframe src="{{ $driveEmbed }}"
+                            frameborder="0" allowfullscreen
+                            allow="autoplay"></iframe>
+                </div>
+                @if($drive->description)
+                <p class="mt-1.5 text-[10px] text-slate-400 leading-relaxed">{{ $drive->description }}</p>
+                @endif
+            </div>
+            @endif
+            @endforeach
 
             {{-- 1/4 gambar | 3/4 teks --}}
             @if($hasImage && $hasBody)
@@ -328,7 +389,7 @@
 <script>
 (function () {
     const total       = {{ $totalSlides }};
-    const contentIds  = {!! $contentIdsJs !!};   // array id konten
+    const contentIds  = {!! $contentIdsJs !!};
     const progressUrl = '{{ route('user.sections.progress.update', $section) }}';
     const csrfToken   = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
 
@@ -339,15 +400,11 @@
     const bar     = document.getElementById('progress-bar');
     const dots    = document.querySelectorAll('.dot');
 
-    // Set untuk melacak slide mana saja yang sudah dibaca
     const readSlides = new Set();
     let cur = 0;
 
-    // ── Kirim progres ke server ──────────────────────────────────────
     function saveProgress(slideIndex) {
         readSlides.add(slideIndex);
-
-        // Kumpulkan content_ids yang sudah dibaca (hanya slide konten, bukan quiz)
         const readContentIds = Array.from(readSlides)
             .filter(i => i < contentIds.length)
             .map(i => contentIds[i]);
@@ -360,14 +417,13 @@
                 'Accept'      : 'application/json',
             },
             body: JSON.stringify({
-                slide_index  : Math.max(...readSlides),   // slide terjauh yang sudah dilihat
+                slide_index  : Math.max(...readSlides),
                 total_slides : total,
                 content_ids  : readContentIds,
             }),
-        }).catch(() => {/* silent fail */});
+        }).catch(() => {});
     }
 
-    // ── Update UI ────────────────────────────────────────────────────
     function setPrev(on) {
         btnPrev.style.opacity       = on ? '1'    : '0.3';
         btnPrev.style.pointerEvents = on ? 'auto' : 'none';
@@ -397,9 +453,7 @@
             btnNext.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)';
         }
 
-        // Catat slide ini sebagai sudah dibaca & kirim ke server
         saveProgress(cur);
-
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -412,7 +466,6 @@
         }
     });
 
-    // Swipe
     let sx = 0;
     const area = track.parentElement;
     area.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
@@ -421,7 +474,6 @@
         if (Math.abs(diff) > 50) diff > 0 ? goTo(cur + 1) : goTo(cur - 1);
     });
 
-    // Inisiasi: catat slide pertama
     goTo(0);
 }());
 </script>
