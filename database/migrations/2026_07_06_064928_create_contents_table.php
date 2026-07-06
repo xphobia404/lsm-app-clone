@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('contents', function (Blueprint $table) {
@@ -17,7 +14,10 @@ return new class extends Migration
                 ->constrained('sections')
                 ->cascadeOnDelete();
 
-            $table->longText('description');
+            $table->string('title');
+            $table->enum('content_type', ['text', 'video', 'file', 'url'])->default('text');
+            $table->longText('body')->nullable();
+            $table->string('url', 2000)->nullable();
             $table->unsignedInteger('content_order')->default(0);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
@@ -26,9 +26,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('contents');

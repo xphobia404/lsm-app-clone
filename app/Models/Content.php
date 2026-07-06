@@ -2,29 +2,41 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Content extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'section_id',
-        'description',
+        'title',
+        'content_type',
+        'body',
+        'url',
         'content_order',
         'is_active',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'is_active'     => 'boolean',
+        'content_order' => 'integer',
+    ];
+
+    // ── Relationships ────────────────────────────────────────────────
+
+    public function section(): BelongsTo
     {
-        return [
-            'is_active'     => 'boolean',
-            'content_order' => 'integer',
-        ];
+        return $this->belongsTo(Section::class);
     }
 
-    // Scopes
+    public function media(): MorphMany
+    {
+        return $this->morphMany(Media::class, 'mediable');
+    }
+
+    // ── Scopes ───────────────────────────────────────────────────────
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
@@ -35,14 +47,20 @@ class Content extends Model
         return $query->orderBy('content_order');
     }
 
-    // Relationships
-    public function section()
-    {
-        return $this->belongsTo(Section::class);
-    }
+    // ── Helpers ───────────────────────────────────────────────────────
 
-    public function media()
+    public function isText(): bool  { return $this->content_type === 'text'; }
+    public function isVideo(): bool { return $this->content_type === 'video'; }
+    public function isFile(): bool  { return $this->content_type === 'file'; }
+    public function isUrl(): bool   { return $this->content_type === 'url'; }
+
+    public function getTypeIcon(): string
     {
-        return $this->morphMany(Media::class, 'mediable')->orderBy('media_order');
+        return match ($this->content_type) {
+            'video' => '🎬',
+            'file'  => '📎',
+            'url'   => '🔗',
+            default => '📄',
+        };
     }
 }
