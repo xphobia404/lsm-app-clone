@@ -168,7 +168,6 @@ class QuizController extends Controller
             ->latest('attempted_at')
             ->first();
 
-        // Ambil learningSchema pertama yang terkait section ini (untuk back button)
         $learningSchema = $section->learningSchemas()->first();
 
         return view('user.quizzes.index', compact('section', 'quizzes', 'lastAttempt', 'learningSchema'));
@@ -196,7 +195,7 @@ class QuizController extends Controller
     {
         abort_if(! $section->is_active, 404);
 
-        $quizzes = $section->quizzes()->active()->get();
+        $quizzes = $section->quizzes()->active()->orderBy('quiz_order')->get();
         $answers = $request->input('answers', []);
 
         $correctCount = 0;
@@ -206,13 +205,15 @@ class QuizController extends Controller
             $isCorrect  = $userAnswer === $quiz->correct_answer;
             if ($isCorrect) $correctCount++;
             $results[$quiz->id] = [
-                'user_answer'    => $userAnswer,
-                'correct_answer' => $quiz->correct_answer,
-                'is_correct'     => $isCorrect,
-                'explanation'    => $quiz->explanation,
+                'user_answer' => $userAnswer,
+                'is_correct'  => $isCorrect,
+                // Jawaban benar & explanation HANYA ditampilkan jika semua benar (passed)
             ];
         }
 
+        $passed = $correctCount === $quizzes->count();
+
+        // Simpan attempt
         QuizAttempt::create([
             'user_id'         => auth()->id(),
             'section_id'      => $section->id,
@@ -221,11 +222,8 @@ class QuizController extends Controller
             'attempted_at'    => now(),
         ]);
 
-        $percentage = $quizzes->count() > 0
-            ? round(($correctCount / $quizzes->count()) * 100)
-            : 0;
-
-        if ($percentage >= 70) {
+        // Update progress hanya jika 100% benar
+        if ($passed) {
             auth()->user()->progresses()
                 ->where('section_id', $section->id)
                 ->update(['status' => 'completed', 'completed_at' => now()]);
@@ -234,7 +232,7 @@ class QuizController extends Controller
         $learningSchema = $section->learningSchemas()->first();
 
         return view('user.quizzes.result', compact(
-            'section', 'quizzes', 'results', 'correctCount', 'percentage', 'learningSchema'
+            'section', 'quizzes', 'results', 'correctCount', 'passed', 'learningSchema'
         ));
     }
 
