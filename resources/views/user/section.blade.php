@@ -22,7 +22,7 @@
         @if($section->contents->isNotEmpty())
             <div class="space-y-3 mb-6">
                 @foreach($section->contents as $content)
-                    <a href="{{ route('user.contents.show', [$section->learningSchema, $section, $content]) }}"
+                    <a href="{{ route('user.contents.show', [$section, $content]) }}"
                        class="flex items-center gap-3 rounded-2xl bg-white border border-slate-100 px-4 py-3 shadow-sm active:scale-[0.98] transition">
                         <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -42,7 +42,7 @@
 
         {{-- Quiz CTA --}}
         @if($section->quizzes->isNotEmpty())
-            <a href="{{ route('user.quizzes.show', [$section->learningSchema, $section]) }}"
+            <a href="{{ route('user.quizzes.index', $section) }}"
                class="flex items-center justify-between rounded-2xl bg-indigo-600 px-5 py-4 text-white shadow active:bg-indigo-700 transition">
                 <div>
                     <p class="text-sm font-bold">Kerjakan Quiz</p>
