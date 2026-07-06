@@ -42,7 +42,6 @@ class DashboardController extends Controller
             ->orderBy('order')
             ->get();
 
-        // Group sections by course_type_id untuk tampilan per spesialisasi
         $sectionsMap = $sections->groupBy('course_type_id');
 
         if ($sections->isEmpty()) {
@@ -114,5 +113,21 @@ class DashboardController extends Controller
         }
 
         return view('user.courses', $data);
+    }
+
+    /**
+     * [FITUR BARU] Riwayat semua quiz attempts user.
+     * Route: GET /app/history
+     */
+    public function history()
+    {
+        $user = auth()->user();
+
+        $attempts = QuizAttempt::where('user_id', $user->id)
+            ->with(['section:id,title,course_type_id', 'section.courseType:id,name,icon'])
+            ->orderByDesc('submitted_at')
+            ->paginate(15);
+
+        return view('user.history', compact('attempts'));
     }
 }

@@ -3,14 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ResetPasswordRequest;
+use App\Http\Requests\Admin\ResetProgressRequest;
+use App\Http\Requests\Admin\StoreUserRequest;
+use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\CourseType;
 use App\Models\Section;
 use App\Models\User;
 use App\Models\UserProgress;
 use App\Models\QuizAttempt;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
@@ -18,7 +20,7 @@ class UserController extends Controller
     // Index
     // =========================================================================
 
-    public function index(Request $request)
+    public function index(\Illuminate\Http\Request $request)
     {
         $perPage = in_array($request->input('per_page'), [5, 10, 25])
             ? (int) $request->input('per_page')
@@ -62,16 +64,9 @@ class UserController extends Controller
         return view('admin.users.create', compact('courseTypes'));
     }
 
-    public function store(Request $request)
+    public function store(StoreUserRequest $request)
     {
-        $data = $request->validate([
-            'name'              => 'required|string|max:255',
-            'username'          => 'required|string|max:50|unique:users',
-            'email'             => 'nullable|email|max:255|unique:users',
-            'password'          => ['required', Password::min(6)],
-            'course_type_ids'   => 'nullable|array',
-            'course_type_ids.*' => 'exists:course_types,id',
-        ]);
+        $data = $request->validated();
 
         $data['role']     = 'user';
         $data['password'] = Hash::make($data['password']);
@@ -100,12 +95,10 @@ class UserController extends Controller
             ? Section::whereIn('course_type_id', $courseTypeIds)->orderBy('course_type_id')->orderBy('order')->get()
             : Section::orderBy('order')->get();
 
-        // Progress di-key by section_id
         $progress = UserProgress::where('user_id', $user->id)
             ->get()
             ->keyBy('section_id');
 
-        // Statistik attempt per section
         $attemptsPerSection = QuizAttempt::where('user_id', $user->id)
             ->selectRaw('
                 section_id,
@@ -134,15 +127,9 @@ class UserController extends Controller
         return view('admin.users.edit', compact('user', 'courseTypes', 'selectedTypeIds'));
     }
 
-    public function update(Request $request, User $user)
+    public function update(UpdateUserRequest $request, User $user)
     {
-        $data = $request->validate([
-            'name'              => 'required|string|max:255',
-            'username'          => 'required|string|max:50|unique:users,username,' . $user->id,
-            'email'             => 'nullable|email|max:255|unique:users,email,' . $user->id,
-            'course_type_ids'   => 'nullable|array',
-            'course_type_ids.*' => 'exists:course_types,id',
-        ]);
+        $data = $request->validated();
 
         $user->update(collect($data)->except('course_type_ids')->toArray());
         $user->courseTypes()->sync($data['course_type_ids'] ?? []);
@@ -170,13 +157,9 @@ class UserController extends Controller
     // Actions
     // =========================================================================
 
-    public function resetPassword(Request $request, User $user)
+    public function resetPassword(ResetPasswordRequest $request, User $user)
     {
-        $request->validate([
-            'password' => ['required', Password::min(6)],
-        ]);
-
-        $user->update(['password' => Hash::make($request->password)]);
+        $user->update(['password' => Hash::make($request->validated('password'))]);
 
         return back()->with('success', 'Password berhasil direset.');
     }
@@ -192,17 +175,13 @@ class UserController extends Controller
 
     /**
      * Reset seluruh progress & quiz attempts user untuk course type tertentu.
-     * Berguna ketika admin ingin user mengulang dari awal pada 1 spesialisasi.
      * Route: POST /admin/users/{user}/reset-progress
      */
-    public function resetProgress(Request $request, User $user)
+    public function resetProgress(ResetProgressRequest $request, User $user)
     {
-        $request->validate([
-            'course_type_id' => 'required|exists:course_types,id',
-        ]);
+        $courseTypeId = $request->validated('course_type_id');
 
-        $sectionIds = Section::where('course_type_id', $request->course_type_id)
-            ->pluck('id');
+        $sectionIds = Section::where('course_type_id', $courseTypeId)->pluck('id');
 
         UserProgress::where('user_id', $user->id)
             ->whereIn('section_id', $sectionIds)
@@ -212,7 +191,7 @@ class UserController extends Controller
             ->whereIn('section_id', $sectionIds)
             ->delete();
 
-        $courseTypeName = CourseType::find($request->course_type_id)?->name ?? 'Course Type';
+        $courseTypeName = CourseType::find($courseTypeId)?->name ?? 'Course Type';
 
         return back()->with('success', "Progress user untuk spesialisasi '{$courseTypeName}' berhasil direset.");
     }

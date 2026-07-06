@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\UserController as AdminUser;
 use App\Http\Controllers\Admin\SectionController as AdminSection;
 use App\Http\Controllers\Admin\QuizController as AdminQuiz;
 use App\Http\Controllers\Admin\CourseTypeController as AdminCourseType;
+use App\Http\Controllers\Admin\MediaController as AdminMedia;
 
 /*
 |--------------------------------------------------------------------------
@@ -46,11 +47,15 @@ Route::middleware(['auth', 'role:user', 'check.active'])
         Route::get('/pilih-spesialisasi', [UserCourseType::class, 'select'])->name('course-type.select');
         Route::post('/pilih-spesialisasi', [UserCourseType::class, 'store'])->name('course-type.store');
 
-        Route::get('/dashboard', [UserDashboard::class, 'index'])->name('dashboard');
-        Route::get('/courses',   [UserDashboard::class, 'courses'])->name('courses');
-        Route::get('/section/{section}', [UserSection::class, 'show'])->name('section.show');
-        Route::get('/section/{section}/quiz', [UserQuiz::class, 'show'])->name('quiz.show');
-        Route::post('/section/{section}/quiz', [UserQuiz::class, 'submit'])->name('quiz.submit');
+        Route::get('/dashboard',           [UserDashboard::class, 'index'])->name('dashboard');
+        Route::get('/courses',             [UserDashboard::class, 'courses'])->name('courses');
+
+        // [FITUR BARU] Riwayat quiz attempts
+        Route::get('/history',             [UserDashboard::class, 'history'])->name('history');
+
+        Route::get('/section/{section}',             [UserSection::class, 'show'])->name('section.show');
+        Route::get('/section/{section}/quiz',        [UserQuiz::class, 'show'])->name('quiz.show');
+        Route::post('/section/{section}/quiz',       [UserQuiz::class, 'submit'])->name('quiz.submit');
     });
 
 /*
@@ -70,9 +75,11 @@ Route::middleware(['auth', 'role:admin'])
 
         // User Management
         Route::resource('users', AdminUser::class)->except(['show']);
-        Route::get('/users/{user}/detail', [AdminUser::class, 'show'])->name('users.show');
+        Route::get('/users/{user}/detail',          [AdminUser::class, 'show'])->name('users.show');
         Route::post('/users/{user}/reset-password', [AdminUser::class, 'resetPassword'])->name('users.reset-password');
-        Route::post('/users/{user}/toggle-active', [AdminUser::class, 'toggleActive'])->name('users.toggle-active');
+        Route::post('/users/{user}/toggle-active',  [AdminUser::class, 'toggleActive'])->name('users.toggle-active');
+        // [FITUR BARU] Reset progress user per spesialisasi
+        Route::post('/users/{user}/reset-progress', [AdminUser::class, 'resetProgress'])->name('users.reset-progress');
 
         // Section Management
         Route::resource('sections', AdminSection::class);
@@ -82,11 +89,19 @@ Route::middleware(['auth', 'role:admin'])
         Route::prefix('sections/{section}')
             ->name('sections.')
             ->group(function () {
-                Route::get('/quizzes', [AdminQuiz::class, 'index'])->name('quizzes.index');
-                Route::get('/quizzes/create', [AdminQuiz::class, 'create'])->name('quizzes.create');
-                Route::post('/quizzes', [AdminQuiz::class, 'store'])->name('quizzes.store');
-                Route::get('/quizzes/{quiz}/edit', [AdminQuiz::class, 'edit'])->name('quizzes.edit');
-                Route::put('/quizzes/{quiz}', [AdminQuiz::class, 'update'])->name('quizzes.update');
-                Route::delete('/quizzes/{quiz}', [AdminQuiz::class, 'destroy'])->name('quizzes.destroy');
+                Route::get('/quizzes',              [AdminQuiz::class, 'index'])->name('quizzes.index');
+                Route::get('/quizzes/create',       [AdminQuiz::class, 'create'])->name('quizzes.create');
+                Route::post('/quizzes',             [AdminQuiz::class, 'store'])->name('quizzes.store');
+                Route::get('/quizzes/{quiz}/edit',  [AdminQuiz::class, 'edit'])->name('quizzes.edit');
+                Route::put('/quizzes/{quiz}',       [AdminQuiz::class, 'update'])->name('quizzes.update');
+                Route::delete('/quizzes/{quiz}',    [AdminQuiz::class, 'destroy'])->name('quizzes.destroy');
+
+                // Media Management
+                Route::post('/media',               [AdminMedia::class, 'storeForSection'])->name('media.store-section');
+                Route::post('/quizzes/{quiz}/media',[AdminMedia::class, 'storeForQuiz'])->name('quizzes.media.store');
             });
+
+        // Media Management (standalone)
+        Route::delete('/media/{media}',             [AdminMedia::class, 'destroy'])->name('media.destroy');
+        Route::put('/media/reorder',                [AdminMedia::class, 'reorder'])->name('media.reorder');
     });

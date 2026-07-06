@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreCourseTypeRequest;
+use App\Http\Requests\Admin\UpdateCourseTypeRequest;
 use App\Models\CourseType;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class CourseTypeController extends Controller
@@ -31,18 +32,11 @@ class CourseTypeController extends Controller
         return view('admin.course-types.create');
     }
 
-    public function store(Request $request)
+    public function store(StoreCourseTypeRequest $request)
     {
-        $data = $request->validate([
-            'name'        => 'required|string|max:100',
-            'description' => 'nullable|string',
-            'icon'        => 'nullable|string|max:10',
-            'order'       => 'nullable|integer|min:0',
-            'is_active'   => 'boolean',
-        ]);
+        $data = $request->validated();
 
         $data['order'] = $data['order'] ?? (CourseType::max('order') + 1);
-        // Auto-generate slug dari name + timestamp agar unik
         $data['slug']  = Str::slug($data['name']) . '-' . time();
 
         CourseType::create($data);
@@ -60,17 +54,10 @@ class CourseTypeController extends Controller
         return view('admin.course-types.edit', compact('courseType'));
     }
 
-    public function update(Request $request, CourseType $courseType)
+    public function update(UpdateCourseTypeRequest $request, CourseType $courseType)
     {
-        $data = $request->validate([
-            'name'        => 'required|string|max:100',
-            'description' => 'nullable|string',
-            'icon'        => 'nullable|string|max:10',
-            'order'       => 'nullable|integer|min:0',
-            'is_active'   => 'boolean',
-        ]);
+        $data = $request->validated();
 
-        // Regenerate slug hanya jika nama berubah
         if ($data['name'] !== $courseType->name) {
             $data['slug'] = Str::slug($data['name']) . '-' . time();
         }
@@ -87,12 +74,8 @@ class CourseTypeController extends Controller
 
     public function destroy(CourseType $courseType)
     {
-        // Lepas semua relasi pivot user
         $courseType->users()->detach();
-
-        // Null-kan foreign key sections agar tidak cascade error
         $courseType->sections()->update(['course_type_id' => null]);
-
         $courseType->delete();
 
         return redirect()->route('admin.course-types.index')
