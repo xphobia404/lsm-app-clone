@@ -12,16 +12,10 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->text('description')->nullable();
-            $table->longText('content')->nullable();
 
             $table->foreignId('course_type_id')
                 ->nullable()
                 ->constrained('course_types')
-                ->nullOnDelete();
-
-            $table->foreignId('media_id')
-                ->nullable()
-                ->constrained('media')
                 ->nullOnDelete();
 
             $table->unsignedInteger('order')->default(0);
