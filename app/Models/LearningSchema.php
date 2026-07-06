@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class LearningSchema extends Model
 {
@@ -13,36 +12,41 @@ class LearningSchema extends Model
         'is_active',
     ];
 
-    protected $casts = [
-        'is_active' => 'boolean',
-    ];
-
-    // ── Relationships ───────────────────────────────────────────────
-
-    public function sections(): BelongsToMany
+    protected function casts(): array
     {
-        return $this->belongsToMany(Section::class, 'learning_schema_section')
-            ->withPivot('section_order')
-            ->withTimestamps()
-            ->orderByPivot('section_order');
+        return [
+            'is_active' => 'boolean',
+        ];
     }
 
-    // ── Scopes ──────────────────────────────────────────────────
+    // ── Scopes ────────────────────────────────────────────────
 
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
     }
 
-    // ── Helpers ──────────────────────────────────────────────────
+    // ── Relations ─────────────────────────────────────────────
 
-    public function isActive(): bool
+    public function sections()
     {
-        return (bool) $this->is_active;
+        return $this->hasMany(Section::class)->orderBy('section_order');
     }
 
-    public function getActiveSectionsCount(): int
+    /**
+     * Users yang enroll ke schema ini.
+     * Akses pivot: $user->pivot->enrolled_at, $user->pivot->status
+     */
+    public function enrolledUsers()
     {
-        return $this->sections()->where('is_active', true)->count();
+        return $this->belongsToMany(User::class, 'learning_schema_user')
+            ->withPivot(['enrolled_at', 'status'])
+            ->withTimestamps()
+            ->orderByPivot('enrolled_at', 'desc');
+    }
+
+    public function activeEnrollments()
+    {
+        return $this->enrolledUsers()->wherePivot('status', 'active');
     }
 }

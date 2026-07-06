@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -18,7 +17,6 @@ class User extends Authenticatable
         'password',
         'role',
         'is_active',
-        'last_login_at',
     ];
 
     protected $hidden = [
@@ -29,25 +27,12 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'is_active'     => 'boolean',
-            'last_login_at' => 'datetime',
-            'password'      => 'hashed',
+            'password'   => 'hashed',
+            'is_active'  => 'boolean',
         ];
     }
 
-    // ── Relationships ───────────────────────────────────────────────
-
-    public function progresses(): HasMany
-    {
-        return $this->hasMany(UserProgress::class);
-    }
-
-    public function quizAttempts(): HasMany
-    {
-        return $this->hasMany(QuizAttempt::class);
-    }
-
-    // ── Scopes ──────────────────────────────────────────────────
+    // ── Scopes ────────────────────────────────────────────────
 
     public function scopeActive($query)
     {
@@ -59,44 +44,74 @@ class User extends Authenticatable
         return $query->where('role', 'admin');
     }
 
-    public function scopeUsers($query)
-    {
-        return $query->where('role', 'user');
-    }
-
-    /**
-     * Scope search by name, username, or email.
-     * Contoh: User::search('budi')->get()
-     */
-    public function scopeSearch($query, string $keyword)
-    {
-        return $query->where(function ($q) use ($keyword) {
-            $q->where('name', 'like', "%{$keyword}%")
-              ->orWhere('username', 'like', "%{$keyword}%")
-              ->orWhere('email', 'like', "%{$keyword}%");
-        });
-    }
-
-    // ── Helpers ──────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────
 
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
     }
 
-    public function isUser(): bool
-    {
-        return $this->role === 'user';
-    }
+    // ── Relations ─────────────────────────────────────────────
 
     /**
-     * Update last_login_at ke waktu sekarang.
-     * Dipanggil setelah Auth::attempt() berhasil di LoginController.
+     * Learning schemas yang diambil user ini (enrollment).
+     * Akses pivot: $schema->pivot->enrolled_at, $schema->pivot->status
      */
-    public function touchLastLogin(): void
+    public function learningSchemas()
     {
-        $this->timestamps = false; // jangan update updated_at
-        $this->update(['last_login_at' => now()]);
-        $this->timestamps = true;
+        return $this->belongsToMany(LearningSchema::class, 'learning_schema_user')
+            ->withPivot(['enrolled_at', 'status'])
+            ->withTimestamps()
+            ->orderByPivot('enrolled_at', 'desc');
+    }
+
+    /** Hanya schema yang statusnya active */
+    public function activeLearningSchemas()
+    {
+        return $this->learningSchemas()->wherePivot('status', 'active');
+    }
+
+    /** Hanya schema yang sudah completed */
+    public function completedLearningSchemas()
+    {
+        return $this->learningSchemas()->wherePivot('status', 'completed');
+    }
+
+    public function progresses()
+    {
+        return $this->hasMany(UserProgress::class);
+    }
+
+    public function quizAttempts()
+    {
+        return $this->hasMany(QuizAttempt::class);
+    }
+
+    // ── Enrollment helpers ────────────────────────────────────
+
+    /** Cek apakah user sudah enroll schema tertentu */
+    public function isEnrolledIn(int $learningSchemaId): bool
+    {
+        return $this->learningSchemas()->where('learning_schema_id', $learningSchemaId)->exists();
+    }
+
+    /** Enroll user ke schema (ignore jika sudah ada) */
+    public function enroll(int $learningSchemaId, string $status = 'active'): void
+    {
+        $this->learningSchemas()->syncWithoutDetaching([
+            $learningSchemaId => ['status' => $status, 'enrolled_at' => now()],
+        ]);
+    }
+
+    /** Unenroll user dari schema */
+    public function unenroll(int $learningSchemaId): void
+    {
+        $this->learningSchemas()->detach($learningSchemaId);
+    }
+
+    /** Update status enrollment */
+    public function updateEnrollmentStatus(int $learningSchemaId, string $status): void
+    {
+        $this->learningSchemas()->updateExistingPivot($learningSchemaId, ['status' => $status]);
     }
 }
