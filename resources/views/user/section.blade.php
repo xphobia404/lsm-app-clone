@@ -1,16 +1,19 @@
 {{-- resources/views/user/section.blade.php --}}
-<x-app-layout :title="$section->title">
+<x-reader-layout :title="$section->title">
 @php
     $contents    = $section->contents;   // sudah active+ordered
     $quizzes     = $section->quizzes;
-    $totalSlides = $contents->count() + ($quizzes->isNotEmpty() ? 1 : 0); // +1 slide quiz
+    $totalSlides = $contents->count() + ($quizzes->isNotEmpty() ? 1 : 0);
     $hasQuiz     = $quizzes->isNotEmpty();
+    if ($totalSlides === 0) $totalSlides = 1; // minimal 1 agar tidak div-by-zero
 @endphp
 
+<div class="flex flex-col" style="min-height:100dvh">
+
 {{-- ================================================================
-     TOP BAR
+     TOP BAR (fixed)
 ================================================================ --}}
-<div class="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-100 bg-white/95 px-4 py-3"
+<div class="fixed top-0 left-0 right-0 z-50 flex items-center gap-3 border-b border-slate-100 bg-white px-4 py-3"
      style="backdrop-filter:blur(8px)">
 
     <a href="{{ route('user.schemas.show', $learningSchema) }}"
@@ -25,7 +28,6 @@
         <p class="text-[10px] text-slate-400">{{ $learningSchema->title }}</p>
     </div>
 
-    {{-- progress pill --}}
     <div class="shrink-0 flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1">
         <span id="slide-current" class="text-[11px] font-extrabold text-indigo-600">1</span>
         <span class="text-[10px] text-indigo-300">/</span>
@@ -33,26 +35,27 @@
     </div>
 </div>
 
-{{-- Progress bar thin --}}
-<div class="h-0.5 w-full bg-slate-100">
-    <div id="progress-bar" class="h-0.5 bg-indigo-500 transition-all duration-300"
-         style="width: {{ $totalSlides > 0 ? round(1/$totalSlides*100) : 100 }}%"></div>
+{{-- Progress bar --}}
+<div class="fixed z-40 h-0.5 w-full bg-slate-100" style="top:53px">
+    <div id="progress-bar"
+         class="h-0.5 bg-indigo-500 transition-all duration-300"
+         style="width:{{ round(1 / $totalSlides * 100) }}%"></div>
 </div>
 
 {{-- ================================================================
-     SLIDER WRAPPER
+     SLIDER AREA (scrollable content zone)
 ================================================================ --}}
-<div class="overflow-hidden">
+<div class="overflow-hidden flex-1" style="padding-top:57px; padding-bottom:80px">
     <div id="slides-track"
          class="flex transition-transform duration-300 ease-in-out"
-         style="width: {{ $totalSlides * 100 }}%">
+         style="width:{{ $totalSlides * 100 }}%">
 
-        {{-- ── CONTENT SLIDES ────────────────────────────────── --}}
+        {{-- CONTENT SLIDES --}}
         @foreach($contents as $i => $content)
-        <div class="slide-panel flex-shrink-0 px-4 py-5"
-             style="width: {{ $totalSlides > 0 ? round(100/$totalSlides, 4) : 100 }}%">
+        <div class="slide-panel px-4 py-5"
+             style="width:{{ round(100 / $totalSlides, 4) }}%; flex-shrink:0">
 
-            {{-- Content header --}}
+            {{-- Header --}}
             <div class="mb-4 flex items-center gap-2">
                 <span class="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-xs font-extrabold text-indigo-600">
                     {{ $i + 1 }}
@@ -63,18 +66,18 @@
                 </div>
             </div>
 
-            {{-- Content body --}}
+            {{-- Body --}}
             @if($content->isText())
-                <div class="prose prose-sm max-w-none text-slate-700 leading-relaxed">
-                    {!! nl2br(e($content->body)) !!}
+                {{-- Render as HTML (supports images, formatting dari rich editor) --}}
+                <div class="content-body text-sm text-slate-700">
+                    {!! $content->body !!}
                 </div>
 
             @elseif($content->isVideo())
-                @php $url = $content->url ?? $content->body; @endphp
                 @php
-                    // Convert YouTube watch URL ke embed
-                    $embedUrl = $url;
-                    if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/', $url, $m)) {
+                    $rawUrl  = $content->url ?? $content->body ?? '';
+                    $embedUrl = $rawUrl;
+                    if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/', $rawUrl, $m)) {
                         $embedUrl = 'https://www.youtube.com/embed/' . $m[1];
                     }
                 @endphp
@@ -85,8 +88,8 @@
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowfullscreen></iframe>
                 </div>
-                @if($content->body && $content->body !== $url)
-                <p class="mt-3 text-xs text-slate-500">{{ $content->body }}</p>
+                @if($content->body && $content->body !== $rawUrl)
+                    <div class="content-body mt-3 text-xs text-slate-500">{!! $content->body !!}</div>
                 @endif
 
             @elseif($content->isUrl())
@@ -104,7 +107,7 @@
                     </div>
                 </a>
                 @if($content->body)
-                <p class="mt-3 text-xs text-slate-500">{{ $content->body }}</p>
+                    <div class="content-body mt-3 text-xs text-slate-500">{!! $content->body !!}</div>
                 @endif
 
             @elseif($content->isFile())
@@ -122,22 +125,20 @@
                     </div>
                 </a>
                 @if($content->body)
-                <p class="mt-3 text-xs text-slate-500">{{ $content->body }}</p>
+                    <div class="content-body mt-3 text-xs text-slate-500">{!! $content->body !!}</div>
                 @endif
             @endif
         </div>
         @endforeach
 
-        {{-- ── QUIZ SLIDE (slide terakhir) ───────────────────── --}}
+        {{-- QUIZ SLIDE --}}
         @if($hasQuiz)
-        <div class="slide-panel flex-shrink-0 px-4 py-5"
-             style="width: {{ $totalSlides > 0 ? round(100/$totalSlides, 4) : 100 }}%">
-
-            <div class="flex flex-col items-center text-center pt-6 pb-4">
-                {{-- Ikon --}}
-                <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
-                     style="background: linear-gradient(135deg,#6366f1,#8b5cf6)">
-                    <svg class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24"
+        <div class="slide-panel px-4 py-5"
+             style="width:{{ round(100 / $totalSlides, 4) }}%; flex-shrink:0">
+            <div class="flex flex-col items-center text-center pt-8 pb-4">
+                <div class="mb-5 flex h-20 w-20 items-center justify-center rounded-full"
+                     style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
+                    <svg class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24"
                          stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2
@@ -145,44 +146,42 @@
                                  m-6 9l2 2 4-4"/>
                     </svg>
                 </div>
-
-                <h3 class="text-base font-extrabold text-slate-800">Selesai Membaca!</h3>
-                <p class="mt-1.5 max-w-xs text-xs text-slate-500 leading-relaxed">
+                <h3 class="text-lg font-extrabold text-slate-800">Selesai Membaca! 🎉</h3>
+                <p class="mt-2 max-w-xs text-xs text-slate-500 leading-relaxed">
                     Kamu sudah menyelesaikan semua materi di section ini.
                     Sekarang saatnya uji pemahamanmu.
                 </p>
-
-                {{-- Stats --}}
                 <div class="mt-5 flex gap-4">
-                    <div class="rounded-2xl bg-slate-50 px-4 py-3 text-center">
-                        <p class="text-lg font-extrabold text-indigo-600">{{ $contents->count() }}</p>
+                    <div class="rounded-2xl bg-slate-50 border border-slate-100 px-5 py-3 text-center">
+                        <p class="text-xl font-extrabold text-indigo-600">{{ $contents->count() }}</p>
                         <p class="text-[10px] text-slate-400">Konten</p>
                     </div>
-                    <div class="rounded-2xl bg-slate-50 px-4 py-3 text-center">
-                        <p class="text-lg font-extrabold text-indigo-600">{{ $quizzes->count() }}</p>
-                        <p class="text-[10px] text-slate-400">Soal Quiz</p>
+                    <div class="rounded-2xl bg-slate-50 border border-slate-100 px-5 py-3 text-center">
+                        <p class="text-xl font-extrabold text-indigo-600">{{ $quizzes->count() }}</p>
+                        <p class="text-[10px] text-slate-400">Soal</p>
                     </div>
                 </div>
-
-                {{-- CTA --}}
                 <a href="{{ route('user.quizzes.index', $section) }}"
                    class="mt-6 w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold text-white shadow-lg"
-                   style="background: linear-gradient(135deg,#6366f1,#8b5cf6)">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                   style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     Mulai Quiz
                 </a>
+                <a href="{{ route('user.schemas.show', $learningSchema) }}"
+                   class="mt-3 text-xs text-slate-400 underline">Kembali ke Materi</a>
             </div>
         </div>
         @endif
 
-        {{-- ── SLIDE SELESAI (jika tidak ada quiz) ─────────── --}}
-        @if(!$hasQuiz && $contents->isEmpty())
-        <div class="slide-panel flex-shrink-0 px-4 py-10 text-center"
-             style="width:100%">
-            <p class="text-sm font-medium text-slate-400">Belum ada konten di section ini.</p>
+        {{-- EMPTY STATE --}}
+        @if($contents->isEmpty() && !$hasQuiz)
+        <div class="slide-panel px-4 py-16 text-center" style="width:100%; flex-shrink:0">
+            <p class="text-sm text-slate-400">Belum ada konten di section ini.</p>
+            <a href="{{ route('user.schemas.show', $learningSchema) }}"
+               class="mt-4 inline-block text-xs text-indigo-500 underline">Kembali</a>
         </div>
         @endif
 
@@ -190,129 +189,117 @@
 </div>
 
 {{-- ================================================================
-     BOTTOM NAVIGATION
+     BOTTOM NAV (fixed, z-50 lebih tinggi dari apapun)
 ================================================================ --}}
-<div class="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-100 bg-white px-4 py-3"
-     style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+<div class="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-100 bg-white px-4 py-3"
+     style="padding-bottom:max(12px, env(safe-area-inset-bottom))">
     <div class="flex items-center gap-3">
 
-        {{-- Prev button --}}
         <button id="btn-prev"
-                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-400 disabled:opacity-30 transition active:bg-slate-50"
+                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-400 transition active:bg-slate-50"
+                style="opacity:0.3; pointer-events:none"
                 disabled>
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
             </svg>
         </button>
 
-        {{-- Dot indicators --}}
         <div id="dots" class="flex flex-1 items-center justify-center gap-1.5 overflow-hidden">
             @for($d = 0; $d < $totalSlides; $d++)
-            <div class="dot h-2 rounded-full transition-all duration-300
-                        {{ $d === 0 ? 'w-5 bg-indigo-500' : 'w-2 bg-slate-200' }}"></div>
+            <div class="dot rounded-full transition-all duration-300
+                        {{ $d === 0 ? 'h-2 w-5 bg-indigo-500' : 'h-2 w-2 bg-slate-200' }}"></div>
             @endfor
         </div>
 
-        {{-- Next button --}}
         <button id="btn-next"
-                class="flex h-11 items-center justify-center gap-1.5 rounded-full px-5
-                       text-sm font-semibold text-white transition active:opacity-80"
-                style="background: linear-gradient(135deg,#6366f1,#8b5cf6); min-width:90px">
+                class="flex h-11 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold text-white transition active:opacity-80"
+                style="background:linear-gradient(135deg,#6366f1,#8b5cf6); min-width:90px">
             Lanjut
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
             </svg>
         </button>
-
     </div>
 </div>
 
-{{-- spacer agar konten tidak tertutup fixed bottom nav --}}
-<div class="h-20"></div>
+</div>{{-- /flex wrapper --}}
 
 {{-- ================================================================
-     JS SLIDER
+     JS
 ================================================================ --}}
 <script>
 (function () {
-    const total    = {{ $totalSlides }};
-    const track    = document.getElementById('slides-track');
-    const btnPrev  = document.getElementById('btn-prev');
-    const btnNext  = document.getElementById('btn-next');
-    const counter  = document.getElementById('slide-current');
-    const progBar  = document.getElementById('progress-bar');
-    const dots     = document.querySelectorAll('.dot');
-    let current = 0;
+    const total   = {{ $totalSlides }};
+    const track   = document.getElementById('slides-track');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const counter = document.getElementById('slide-current');
+    const bar     = document.getElementById('progress-bar');
+    const dots    = document.querySelectorAll('.dot');
+    let cur = 0;
 
-    function goTo(index) {
-        if (index < 0 || index >= total) return;
-        current = index;
-        track.style.transform = `translateX(-${(100 / total) * current}%)`;
+    function goTo(n) {
+        if (n < 0 || n >= total) return;
+        cur = n;
 
-        // counter
-        counter.textContent = current + 1;
+        // geser track
+        track.style.transform = `translateX(-${(100 / total) * cur}%)`;
 
-        // progress bar
-        progBar.style.width = ((current + 1) / total * 100) + '%';
+        // counter & bar
+        counter.textContent = cur + 1;
+        bar.style.width = ((cur + 1) / total * 100) + '%';
 
         // dots
         dots.forEach((d, i) => {
-            d.classList.toggle('w-5', i === current);
-            d.classList.toggle('bg-indigo-500', i === current);
-            d.classList.toggle('w-2', i !== current);
-            d.classList.toggle('bg-slate-200', i !== current);
+            if (i === cur) {
+                d.style.width = '20px'; d.style.background = '#6366f1';
+            } else {
+                d.style.width = '8px'; d.style.background = '#e2e8f0';
+            }
         });
 
-        // prev button
-        btnPrev.disabled = current === 0;
+        // prev
+        if (cur === 0) {
+            btnPrev.style.opacity = '0.3';
+            btnPrev.style.pointerEvents = 'none';
+        } else {
+            btnPrev.style.opacity = '1';
+            btnPrev.style.pointerEvents = 'auto';
+        }
 
-        // next button: ubah label di slide terakhir
-        const isLast = current === total - 1;
+        // next label
+        const isLast = cur === total - 1;
         if (isLast) {
-            btnNext.innerHTML = `Selesai
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                </svg>`;
+            btnNext.innerHTML = `Selesai <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`;
             btnNext.style.background = 'linear-gradient(135deg,#10b981,#059669)';
         } else {
-            btnNext.innerHTML = `Lanjut
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                </svg>`;
+            btnNext.innerHTML = `Lanjut <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>`;
             btnNext.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)';
         }
 
-        // scroll ke atas slide
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    btnPrev.addEventListener('click', () => goTo(current - 1));
+    btnPrev.addEventListener('click', () => goTo(cur - 1));
     btnNext.addEventListener('click', () => {
-        if (current === total - 1) {
-            // slide terakhir & tidak ada quiz: kembali ke schema
-            @if(!$hasQuiz)
+        if (cur === total - 1) {
             window.location.href = '{{ route('user.schemas.show', $learningSchema) }}';
-            @else
-            // slide terakhir adalah slide quiz — tombol Mulai Quiz sudah ada di slide
-            // Selesai = kembali ke schema
-            window.location.href = '{{ route('user.schemas.show', $learningSchema) }}';
-            @endif
         } else {
-            goTo(current + 1);
+            goTo(cur + 1);
         }
     });
 
-    // swipe support
-    let startX = 0;
-    const wrapper = document.getElementById('slides-track').parentElement;
-    wrapper.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
-    wrapper.addEventListener('touchend', e => {
-        const diff = startX - e.changedTouches[0].clientX;
-        if (Math.abs(diff) > 50) diff > 0 ? goTo(current + 1) : goTo(current - 1);
+    // swipe
+    let sx = 0;
+    const area = track.parentElement;
+    area.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+    area.addEventListener('touchend', e => {
+        const diff = sx - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 50) diff > 0 ? goTo(cur + 1) : goTo(cur - 1);
     });
 
     goTo(0);
 }());
 </script>
 
-</x-app-layout>
+</x-reader-layout>
