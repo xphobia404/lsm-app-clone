@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 
 class ContentController extends Controller
 {
-    // ── ADMIN ────────────────────────────────────────────────────────────
+    // ── ADMIN ────────────────────────────────────────────────────────────────
 
     public function index(Request $request, Section $section)
     {
@@ -20,9 +20,6 @@ class ContentController extends Controller
             )
             ->when($request->filled('status'), fn ($q) =>
                 $q->where('is_active', $request->status === 'active')
-            )
-            ->when($request->filled('type'), fn ($q) =>
-                $q->where('content_type', $request->type)
             )
             ->withCount('media')
             ->orderBy('content_order')
@@ -40,21 +37,18 @@ class ContentController extends Controller
     public function store(Request $request, Section $section)
     {
         $validated = $request->validate([
-            'title'                     => 'required|string|max:255',
-            'content_type'              => 'required|in:text,video,file,url',
-            'body'                      => 'nullable|string',
-            'url'                       => 'nullable|url|max:2000',
-            'content_order'             => 'nullable|integer|min:0',
-            'is_active'                 => 'sometimes|boolean',
-            // media array
-            'media'                     => 'nullable|array',
-            'media.*.media_type'        => 'required|in:image,video,audio,url,youtube,google_drive',
-            'media.*.title'             => 'nullable|string|max:255',
-            'media.*.description'       => 'nullable|string',
-            'media.*.url'               => 'nullable|max:2000',
-            'media.*.file'              => 'nullable|file|max:51200',
-            'media.*.media_order'       => 'nullable|integer|min:0',
-            'media.*.is_active'         => 'sometimes|boolean',
+            'title'                => 'required|string|max:255',
+            'body'                 => 'nullable|string',
+            'content_order'        => 'nullable|integer|min:0',
+            'is_active'            => 'sometimes|boolean',
+            'media'                => 'nullable|array',
+            'media.*.media_type'   => 'required|in:image,video,audio,youtube,google_drive',
+            'media.*.title'        => 'nullable|string|max:255',
+            'media.*.description'  => 'nullable|string',
+            'media.*.url'          => 'nullable|max:2000',
+            'media.*.file'         => 'nullable|file|max:204800', // 200 MB
+            'media.*.media_order'  => 'nullable|integer|min:0',
+            'media.*.is_active'    => 'sometimes|boolean',
         ]);
 
         $validated['content_order'] = $validated['content_order']
@@ -89,37 +83,32 @@ class ContentController extends Controller
         $this->authorizeContent($section, $content);
 
         $validated = $request->validate([
-            'title'                     => 'required|string|max:255',
-            'content_type'              => 'required|in:text,video,file,url',
-            'body'                      => 'nullable|string',
-            'url'                       => 'nullable|url|max:2000',
-            'content_order'             => 'nullable|integer|min:0',
-            'is_active'                 => 'sometimes|boolean',
-            'media'                     => 'nullable|array',
-            'media.*.id'                => 'nullable|integer|exists:media,id',
-            'media.*.media_type'        => 'required|in:image,video,audio,url,youtube,google_drive',
-            'media.*.title'             => 'nullable|string|max:255',
-            'media.*.description'       => 'nullable|string',
-            'media.*.url'               => 'nullable|max:2000',
-            'media.*.file'              => 'nullable|file|max:51200',
-            'media.*.media_order'       => 'nullable|integer|min:0',
-            'media.*.is_active'         => 'sometimes|boolean',
-            'deleted_media'             => 'nullable|string',
+            'title'                => 'required|string|max:255',
+            'body'                 => 'nullable|string',
+            'content_order'        => 'nullable|integer|min:0',
+            'is_active'            => 'sometimes|boolean',
+            'media'                => 'nullable|array',
+            'media.*.id'           => 'nullable|integer|exists:media,id',
+            'media.*.media_type'   => 'required|in:image,video,audio,youtube,google_drive',
+            'media.*.title'        => 'nullable|string|max:255',
+            'media.*.description'  => 'nullable|string',
+            'media.*.url'          => 'nullable|max:2000',
+            'media.*.file'         => 'nullable|file|max:204800', // 200 MB
+            'media.*.media_order'  => 'nullable|integer|min:0',
+            'media.*.is_active'    => 'sometimes|boolean',
+            'deleted_media'        => 'nullable|string',
         ]);
 
         $content->update([
             'title'         => $validated['title'],
-            'content_type'  => $validated['content_type'],
             'body'          => $validated['body'] ?? null,
-            'url'           => $validated['url'] ?? null,
             'content_order' => $validated['content_order'] ?? $content->content_order,
             'is_active'     => $request->boolean('is_active'),
         ]);
 
         // Hapus media yang ditandai dihapus
         if (! empty($validated['deleted_media'])) {
-            $ids = array_filter(explode(',', $validated['deleted_media']));
-            foreach ($ids as $id) {
+            foreach (array_filter(explode(',', $validated['deleted_media'])) as $id) {
                 $m = Media::find($id);
                 if ($m) {
                     if ($m->file_path) Storage::disk('public')->delete($m->file_path);
@@ -154,7 +143,7 @@ class ContentController extends Controller
         return back()->with('success', 'Status konten diperbarui.');
     }
 
-    // ── PRIVATE ──────────────────────────────────────────────────────────
+    // ── PRIVATE ──────────────────────────────────────────────────────────────
 
     private function authorizeContent(Section $section, Content $content): void
     {
@@ -165,42 +154,38 @@ class ContentController extends Controller
     {
         if (! $request->filled('media')) return;
 
-        // Tipe yang hanya pakai URL, tidak upload file
-        $urlOnlyTypes = ['url', 'youtube', 'google_drive'];
+        $urlTypes = ['youtube', 'google_drive'];
 
         foreach ($request->input('media', []) as $idx => $data) {
-            $mediaType = $data['media_type'];
-            $isUrlOnly = in_array($mediaType, $urlOnlyTypes);
+            $type    = $data['media_type'];
+            $isUrl   = in_array($type, $urlTypes);
 
-            $mediaData = [
-                'media_type'  => $mediaType,
+            $payload = [
+                'media_type'  => $type,
                 'title'       => $data['title']       ?? null,
                 'description' => $data['description'] ?? null,
-                'url'         => $isUrlOnly ? ($data['url'] ?? null) : null,
+                'url'         => $isUrl ? ($data['url'] ?? null) : null,
                 'media_order' => $data['media_order']  ?? $idx,
                 'is_active'   => isset($data['is_active']) ? (bool) $data['is_active'] : true,
             ];
 
-            // Handle file upload (hanya untuk non URL-only)
-            if (! $isUrlOnly && isset($data['file']) && $request->hasFile("media.{$idx}.file")) {
-                $file = $request->file("media.{$idx}.file");
-                $path = $file->store('media', 'public');
-                $mediaData['file_path'] = $path;
+            if (! $isUrl && $request->hasFile("media.{$idx}.file")) {
+                $path = $request->file("media.{$idx}.file")->store('media', 'public');
+                $payload['file_path'] = $path;
             }
 
-            // Update existing atau create baru
             if (! empty($data['id'])) {
                 $existing = Media::find($data['id']);
                 if ($existing) {
-                    if (! $isUrlOnly && isset($mediaData['file_path']) && $existing->file_path) {
+                    if (! $isUrl && isset($payload['file_path']) && $existing->file_path) {
                         Storage::disk('public')->delete($existing->file_path);
                     }
-                    $existing->update($mediaData);
+                    $existing->update($payload);
                     continue;
                 }
             }
 
-            $content->media()->create($mediaData);
+            $content->media()->create($payload);
         }
     }
 }
