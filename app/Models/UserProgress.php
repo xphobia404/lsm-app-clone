@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class UserProgress extends Model
 {
@@ -26,23 +27,42 @@ class UserProgress extends Model
         'quiz_passed_at' => 'datetime',
     ];
 
-    // -------------------------
-    // Relations
-    // -------------------------
+    // =========================================================================
+    // Relationships
+    // =========================================================================
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function section()
+    public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class);
     }
 
-    // -------------------------
+    // =========================================================================
+    // Scopes
+    // =========================================================================
+
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', 'completed');
+    }
+
+    public function scopeInProgress($query)
+    {
+        return $query->where('status', 'in_progress');
+    }
+
+    public function scopeUnlocked($query)
+    {
+        return $query->where('unlocked', true);
+    }
+
+    // =========================================================================
     // Helpers
-    // -------------------------
+    // =========================================================================
 
     public function isCompleted(): bool
     {
@@ -60,6 +80,37 @@ class UserProgress extends Model
     }
 
     /**
+     * Tandai section sebagai mulai dibaca.
+     */
+    public function markInProgress(): void
+    {
+        if ($this->status === 'not_started') {
+            $this->update(['status' => 'in_progress']);
+        }
+    }
+
+    /**
+     * Tandai section sebagai selesai dibaca.
+     */
+    public function markCompleted(): void
+    {
+        $this->update([
+            'status'       => 'completed',
+            'completed_at' => $this->completed_at ?? now(),
+        ]);
+    }
+
+    /**
+     * Tandai quiz section ini sudah lulus.
+     */
+    public function markQuizPassed(): void
+    {
+        $this->update([
+            'quiz_passed_at' => $this->quiz_passed_at ?? now(),
+        ]);
+    }
+
+    /**
      * Label status dalam Bahasa Indonesia.
      */
     public function getStatusLabelAttribute(): string
@@ -72,7 +123,7 @@ class UserProgress extends Model
     }
 
     /**
-     * Badge color untuk UI (Tailwind / Bootstrap class).
+     * Badge color untuk UI (Tailwind / Vuexy).
      */
     public function getStatusColorAttribute(): string
     {

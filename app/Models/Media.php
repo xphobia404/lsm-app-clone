@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Facades\Storage;
 
 class Media extends Model
@@ -24,18 +25,18 @@ class Media extends Model
         'order' => 'integer',
     ];
 
-    // -------------------------
-    // Relations
-    // -------------------------
+    // =========================================================================
+    // Relationships
+    // =========================================================================
 
-    public function mediable()
+    public function mediable(): MorphTo
     {
         return $this->morphTo();
     }
 
-    // -------------------------
+    // =========================================================================
     // Accessors
-    // -------------------------
+    // =========================================================================
 
     /**
      * URL publik file.
@@ -46,10 +47,54 @@ class Media extends Model
     }
 
     /**
-     * Hapus file fisik saat record dihapus.
+     * Ukuran file dalam format human-readable.
+     * Contoh: "1.2 MB", "340 KB"
      */
+    public function getHumanSizeAttribute(): string
+    {
+        $bytes = $this->size;
+        if ($bytes >= 1_048_576) {
+            return round($bytes / 1_048_576, 1) . ' MB';
+        }
+        if ($bytes >= 1_024) {
+            return round($bytes / 1_024, 1) . ' KB';
+        }
+        return $bytes . ' B';
+    }
+
+    /**
+     * Cek apakah media bertipe gambar.
+     */
+    public function isImage(): bool
+    {
+        return $this->type === 'image';
+    }
+
+    /**
+     * Cek apakah media bertipe video.
+     */
+    public function isVideo(): bool
+    {
+        return $this->type === 'video';
+    }
+
+    /**
+     * Cek apakah media bertipe audio.
+     */
+    public function isAudio(): bool
+    {
+        return $this->type === 'audio';
+    }
+
+    // =========================================================================
+    // Hooks
+    // =========================================================================
+
     protected static function booted(): void
     {
+        /**
+         * Hapus file fisik dari storage saat record dihapus.
+         */
         static::deleting(function (Media $media) {
             Storage::disk($media->disk)->delete($media->path);
         });

@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Quiz extends Model
 {
@@ -25,11 +27,11 @@ class Quiz extends Model
         'order' => 'integer',
     ];
 
-    // -------------------------
-    // Relations
-    // -------------------------
+    // =========================================================================
+    // Relationships
+    // =========================================================================
 
-    public function section()
+    public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class);
     }
@@ -37,7 +39,7 @@ class Quiz extends Model
     /**
      * Semua media milik soal ini (polymorphic).
      */
-    public function media()
+    public function media(): MorphMany
     {
         return $this->morphMany(Media::class, 'mediable')->orderBy('order');
     }
@@ -45,29 +47,44 @@ class Quiz extends Model
     /**
      * Shortcut: hanya gambar.
      */
-    public function images()
+    public function images(): MorphMany
     {
         return $this->morphMany(Media::class, 'mediable')
                     ->where('type', 'image')
                     ->orderBy('order');
     }
 
-    // -------------------------
+    // =========================================================================
     // Helpers
-    // -------------------------
+    // =========================================================================
 
+    /**
+     * Cek apakah jawaban user benar.
+     */
     public function checkAnswer(string $answer): bool
     {
         return strtolower(trim($answer)) === strtolower(trim($this->correct_answer));
     }
 
+    /**
+     * Semua pilihan dalam format array asosiatif.
+     * Hanya return option yang tidak null.
+     */
     public function getOptions(): array
     {
-        return [
+        return array_filter([
             'a' => $this->option_a,
             'b' => $this->option_b,
             'c' => $this->option_c,
             'd' => $this->option_d,
-        ];
+        ], fn ($v) => ! is_null($v));
+    }
+
+    /**
+     * Shortcut akses course type via section.
+     */
+    public function getCourseTypeAttribute(): ?CourseType
+    {
+        return $this->section?->courseType;
     }
 }
