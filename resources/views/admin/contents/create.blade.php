@@ -123,6 +123,21 @@
         empty.classList.toggle('hidden', list.children.length > 0);
     }
 
+    // Tipe yang hanya butuh URL (tidak upload file)
+    const URL_ONLY_TYPES = ['url', 'youtube', 'google_drive'];
+
+    const URL_PLACEHOLDER = {
+        url:          'https://...',
+        youtube:      'https://www.youtube.com/watch?v=... atau https://youtu.be/...',
+        google_drive: 'https://drive.google.com/file/d/.../view',
+    };
+
+    const URL_LABEL = {
+        url:          'URL',
+        youtube:      'Link YouTube',
+        google_drive: 'Link Google Drive',
+    };
+
     function buildRow(idx) {
         const wrap = document.createElement('div');
         wrap.className = 'media-row rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3';
@@ -136,10 +151,12 @@
                 <div>
                     <label class="block text-[11px] font-semibold text-slate-600 mb-1">Tipe Media *</label>
                     <select name="media[${idx}][media_type]" class="media-type-select w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
-                        <option value="image">Image</option>
-                        <option value="video">Video</option>
-                        <option value="audio">Audio</option>
-                        <option value="url">URL</option>
+                        <option value="image">&#128247; Image (Upload)</option>
+                        <option value="video">&#127909; Video (Upload)</option>
+                        <option value="audio">&#127925; Audio (Upload)</option>
+                        <option value="youtube">&#128250; YouTube</option>
+                        <option value="google_drive">&#128196; Google Drive</option>
+                        <option value="url">&#128279; URL Lainnya</option>
                     </select>
                 </div>
                 <div>
@@ -159,9 +176,9 @@
                        class="w-full text-xs text-slate-500 file:mr-3 file:rounded-full file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-indigo-600">
             </div>
             <div class="field-url hidden">
-                <label class="block text-[11px] font-semibold text-slate-600 mb-1">URL</label>
+                <label class="field-url-label block text-[11px] font-semibold text-slate-600 mb-1">URL</label>
                 <input type="url" name="media[${idx}][url]" placeholder="https://..."
-                       class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
+                       class="field-url-input w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
             </div>
             <div>
                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">Deskripsi</label>
@@ -176,11 +193,21 @@
             </label>
         `;
 
-        const sel = wrap.querySelector('.media-type-select');
+        const sel       = wrap.querySelector('.media-type-select');
+        const fieldFile = wrap.querySelector('.field-file');
+        const fieldUrlW = wrap.querySelector('.field-url');
+        const urlLabel  = wrap.querySelector('.field-url-label');
+        const urlInput  = wrap.querySelector('.field-url-input');
+
         function toggleMedia() {
-            const isUrl = sel.value === 'url';
-            wrap.querySelector('.field-file').classList.toggle('hidden',  isUrl);
-            wrap.querySelector('.field-url').classList.toggle('hidden', !isUrl);
+            const t = sel.value;
+            const isUrlOnly = URL_ONLY_TYPES.includes(t);
+            fieldFile.classList.toggle('hidden', isUrlOnly);
+            fieldUrlW.classList.toggle('hidden', !isUrlOnly);
+            if (isUrlOnly) {
+                urlLabel.textContent = URL_LABEL[t] || 'URL';
+                urlInput.placeholder = URL_PLACEHOLDER[t] || 'https://';
+            }
         }
         sel.addEventListener('change', toggleMedia);
 
