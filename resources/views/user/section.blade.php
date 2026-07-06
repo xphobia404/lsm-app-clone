@@ -8,6 +8,54 @@
     if ($totalSlides === 0) $totalSlides = 1;
 @endphp
 
+<style>
+.media-split {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+.media-split__img {
+    flex: 1 1 0;
+    min-width: 0;
+}
+.media-split__img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 14px;
+    display: block;
+}
+.media-split__img-wrap {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #f1f5f9;
+}
+.media-split__text {
+    flex: 1 1 0;
+    min-width: 0;
+}
+/* Kalau tidak ada teks, gambar tetap setengah lebar bukan full */
+.media-split--no-text .media-split__img {
+    flex: 0 0 50%;
+    max-width: 50%;
+}
+/* Gambar saja tanpa teks: tampil penuh */
+.media-img-only {
+    width: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #f1f5f9;
+}
+.media-img-only img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 14px;
+}
+</style>
+
 <div class="flex flex-col" style="min-height:100dvh">
 
 {{-- TOP BAR --}}
@@ -90,33 +138,46 @@
             </div>
             @endif
 
-            {{-- ════ BLOK 2: GAMBAR KIRI (300×300) + TEKS KANAN ════ --}}
-            @if($hasImage || ($hasBody && !$content->isUrl() && !$content->isFile()))
-            <div class="mb-4 {{ $hasImage ? 'flex gap-3 items-start' : '' }}">
-
-                {{-- Gambar kiri, fixed 300x300 --}}
-                @if($hasImage)
-                <div class="shrink-0 flex flex-col gap-2" style="width:300px">
+            {{-- ════ BLOK 2: LAYOUT SETENGAH-SETENGAH (gambar | teks) ════ --}}
+            @if($hasImage && $hasBody)
+            {{-- Ada gambar DAN teks: 50% | 50% --}}
+            <div class="mb-4 media-split">
+                <div class="media-split__img">
                     @foreach($images as $img)
-                    <div style="width:300px; height:300px; border-radius:14px; overflow:hidden; background:#f1f5f9">
+                    <div class="media-split__img-wrap" style="{{ !$loop->first ? 'margin-top:8px' : '' }}">
                         <img src="{{ $img->getDisplayUrl() }}"
                              alt="{{ $img->title ?? $content->title }}"
-                             style="width:300px; height:300px; object-fit:cover"
                              loading="lazy">
                     </div>
                     @if($img->description)
-                    <p class="text-[10px] text-slate-400 text-center leading-tight">{{ $img->description }}</p>
+                    <p class="mt-1 text-[10px] text-slate-400 text-center leading-tight">{{ $img->description }}</p>
                     @endif
                     @endforeach
                 </div>
-                @endif
-
-                {{-- Teks kanan --}}
-                @if($hasBody)
-                <div class="{{ $hasImage ? 'flex-1 min-w-0' : 'w-full' }} content-body text-sm text-slate-700 leading-relaxed">
+                <div class="media-split__text content-body text-sm text-slate-700 leading-relaxed">
                     {!! $content->body !!}
                 </div>
+            </div>
+
+            @elseif($hasImage && !$hasBody)
+            {{-- Gambar saja tanpa teks: tampil penuh lebar --}}
+            <div class="mb-4 space-y-2">
+                @foreach($images as $img)
+                <div class="media-img-only">
+                    <img src="{{ $img->getDisplayUrl() }}"
+                         alt="{{ $img->title ?? $content->title }}"
+                         loading="lazy">
+                </div>
+                @if($img->description)
+                <p class="text-[10px] text-slate-400 text-center leading-tight">{{ $img->description }}</p>
                 @endif
+                @endforeach
+            </div>
+
+            @elseif(!$hasImage && $hasBody && !$content->isUrl() && !$content->isFile())
+            {{-- Teks saja tanpa gambar: tampil penuh lebar --}}
+            <div class="mb-4 content-body text-sm text-slate-700 leading-relaxed">
+                {!! $content->body !!}
             </div>
             @endif
 
