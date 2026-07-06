@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 class SectionController extends Controller
 {
     /**
-     * Flat list semua section (bottom nav).
+     * Flat list semua section (halaman Sections di bottom nav admin).
      */
     public function allIndex(Request $request)
     {
@@ -29,6 +29,35 @@ class SectionController extends Controller
         return view('admin.sections.index', compact('sections'));
     }
 
+    /**
+     * List section yang tergabung dalam satu Learning Schema tertentu.
+     * Dipanggil dari tombol "Sections" di halaman admin.learning-schemas.index.
+     *
+     * Route: GET admin/learning-schemas/{learningSchema}/sections
+     * Name : admin.learning-schemas.sections.index
+     */
+    public function schemaIndex(Request $request, LearningSchema $learningSchema)
+    {
+        $query = $learningSchema->sections()
+            ->withCount(['contents', 'quizzes'])
+            ->orderBy('learning_schema_section.section_order');
+
+        if ($request->filled('search')) {
+            $query->where('sections.title', 'like', "%{$request->search}%");
+        }
+
+        if ($request->filled('status')) {
+            $query->where('sections.is_active', $request->status === 'active');
+        }
+
+        $sections = $query->paginate(15)->withQueryString();
+
+        return view('admin.sections.index', [
+            'sections'       => $sections,
+            'learningSchema' => $learningSchema,  // untuk breadcrumb & back button di blade
+        ]);
+    }
+
     public function create()
     {
         $learningSchemas = LearningSchema::orderBy('title')->get(['id', 'title']);
@@ -38,9 +67,9 @@ class SectionController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title'              => 'required|string|max:255',
-            'description'        => 'nullable|string|max:2000',
-            'is_active'          => 'sometimes|boolean',
+            'title'               => 'required|string|max:255',
+            'description'         => 'nullable|string|max:2000',
+            'is_active'           => 'sometimes|boolean',
             'learning_schema_ids' => 'nullable|array',
             'learning_schema_ids.*' => 'exists:learning_schemas,id',
         ]);
@@ -51,10 +80,9 @@ class SectionController extends Controller
             'is_active'   => $request->boolean('is_active'),
         ]);
 
-        // Attach ke learning schemas yang dipilih
-        if (!empty($validated['learning_schema_ids'])) {
+        if (! empty($validated['learning_schema_ids'])) {
             $pivotData = [];
-            foreach ($validated['learning_schema_ids'] as $order => $schemaId) {
+            foreach ($validated['learning_schema_ids'] as $schemaId) {
                 $maxOrder = LearningSchema::find($schemaId)
                     ->sections()->max('learning_schema_section.section_order') ?? 0;
                 $pivotData[$schemaId] = ['section_order' => $maxOrder + 1];
@@ -68,17 +96,17 @@ class SectionController extends Controller
 
     public function edit(Section $section)
     {
-        $learningSchemas    = LearningSchema::orderBy('title')->get(['id', 'title']);
-        $attachedSchemaIds  = $section->learningSchemas->pluck('id')->toArray();
+        $learningSchemas   = LearningSchema::orderBy('title')->get(['id', 'title']);
+        $attachedSchemaIds = $section->learningSchemas->pluck('id')->toArray();
         return view('admin.sections.edit', compact('section', 'learningSchemas', 'attachedSchemaIds'));
     }
 
     public function update(Request $request, Section $section)
     {
         $validated = $request->validate([
-            'title'              => 'required|string|max:255',
-            'description'        => 'nullable|string|max:2000',
-            'is_active'          => 'sometimes|boolean',
+            'title'               => 'required|string|max:255',
+            'description'         => 'nullable|string|max:2000',
+            'is_active'           => 'sometimes|boolean',
             'learning_schema_ids' => 'nullable|array',
             'learning_schema_ids.*' => 'exists:learning_schemas,id',
         ]);
@@ -89,12 +117,12 @@ class SectionController extends Controller
             'is_active'   => $request->boolean('is_active'),
         ]);
 
-        // Sync relasi (tambah/hapus schema yang tidak dipilih)
         $schemaIds = $validated['learning_schema_ids'] ?? [];
         $syncData  = [];
         foreach ($schemaIds as $schemaId) {
             $existing = $section->learningSchemas()->where('learning_schemas.id', $schemaId)->first();
-            $order    = $existing ? $existing->pivot->section_order
+            $order    = $existing
+                ? $existing->pivot->section_order
                 : (LearningSchema::find($schemaId)->sections()->max('learning_schema_section.section_order') + 1);
             $syncData[$schemaId] = ['section_order' => $order];
         }
