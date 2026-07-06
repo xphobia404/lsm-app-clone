@@ -13,14 +13,15 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('section_id')->constrained()->cascadeOnDelete();
             $table->unsignedInteger('attempt_number');
-            $table->json('answers')->nullable();
-            $table->unsignedInteger('score')->default(0);
-            $table->unsignedTinyInteger('score_percent')->default(0);
+            $table->json('answers')->nullable(); // format: [{quiz_id: 1, answer: 'a'}, ...]
+            $table->unsignedInteger('score')->default(0);         // nilai mentah (jumlah benar)
+            $table->unsignedSmallInteger('score_percent')->default(0); // persentase 0-100 (fix dari unsignedTinyInteger)
             $table->boolean('passed')->default(false);
             $table->timestamp('submitted_at')->nullable();
             $table->timestamps();
 
             $table->index(['user_id', 'section_id']);
+            $table->index('section_id'); // index tambahan untuk query statistik per section
         });
     }
 

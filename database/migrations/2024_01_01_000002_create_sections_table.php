@@ -19,17 +19,16 @@ return new class extends Migration
                 ->constrained('course_types')
                 ->nullOnDelete();
 
-                
             $table->foreignId('media_id')
                 ->nullable()
                 ->constrained('media')
                 ->nullOnDelete();
-                
+
             $table->unsignedInteger('order')->default(0);
             $table->boolean('is_published')->default(false);
+            $table->unsignedTinyInteger('passing_score')->default(70); // passing grade per section (0-100)
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
-
         });
     }
 

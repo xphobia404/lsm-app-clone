@@ -12,14 +12,11 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('username')->unique();
+            $table->string('email')->nullable()->unique(); // untuk notifikasi
             $table->string('password');
             $table->enum('role', ['admin', 'user'])->default('user');
             $table->boolean('is_active')->default(true);
-            $table->foreignId('course_type_id')
-                ->nullable()
-                ->after('is_active')
-                ->constrained('course_types')
-                ->nullOnDelete();
+            // course_type_id dihapus — gunakan pivot course_type_user untuk relasi M2M
             $table->timestamp('last_login_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
