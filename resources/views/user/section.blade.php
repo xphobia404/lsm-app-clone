@@ -372,7 +372,6 @@
             @endfor
         </div>
 
-        {{-- Tombol next: di slide quiz terakhir (ada quiz), sembunyikan tombol Selesai --}}
         <button id="btn-next"
                 class="flex h-11 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold text-white transition active:opacity-80"
                 style="background:linear-gradient(135deg,#6366f1,#8b5cf6); min-width:90px">
@@ -393,7 +392,6 @@
     const contentIds  = {!! $contentIdsJs !!};
     const progressUrl = '{{ route('user.sections.progress.update', $section) }}';
     const csrfToken   = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
-    const quizUrl     = '{{ route('user.quizzes.index', $section) }}';
     const backUrl     = '{{ route('user.schemas.show', $learningSchema) }}';
 
     const track   = document.getElementById('slides-track');
@@ -406,7 +404,7 @@
     const readSlides = new Set();
     let cur = 0;
 
-    function saveProgress(slideIndex) {
+    function saveProgress(slideIndex, forceComplete = false) {
         readSlides.add(slideIndex);
         const readContentIds = Array.from(readSlides)
             .filter(i => i < contentIds.length)
@@ -423,6 +421,7 @@
                 slide_index  : Math.max(...readSlides),
                 total_slides : total,
                 content_ids  : readContentIds,
+                completed    : forceComplete,
             }),
         }).catch(() => {});
     }
@@ -450,10 +449,10 @@
         const isLast = cur === total - 1;
 
         if (isLast && hasQuiz) {
-            // Slide terakhir = slide quiz → sembunyikan tombol next, navigasi handle di tombol "Mulai Quiz"
+            // Slide quiz — sembunyikan tombol next
             btnNext.style.display = 'none';
         } else if (isLast && !hasQuiz) {
-            // Tidak ada quiz → tampilkan tombol Selesai
+            // Tidak ada quiz → tampilkan tombol Selesai (hijau)
             btnNext.style.display = '';
             btnNext.innerHTML = 'Selesai&nbsp;<svg style="display:inline;vertical-align:middle" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
             btnNext.style.background = 'linear-gradient(135deg,#10b981,#059669)';
@@ -463,14 +462,19 @@
             btnNext.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)';
         }
 
-        saveProgress(cur);
+        // Kirim progress — jangan kirim completed=true di sini,
+        // biar tidak trigger complete saat slide terakhir dibuka (quiz atau tidak)
+        saveProgress(cur, false);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     btnPrev.addEventListener('click', () => goTo(cur - 1));
     btnNext.addEventListener('click', () => {
         if (cur === total - 1 && !hasQuiz) {
-            window.location.href = backUrl;
+            // Klik Selesai → kirim completed=true LALU redirect
+            saveProgress(cur, true);
+            // Tunggu sebentar biar fetch sempat terkirim sebelum redirect
+            setTimeout(() => { window.location.href = backUrl; }, 300);
         } else {
             goTo(cur + 1);
         }
