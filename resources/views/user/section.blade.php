@@ -6,6 +6,9 @@
     $totalSlides = $contents->count() + ($quizzes->isNotEmpty() ? 1 : 0);
     $hasQuiz     = $quizzes->isNotEmpty();
     if ($totalSlides === 0) $totalSlides = 1;
+
+    // Content IDs sebagai array JS
+    $contentIdsJs = $contents->pluck('id')->toJson();
 @endphp
 
 <style>
@@ -14,7 +17,6 @@
     gap: 12px;
     align-items: flex-start;
 }
-/* Gambar: 1/4 lebar */
 .media-split__img {
     flex: 0 0 25%;
     max-width: 25%;
@@ -33,12 +35,10 @@
     object-fit: cover;
     display: block;
 }
-/* Teks: 3/4 lebar */
 .media-split__text {
     flex: 1 1 0;
     min-width: 0;
 }
-/* Gambar saja tanpa teks: tampil penuh */
 .media-img-only {
     width: 100%;
     border-radius: 14px;
@@ -114,7 +114,7 @@
                 </div>
             </div>
 
-            {{-- ════ BLOK 1: VIDEO — selalu paling atas ════ --}}
+            {{-- VIDEO --}}
             @php
                 $vRaw = '';
                 if ($content->isVideo() && $content->url) {
@@ -135,7 +135,7 @@
             </div>
             @endif
 
-            {{-- ════ BLOK 2: LAYOUT 1/4 gambar | 3/4 teks ════ --}}
+            {{-- 1/4 gambar | 3/4 teks --}}
             @if($hasImage && $hasBody)
             <div class="mb-4 media-split">
                 <div class="media-split__img">
@@ -175,7 +175,7 @@
             </div>
             @endif
 
-            {{-- Tipe URL: card link --}}
+            {{-- URL --}}
             @if($content->isUrl())
             <a href="{{ $content->url }}" target="_blank" rel="noopener noreferrer"
                class="mb-3 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-4">
@@ -195,7 +195,7 @@
             @endif
             @endif
 
-            {{-- Tipe File: card download --}}
+            {{-- File --}}
             @if($content->isFile())
             <a href="{{ $content->url }}" target="_blank" rel="noopener noreferrer"
                class="mb-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
@@ -215,7 +215,7 @@
             @endif
             @endif
 
-            {{-- ════ BLOK 3: AUDIO — selalu paling bawah ════ --}}
+            {{-- Audio --}}
             @if($audios->isNotEmpty())
             <div class="mt-3 space-y-3">
                 @foreach($audios as $audio)
@@ -327,60 +327,101 @@
 
 <script>
 (function () {
-    const total   = {{ $totalSlides }};
+    const total       = {{ $totalSlides }};
+    const contentIds  = {!! $contentIdsJs !!};   // array id konten
+    const progressUrl = '{{ route('user.sections.progress.update', $section) }}';
+    const csrfToken   = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
     const track   = document.getElementById('slides-track');
     const btnPrev = document.getElementById('btn-prev');
     const btnNext = document.getElementById('btn-next');
     const counter = document.getElementById('slide-current');
     const bar     = document.getElementById('progress-bar');
     const dots    = document.querySelectorAll('.dot');
+
+    // Set untuk melacak slide mana saja yang sudah dibaca
+    const readSlides = new Set();
     let cur = 0;
 
+    // ── Kirim progres ke server ──────────────────────────────────────
+    function saveProgress(slideIndex) {
+        readSlides.add(slideIndex);
+
+        // Kumpulkan content_ids yang sudah dibaca (hanya slide konten, bukan quiz)
+        const readContentIds = Array.from(readSlides)
+            .filter(i => i < contentIds.length)
+            .map(i => contentIds[i]);
+
+        fetch(progressUrl, {
+            method : 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept'      : 'application/json',
+            },
+            body: JSON.stringify({
+                slide_index  : Math.max(...readSlides),   // slide terjauh yang sudah dilihat
+                total_slides : total,
+                content_ids  : readContentIds,
+            }),
+        }).catch(() => {/* silent fail */});
+    }
+
+    // ── Update UI ────────────────────────────────────────────────────
     function setPrev(on) {
-        btnPrev.style.opacity       = on ? '1'       : '0.3';
-        btnPrev.style.pointerEvents = on ? 'auto'    : 'none';
+        btnPrev.style.opacity       = on ? '1'    : '0.3';
+        btnPrev.style.pointerEvents = on ? 'auto' : 'none';
         btnPrev.style.cursor        = on ? 'pointer' : 'default';
     }
 
     function goTo(n) {
         if (n < 0 || n >= total) return;
         cur = n;
-        track.style.transform = `translateX(-${(100/total)*cur}%)`;
+        track.style.transform = `translateX(-${(100 / total) * cur}%)`;
         counter.textContent   = cur + 1;
-        bar.style.width       = ((cur+1)/total*100) + '%';
-        dots.forEach((d,i) => {
-            d.style.width      = i===cur ? '20px' : '8px';
-            d.style.background = i===cur ? '#6366f1' : '#e2e8f0';
+        bar.style.width       = ((cur + 1) / total * 100) + '%';
+
+        dots.forEach((d, i) => {
+            d.style.width      = i === cur ? '20px' : '8px';
+            d.style.background = i === cur ? '#6366f1' : '#e2e8f0';
         });
+
         setPrev(cur > 0);
-        const last = cur === total-1;
-        if (last) {
+
+        const isLast = cur === total - 1;
+        if (isLast) {
             btnNext.innerHTML = 'Selesai&nbsp;<svg style="display:inline;vertical-align:middle" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
             btnNext.style.background = 'linear-gradient(135deg,#10b981,#059669)';
         } else {
             btnNext.innerHTML = 'Lanjut&nbsp;<svg style="display:inline;vertical-align:middle" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>';
             btnNext.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)';
         }
-        window.scrollTo({ top:0, behavior:'smooth' });
+
+        // Catat slide ini sebagai sudah dibaca & kirim ke server
+        saveProgress(cur);
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    btnPrev.addEventListener('click', () => goTo(cur-1));
+    btnPrev.addEventListener('click', () => goTo(cur - 1));
     btnNext.addEventListener('click', () => {
-        if (cur === total-1) {
+        if (cur === total - 1) {
             window.location.href = '{{ route('user.schemas.show', $learningSchema) }}';
         } else {
-            goTo(cur+1);
+            goTo(cur + 1);
         }
     });
 
+    // Swipe
     let sx = 0;
     const area = track.parentElement;
-    area.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, {passive:true});
-    area.addEventListener('touchend',   e => {
+    area.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+    area.addEventListener('touchend', e => {
         const diff = sx - e.changedTouches[0].clientX;
-        if (Math.abs(diff) > 50) diff > 0 ? goTo(cur+1) : goTo(cur-1);
+        if (Math.abs(diff) > 50) diff > 0 ? goTo(cur + 1) : goTo(cur - 1);
     });
 
+    // Inisiasi: catat slide pertama
     goTo(0);
 }());
 </script>

@@ -10,6 +10,7 @@ use App\Http\Controllers\ContentController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\UserDashboardController;
+use App\Http\Controllers\UserProgressController;
 
 /*
 |--------------------------------------------------------------------------
@@ -65,6 +66,10 @@ Route::middleware(['auth', 'role:user', 'check.active'])
             [QuizController::class, 'userShow'])->name('quizzes.show');
         Route::post('/sections/{section}/quizzes/submit',
             [QuizController::class, 'userSubmit'])->name('quizzes.submit');
+
+        // Progress
+        Route::post('/sections/{section}/progress',
+            [UserProgressController::class, 'update'])->name('sections.progress.update');
     });
 
 /*
