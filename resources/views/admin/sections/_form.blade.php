@@ -1,15 +1,44 @@
-{{-- Shared form partial for create & edit section --}}
+{{-- Section Form — Multi-Page Only (single page removed) --}}
 
 {{-- Quill CSS --}}
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
 <style>
-    .page-item { background:#f8fafc; border:1px solid #e2e8f0; border-radius:1rem; padding:1rem; margin-bottom:.75rem; }
-    .page-item .ql-container { min-height:120px; border-radius:0 0 .5rem .5rem; }
-    .page-item .ql-toolbar { border-radius:.5rem .5rem 0 0; }
-    .slide-item { background:#f8fafc; border:1px solid #e2e8f0; border-radius:1rem; padding:1rem; margin-bottom:.75rem; }
-    .slide-thumb-preview { width:100%; height:90px; object-fit:cover; border-radius:.5rem; margin-top:.5rem; }
-    .audio-current { display:flex; align-items:center; gap:.5rem; padding:.5rem .75rem; background:#f0f4ff; border:1px solid #c7d2fe; border-radius:.5rem; margin-top:.25rem; }
-    .audio-current span { font-size:.75rem; color:#4f46e5; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.slide-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    padding: 1rem;
+    margin-bottom: .75rem;
+}
+.slide-card .ql-container { min-height: 100px; border-radius: 0 0 .5rem .5rem; }
+.slide-card .ql-toolbar  { border-radius: .5rem .5rem 0 0; }
+.slide-thumb-preview {
+    width: 100%; max-height: 140px;
+    object-fit: contain;
+    border-radius: .5rem;
+    border: 1px solid #e2e8f0;
+    margin-top: .25rem;
+    background: #fff;
+}
+.media-tab-btn {
+    flex: 1;
+    padding: .3rem .5rem;
+    font-size: .65rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #64748b;
+    cursor: pointer;
+    transition: all .15s;
+    text-align: center;
+    white-space: nowrap;
+}
+.media-tab-btn.active {
+    background: #4f46e5;
+    color: #fff;
+    border-color: #4f46e5;
+}
 </style>
 
 @if($errors->any())
@@ -20,9 +49,12 @@
 </x-alert>
 @endif
 
+{{-- Hidden: mode selalu multi --}}
+<input type="hidden" name="content_mode" value="multi">
+
 {{-- Spesialisasi Course --}}
 <div>
-    <label class="mb-1 block text-xs font-semibold text-slate-700">Spesialisasi Course <span class="text-red-500">*</span></label>
+    <label class="mb-1 block text-xs font-semibold text-slate-700">Spesialisasi Course</label>
     <select name="course_type_id"
             class="block w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500">
         <option value="">-- Pilih Spesialisasi --</option>
@@ -51,228 +83,149 @@
               placeholder="Deskripsi singkat section">{{ old('description', $section->description ?? '') }}</textarea>
 </div>
 
-{{-- ═══════════════════ CONTENT MODE ═══════════════════ --}}
+{{-- ═══ SLIDE BUILDER ═══ --}}
 <div>
-    <label class="mb-2 block text-xs font-semibold text-slate-700">Mode Konten <span class="text-red-500">*</span></label>
-    <div class="grid grid-cols-2 gap-3">
-        @php $currentMode = old('content_mode', $section->content_mode ?? 'single'); @endphp
-        <label class="flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 transition
-                      has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50
-                      border-slate-200">
-            <input type="radio" name="content_mode" value="single"
-                   {{ $currentMode === 'single' ? 'checked' : '' }}
-                   class="sr-only" onchange="toggleContentMode()">
-            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            </div>
-            <div>
-                <p class="text-sm font-bold text-slate-800">Single Page</p>
-                <p class="text-xs text-slate-400">1 halaman konten seperti biasa</p>
-            </div>
-        </label>
-        <label class="flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 transition
-                      has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50
-                      border-slate-200">
-            <input type="radio" name="content_mode" value="multi"
-                   {{ $currentMode === 'multi' ? 'checked' : '' }}
-                   class="sr-only" onchange="toggleContentMode()">
-            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-100">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
-            </div>
-            <div>
-                <p class="text-sm font-bold text-slate-800">Multi Page</p>
-                <p class="text-xs text-slate-400">Beberapa halaman, user bisa next/prev</p>
-            </div>
-        </label>
-    </div>
-</div>
-
-{{-- ═══════════════════ SINGLE PAGE CONTENT ═══════════════════ --}}
-<div id="content-single-wrap" {{ $currentMode === 'multi' ? 'class=hidden' : '' }}>
-    <label class="mb-1 block text-xs font-semibold text-slate-700">Konten / Materi Teks</label>
-    <input type="hidden" name="content" id="content-input">
-    <div id="quill-editor"
-         style="min-height: 200px; background: white; border-radius: 0.75rem;"
-         class="border border-slate-300">{!! old('content', $section->content ?? '') !!}</div>
-    <p class="mt-1 text-xs text-slate-400">Gunakan toolbar untuk format teks. Kosongkan jika konten berupa media saja.</p>
-</div>
-
-{{-- ═══════════════════ MULTI PAGE BUILDER ═══════════════════ --}}
-<div id="content-multi-wrap" {{ $currentMode !== 'multi' ? 'class=hidden' : '' }}>
     <div class="mb-3 flex items-center justify-between">
         <div>
-            <p class="text-xs font-semibold text-slate-700">Page Builder</p>
-            <p class="text-xs text-slate-400">Tiap page bisa punya judul, konten teks kaya, foto, dan audio opsional.</p>
+            <p class="text-xs font-semibold text-slate-700">Slide Builder</p>
+            <p class="text-xs text-slate-400">Setiap slide bisa punya teks, gambar, video, audio, YouTube, atau Drive.</p>
         </div>
-        <button type="button" onclick="addPage()"
+        <button type="button" onclick="addSlide()"
                 class="flex items-center gap-1.5 rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm active:scale-95 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            Tambah Page
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+            </svg>
+            Tambah Slide
         </button>
     </div>
 
     @php
-        $existingPages = !empty($section->pages) && is_array($section->pages) ? $section->pages : [];
+        $existingPages = (!empty($section->pages) && is_array($section->pages)) ? $section->pages : [];
     @endphp
 
-    <div id="pages-container" class="space-y-3">
-        @if(!empty($existingPages))
-            @foreach($existingPages as $pi => $page)
-            <div class="page-item" data-page-index="{{ $pi }}">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-2">
-                        <span class="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-black text-white page-num">{{ $pi + 1 }}</span>
-                        <span class="text-xs font-bold text-slate-600">Page {{ $pi + 1 }}</span>
-                    </div>
-                    <button type="button" onclick="removePage(this)" class="text-slate-300 hover:text-red-500 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                </div>
-
-                {{-- Page title --}}
-                <input type="text" name="pages[{{ $pi }}][title]" value="{{ $page['title'] ?? '' }}"
-                       placeholder="Judul page (opsional)"
-                       class="mb-2 block w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-indigo-400">
-
-                {{-- Keep existing image --}}
-                <input type="hidden" name="pages[{{ $pi }}][image_url]" value="{{ $page['image_url'] ?? '' }}">
-
-                {{-- Page image --}}
-                <div class="mb-2">
-                    <label class="mb-1 block text-xs text-slate-500">Foto / Gambar Page <span class="text-slate-400">(opsional, jpg/png/webp maks 5MB)</span></label>
-                    @if(!empty($page['image_url']))
-                        <img src="{{ $page['image_url'] }}" class="slide-thumb-preview" loading="lazy">
-                    @endif
-                    <input type="file" name="pages[{{ $pi }}][new_image]" accept="image/jpeg,image/png,image/webp"
-                           class="mt-1 block w-full text-xs text-slate-500 file:rounded-full file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-xs"
-                           onchange="previewPageImage(this)">
-                </div>
-
-                {{-- ─── Audio per Page (NEW) ──────────────────────────────── --}}
-                <div class="mb-2">
-                    <label class="mb-1 block text-xs text-slate-500">
-                        🎵 Audio Slide
-                        <span class="text-slate-400">(opsional, mp3/wav/ogg maks 50MB)</span>
-                    </label>
-
-                    {{-- Tampilkan audio saat ini jika ada --}}
-                    @if(!empty($page['audio_url']))
-                        <div class="audio-current" id="audio-current-{{ $pi }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
-                            <span>{{ basename($page['audio_url']) }}</span>
-                            <label class="flex items-center gap-1 text-xs text-red-400 cursor-pointer shrink-0">
-                                <input type="checkbox" name="pages[{{ $pi }}][remove_audio]" value="1" class="h-3 w-3">
-                                Hapus
-                            </label>
-                        </div>
-                        <input type="hidden" name="pages[{{ $pi }}][audio_url]" value="{{ $page['audio_url'] }}">
-                    @endif
-
-                    <input type="file"
-                           name="pages[{{ $pi }}][new_audio]"
-                           accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac"
-                           class="mt-1 block w-full text-xs text-slate-500
-                                  file:rounded-full file:border-0 file:bg-purple-50
-                                  file:px-2 file:py-1 file:text-xs file:font-medium file:text-purple-700"
-                           onchange="previewPageAudio(this, {{ $pi }})">
-                    <div id="audio-new-preview-{{ $pi }}" class="hidden mt-1">
-                        <audio controls class="w-full h-8" style="border-radius:.5rem;"></audio>
-                        <p class="text-xs text-slate-400 mt-0.5">Preview audio baru</p>
-                    </div>
-                </div>
-                {{-- ─── End Audio per Page ────────────────────────────────── --}}
-
-                {{-- Page content via hidden Quill --}}
-                <label class="mb-1 block text-xs text-slate-500">Konten Page <span class="text-red-400">*</span></label>
-                <input type="hidden" name="pages[{{ $pi }}][content]" id="page-content-{{ $pi }}" value="{{ $page['content'] ?? '' }}">
-                <div id="page-quill-{{ $pi }}" class="border border-slate-200" style="min-height:120px; background:white; border-radius:.5rem;">{!! $page['content'] ?? '' !!}</div>
-            </div>
-            @endforeach
-        @endif
-    </div>
-
-    <input type="hidden" name="pages_count" id="pages-count" value="{{ count($existingPages) }}">
-    <p class="mt-2 text-xs text-slate-400">Urutan page = urutan tampil ke user. Minimal 1 page untuk mode multi.</p>
-</div>
-
-{{-- ═══════════════════ TIPE MEDIA ═══════════════════ --}}
-<div>
-    <label class="mb-2 block text-xs font-semibold text-slate-700">Tipe Media <span class="text-slate-400">(opsional — tampil di atas konten)</span></label>
-    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div id="slides-container" class="space-y-3">
+        @forelse($existingPages as $pi => $page)
         @php
-            $mediaTypes = [
-                'video_upload' => ['icon' => 'M15 10l4.553-2.069A1 1 0 0121 8.882v6.236a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z', 'label' => 'Video', 'desc' => 'mp4 / webm'],
-                'audio_upload' => ['icon' => 'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3', 'label' => 'Audio', 'desc' => 'mp3 / wav'],
-                'youtube'      => ['icon' => 'M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z M21 12a9 9 0 11-18 0 9 9 0 0118 0z', 'label' => 'YouTube', 'desc' => 'URL YouTube'],
-                'drive'        => ['icon' => 'M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z', 'label' => 'Drive', 'desc' => 'Google Drive'],
-            ];
-            $currentType = old('media_type', $section->media_type ?? 'video_upload');
+            $slideMedia = $page['slide_media_type'] ?? 'none';
         @endphp
-        @foreach($mediaTypes as $val => $meta)
-        <label class="flex cursor-pointer flex-col items-center gap-1 rounded-2xl border px-3 py-3 text-center text-xs transition
-                      has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-700
-                      border-slate-200 text-slate-500">
-            <input type="radio" name="media_type" value="{{ $val }}"
-                   {{ $currentType === $val ? 'checked' : '' }}
-                   class="sr-only" onchange="toggleMediaInput()">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                <path stroke-linecap="round" stroke-linejoin="round" d="{{ $meta['icon'] }}"/>
-            </svg>
-            <span class="font-semibold">{{ $meta['label'] }}</span>
-            <span class="text-slate-400">{{ $meta['desc'] }}</span>
-        </label>
-        @endforeach
+        <div class="slide-card" data-slide-index="{{ $pi }}">
+
+            {{-- ── Header slide ── --}}
+            <div class="mb-3 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-black text-white slide-num">{{ $pi + 1 }}</span>
+                    <span class="text-xs font-bold text-slate-600 slide-label">Slide {{ $pi + 1 }}</span>
+                </div>
+                <button type="button" onclick="removeSlide(this)" class="text-slate-300 hover:text-red-500 transition">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            {{-- ── Judul slide ── --}}
+            <input type="text" name="pages[{{ $pi }}][title]" value="{{ $page['title'] ?? '' }}"
+                   placeholder="Judul slide (opsional)"
+                   class="mb-3 block w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-indigo-400">
+
+            {{-- ── Media Type Tabs ── --}}
+            <div class="mb-3">
+                <p class="mb-1.5 text-xs font-semibold text-slate-600">Tipe Media Slide</p>
+                <div class="flex gap-1.5 flex-wrap" role="group">
+                    @foreach(['none'=>'Teks Saja','image'=>'🖼 Gambar','video_upload'=>'🎬 Video','audio'=>'🎵 Audio','youtube'=>'▶ YouTube','drive'=>'☁ Drive'] as $mval => $mlabel)
+                    <button type="button"
+                            class="media-tab-btn {{ $slideMedia === $mval ? 'active' : '' }}"
+                            onclick="switchSlideMedia(this, '{{ $mval }}', {{ $pi }})"
+                            data-mtype="{{ $mval }}">
+                        {{ $mlabel }}
+                    </button>
+                    @endforeach
+                </div>
+                <input type="hidden" name="pages[{{ $pi }}][slide_media_type]" value="{{ $slideMedia }}" class="slide-media-type-input">
+            </div>
+
+            {{-- ── Panel: Gambar ── --}}
+            <div class="slide-media-panel" data-panel="image" {{ $slideMedia !== 'image' ? 'style=display:none' : '' }}>
+                <label class="mb-1 block text-xs text-slate-500">Upload Gambar <span class="text-slate-400">(jpg/png/webp, maks 5MB)</span></label>
+                @if(!empty($page['image_url']))
+                    <img src="{{ $page['image_url'] }}" class="slide-thumb-preview mb-1" loading="lazy">
+                @endif
+                <input type="hidden" name="pages[{{ $pi }}][image_url]" value="{{ $page['image_url'] ?? '' }}">
+                <input type="hidden" name="pages[{{ $pi }}][image_path]" value="{{ $page['image_path'] ?? '' }}">
+                <input type="file" name="pages[{{ $pi }}][new_image]" accept="image/jpeg,image/png,image/webp"
+                       class="block w-full text-xs text-slate-500 file:rounded-full file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-xs"
+                       onchange="previewSlideImage(this)">
+            </div>
+
+            {{-- ── Panel: Video Upload ── --}}
+            <div class="slide-media-panel" data-panel="video_upload" {{ $slideMedia !== 'video_upload' ? 'style=display:none' : '' }}>
+                <label class="mb-1 block text-xs text-slate-500">Upload Video <span class="text-slate-400">(mp4/webm/mov, maks 200MB)</span></label>
+                @if(!empty($page['video_url']))
+                    <video src="{{ $page['video_url'] }}" controls class="w-full max-h-36 rounded-xl mb-1 bg-black"></video>
+                @endif
+                <input type="hidden" name="pages[{{ $pi }}][video_url]" value="{{ $page['video_url'] ?? '' }}">
+                <input type="hidden" name="pages[{{ $pi }}][video_path]" value="{{ $page['video_path'] ?? '' }}">
+                <input type="file" name="pages[{{ $pi }}][new_video]" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo"
+                       class="block w-full text-xs text-slate-500 file:rounded-full file:border-0 file:bg-indigo-50 file:px-2 file:py-1 file:text-xs file:text-indigo-700"
+                       onchange="previewSlideVideo(this)">
+            </div>
+
+            {{-- ── Panel: Audio ── --}}
+            <div class="slide-media-panel" data-panel="audio" {{ $slideMedia !== 'audio' ? 'style=display:none' : '' }}>
+                <label class="mb-1 block text-xs text-slate-500">Upload Audio <span class="text-slate-400">(mp3/wav/ogg/aac, maks 50MB)</span></label>
+                @if(!empty($page['audio_url']))
+                    <audio src="{{ $page['audio_url'] }}" controls class="w-full mb-1"></audio>
+                @endif
+                <input type="hidden" name="pages[{{ $pi }}][audio_url]" value="{{ $page['audio_url'] ?? '' }}">
+                <input type="hidden" name="pages[{{ $pi }}][audio_path]" value="{{ $page['audio_path'] ?? '' }}">
+                <input type="file" name="pages[{{ $pi }}][new_audio]" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac"
+                       class="block w-full text-xs text-slate-500 file:rounded-full file:border-0 file:bg-purple-50 file:px-2 file:py-1 file:text-xs file:text-purple-700"
+                       onchange="previewSlideAudio(this)">
+            </div>
+
+            {{-- ── Panel: YouTube ── --}}
+            <div class="slide-media-panel" data-panel="youtube" {{ $slideMedia !== 'youtube' ? 'style=display:none' : '' }}>
+                <label class="mb-1 block text-xs text-slate-500">YouTube URL</label>
+                <input type="url" name="pages[{{ $pi }}][youtube_url]" value="{{ $page['youtube_url'] ?? '' }}"
+                       placeholder="https://www.youtube.com/watch?v=..."
+                       class="block w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-indigo-400">
+            </div>
+
+            {{-- ── Panel: Drive ── --}}
+            <div class="slide-media-panel" data-panel="drive" {{ $slideMedia !== 'drive' ? 'style=display:none' : '' }}>
+                <label class="mb-1 block text-xs text-slate-500">Google Drive URL</label>
+                <input type="url" name="pages[{{ $pi }}][drive_url]" value="{{ $page['drive_url'] ?? '' }}"
+                       placeholder="https://drive.google.com/file/d/..."
+                       class="block w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-indigo-400">
+                <p class="mt-1 text-xs text-amber-600">Pastikan file diset <em>Anyone with the link can view</em>.</p>
+            </div>
+
+            {{-- ── Konten Teks ── --}}
+            <div class="mt-3">
+                <label class="mb-1 block text-xs text-slate-500">Konten Teks Slide <span class="text-slate-400">(opsional)</span></label>
+                <input type="hidden" name="pages[{{ $pi }}][content]" id="page-content-{{ $pi }}" value="{{ $page['content'] ?? '' }}">
+                <div id="page-quill-{{ $pi }}" class="border border-slate-200" style="min-height:100px; background:white; border-radius:.5rem;">{!! $page['content'] ?? '' !!}</div>
+            </div>
+        </div>
+        @empty
+        {{-- Placeholder jika belum ada slide --}}
+        <div id="slides-empty" class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-center">
+            <p class="text-xs text-slate-400">Belum ada slide. Klik <strong>Tambah Slide</strong> untuk mulai.</p>
+        </div>
+        @endforelse
     </div>
+
+    <input type="hidden" name="pages_count" id="slides-count" value="{{ count($existingPages) }}">
 </div>
 
-{{-- Upload Video --}}
-<div id="media-video_upload-field">
-    <label class="mb-1 block text-xs font-semibold text-slate-700">File Video <span class="text-slate-400">(mp4 / webm, maks 200MB)</span></label>
-    <input type="file" name="video_file" accept="video/mp4,video/webm,video/ogg,video/quicktime"
-           class="block w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-600
-                  file:mr-3 file:rounded-full file:border-0 file:bg-indigo-50 file:px-3 file:py-1 file:text-xs file:font-medium file:text-indigo-700">
-    @if(!empty($section->media_file) && in_array($section->media_type ?? '', ['video_upload', 'upload']))
-        <p class="mt-1 text-xs text-slate-400">File saat ini: <span class="text-indigo-600">{{ basename($section->media_file) }}</span></p>
-    @endif
-</div>
-
-<div id="media-audio_upload-field" class="hidden">
-    <label class="mb-1 block text-xs font-semibold text-slate-700">File Audio <span class="text-slate-400">(mp3 / wav / ogg, maks 50MB)</span></label>
-    <input type="file" name="audio_file" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac"
-           class="block w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-600
-                  file:mr-3 file:rounded-full file:border-0 file:bg-purple-50 file:px-3 file:py-1 file:text-xs file:font-medium file:text-purple-700">
-    @if(!empty($section->media_file) && ($section->media_type ?? '') === 'audio_upload')
-        <p class="mt-1 text-xs text-slate-400">File saat ini: <span class="text-purple-600">{{ basename($section->media_file) }}</span></p>
-    @endif
-</div>
-
-<div id="media-youtube-field" class="hidden">
-    <label class="mb-1 block text-xs font-semibold text-slate-700">YouTube URL</label>
-    <input type="url" name="media_url"
-           value="{{ old('media_url', ($section->media_type ?? '') === 'youtube' ? ($section->media_url ?? '') : '') }}"
-           class="block w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500"
-           placeholder="https://www.youtube.com/watch?v=...">
-</div>
-
-<div id="media-drive-field" class="hidden">
-    <label class="mb-1 block text-xs font-semibold text-slate-700">Google Drive URL</label>
-    <input type="url" name="media_url"
-           value="{{ old('media_url', ($section->media_type ?? '') === 'drive' ? ($section->media_url ?? '') : '') }}"
-           class="block w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500"
-           placeholder="https://drive.google.com/file/d/...">
-    <div class="mt-1 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-        <strong>Perhatian:</strong> Pastikan file Drive diset <em>Anyone with the link can view</em>.
-    </div>
-</div>
-
-{{-- Thumbnail --}}
-<div id="thumbnail-field">
-    <label class="mb-1 block text-xs font-semibold text-slate-700">Thumbnail <span class="text-slate-400">(jpg/png, maks 2MB)</span></label>
+{{-- Thumbnail Section (cover) --}}
+<div>
+    <label class="mb-1 block text-xs font-semibold text-slate-700">Thumbnail Section <span class="text-slate-400">(jpg/png, maks 2MB)</span></label>
     <input type="file" name="thumbnail" accept="image/jpeg,image/png,image/webp"
            class="block w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-600
                   file:mr-3 file:rounded-full file:border-0 file:bg-slate-100 file:px-3 file:py-1 file:text-xs file:font-medium file:text-slate-600">
-    @if(!empty($section->thumbnail_url))
-        <img src="{{ $section->thumbnail_url }}" alt="" class="mt-2 h-20 w-full rounded-xl object-cover" loading="lazy">
+    @if(!empty($section->thumbnail) && !empty($section->getThumbnailUrl()))
+        <img src="{{ $section->getThumbnailUrl() }}" alt="" class="mt-2 h-20 w-full rounded-xl object-cover" loading="lazy">
     @endif
 </div>
 
@@ -292,38 +245,23 @@
            class="h-5 w-5 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500">
     <div>
         <p class="text-sm font-medium text-slate-800">Publish Section</p>
-        <p class="text-xs text-slate-500">Section akan terlihat oleh user jika diaktifkan.</p>
+        <p class="text-xs text-slate-500">Section terlihat oleh user jika diaktifkan.</p>
     </div>
 </label>
 
-{{-- ═══════════════════ SCRIPTS ═══════════════════ --}}
+{{-- ═══ SCRIPTS ═══ --}}
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
 <script>
-// ─── Single page Quill ────────────────────────────────────────────────────────
-const quillSingle = new Quill('#quill-editor', {
-    theme: 'snow',
-    placeholder: 'Tulis materi lengkap di sini...',
-    modules: {
-        toolbar: [
-            [{ header: [2, 3, false] }],
-            ['bold', 'italic', 'underline'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['blockquote', 'code-block'],
-            ['clean']
-        ]
-    }
-});
-
-// ─── Multi-page Quill instances (keyed by page index) ────────────────────────
+// ─── Quill instances per slide ──────────────────────────────────────────────
 const pageQuills = {};
 
-function initPageQuill(idx) {
+function initSlideQuill(idx) {
     if (pageQuills[idx]) return;
     const el = document.getElementById('page-quill-' + idx);
     if (!el) return;
     pageQuills[idx] = new Quill(el, {
         theme: 'snow',
-        placeholder: 'Isi konten page ' + (idx + 1) + '...',
+        placeholder: 'Isi konten slide ' + (idx + 1) + '...',
         modules: {
             toolbar: [
                 [{ header: [2, 3, false] }],
@@ -334,154 +272,191 @@ function initPageQuill(idx) {
             ]
         }
     });
-    // Seed existing content from hidden input
     const hidden = document.getElementById('page-content-' + idx);
     if (hidden && hidden.value) {
         pageQuills[idx].root.innerHTML = hidden.value;
     }
 }
 
-// Init existing pages quill editors on load
-document.addEventListener('DOMContentLoaded', function () {
-    toggleContentMode();
-    toggleMediaInput();
-    // Init all existing page quills
-    document.querySelectorAll('#pages-container .page-item').forEach(item => {
-        const idx = parseInt(item.dataset.pageIndex);
-        initPageQuill(idx);
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('#slides-container .slide-card').forEach(card => {
+        initSlideQuill(parseInt(card.dataset.slideIndex));
     });
 });
 
-// ─── Content mode toggle ──────────────────────────────────────────────────────
-function toggleContentMode() {
-    const mode = document.querySelector('input[name="content_mode"]:checked')?.value;
-    document.getElementById('content-single-wrap')?.classList.toggle('hidden', mode === 'multi');
-    document.getElementById('content-multi-wrap')?.classList.toggle('hidden', mode !== 'multi');
-}
-
-// ─── Media type toggle ────────────────────────────────────────────────────────
-function toggleMediaInput() {
-    const type = document.querySelector('input[name="media_type"]:checked')?.value;
-    const panels = {
-        'video_upload': 'media-video_upload-field',
-        'audio_upload': 'media-audio_upload-field',
-        'youtube':      'media-youtube-field',
-        'drive':        'media-drive-field',
-    };
-    Object.entries(panels).forEach(([key, id]) => {
-        const el = document.getElementById(id);
-        if (el) el.classList.toggle('hidden', key !== type);
-    });
-}
-
-// ─── Submit: collect all Quill content ───────────────────────────────────────
-const form = document.querySelector('form');
-if (form) {
-    form.addEventListener('submit', function () {
-        // Single
-        document.getElementById('content-input').value = quillSingle.root.innerHTML;
-        // Multi: flush each quill to hidden input
+// Flush quill content to hidden inputs on submit
+const _form = document.querySelector('form');
+if (_form) {
+    _form.addEventListener('submit', () => {
         Object.entries(pageQuills).forEach(([idx, q]) => {
             const hidden = document.getElementById('page-content-' + idx);
             if (hidden) hidden.value = q.root.innerHTML;
         });
-        renumberPages();
+        renumberSlides();
     });
 }
 
-// ─── Page Builder ─────────────────────────────────────────────────────────────
-let pageIndex = parseInt(document.getElementById('pages-count')?.value || 0);
+// ─── Slide Builder ──────────────────────────────────────────────────────────
+let slideIndex = parseInt(document.getElementById('slides-count')?.value || 0);
 
-function addPage() {
-    const container = document.getElementById('pages-container');
-    const idx       = pageIndex;
-    pageIndex++;
-    document.getElementById('pages-count').value = pageIndex;
+function addSlide() {
+    document.getElementById('slides-empty')?.remove();
+    const container = document.getElementById('slides-container');
+    const idx = slideIndex++;
+    document.getElementById('slides-count').value = slideIndex;
 
     const div = document.createElement('div');
-    div.className        = 'page-item';
-    div.dataset.pageIndex = idx;
-    div.innerHTML = `
-    <div class="flex items-center justify-between mb-2">
+    div.className = 'slide-card';
+    div.dataset.slideIndex = idx;
+    div.innerHTML = slideTemplate(idx);
+    container.appendChild(div);
+    setTimeout(() => initSlideQuill(idx), 60);
+}
+
+function slideTemplate(idx) {
+    const mediaTypes = [
+        { val: 'none',         label: 'Teks Saja' },
+        { val: 'image',        label: '🖼 Gambar' },
+        { val: 'video_upload', label: '🎬 Video' },
+        { val: 'audio',        label: '🎵 Audio' },
+        { val: 'youtube',      label: '▶ YouTube' },
+        { val: 'drive',        label: '☁ Drive' },
+    ];
+    const tabsHtml = mediaTypes.map(m =>
+        `<button type="button" class="media-tab-btn${m.val==='none'?' active':''}" onclick="switchSlideMedia(this,'${m.val}',${idx})" data-mtype="${m.val}">${m.label}</button>`
+    ).join('');
+
+    return `
+    <div class="mb-3 flex items-center justify-between">
         <div class="flex items-center gap-2">
-            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-black text-white page-num">${idx + 1}</span>
-            <span class="text-xs font-bold text-slate-600 page-label">Page ${idx + 1}</span>
+            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-black text-white slide-num">${idx+1}</span>
+            <span class="text-xs font-bold text-slate-600 slide-label">Slide ${idx+1}</span>
         </div>
-        <button type="button" onclick="removePage(this)" class="text-slate-300 hover:text-red-500 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        <button type="button" onclick="removeSlide(this)" class="text-slate-300 hover:text-red-500 transition">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
     </div>
-    <input type="text" name="pages[${idx}][title]" placeholder="Judul page (opsional)"
-           class="mb-2 block w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-indigo-400">
-    <div class="mb-2">
-        <label class="mb-1 block text-xs text-slate-500">Foto / Gambar <span class="text-slate-400">(opsional)</span></label>
-        <div id="img-preview-wrap-${idx}" class="hidden mb-1"><img id="img-preview-${idx}" src="" class="slide-thumb-preview"></div>
+    <input type="text" name="pages[${idx}][title]" placeholder="Judul slide (opsional)"
+           class="mb-3 block w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-indigo-400">
+    <div class="mb-3">
+        <p class="mb-1.5 text-xs font-semibold text-slate-600">Tipe Media Slide</p>
+        <div class="flex gap-1.5 flex-wrap">${tabsHtml}</div>
+        <input type="hidden" name="pages[${idx}][slide_media_type]" value="none" class="slide-media-type-input">
+    </div>
+    <div class="slide-media-panel" data-panel="image" style="display:none">
+        <label class="mb-1 block text-xs text-slate-500">Upload Gambar <span class="text-slate-400">(jpg/png/webp, maks 5MB)</span></label>
         <input type="file" name="pages[${idx}][new_image]" accept="image/jpeg,image/png,image/webp"
-               data-preview="img-preview-${idx}" data-preview-wrap="img-preview-wrap-${idx}"
                class="block w-full text-xs text-slate-500 file:rounded-full file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-xs"
-               onchange="previewPageImage(this)">
+               onchange="previewSlideImage(this)">
+        <div class="hidden mt-1" data-img-preview><img class="slide-thumb-preview"></div>
     </div>
-    <div class="mb-2">
-        <label class="mb-1 block text-xs text-slate-500">&#127925; Audio Slide <span class="text-slate-400">(opsional, mp3/wav/ogg maks 50MB)</span></label>
+    <div class="slide-media-panel" data-panel="video_upload" style="display:none">
+        <label class="mb-1 block text-xs text-slate-500">Upload Video <span class="text-slate-400">(mp4/webm/mov, maks 200MB)</span></label>
+        <input type="file" name="pages[${idx}][new_video]" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo"
+               class="block w-full text-xs text-slate-500 file:rounded-full file:border-0 file:bg-indigo-50 file:px-2 file:py-1 file:text-xs file:text-indigo-700"
+               onchange="previewSlideVideo(this)">
+        <div class="hidden mt-1" data-video-preview><video controls class="w-full max-h-36 rounded-xl bg-black"></video></div>
+    </div>
+    <div class="slide-media-panel" data-panel="audio" style="display:none">
+        <label class="mb-1 block text-xs text-slate-500">Upload Audio <span class="text-slate-400">(mp3/wav/ogg, maks 50MB)</span></label>
         <input type="file" name="pages[${idx}][new_audio]" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac"
-               class="block w-full text-xs text-slate-500 file:rounded-full file:border-0 file:bg-purple-50 file:px-2 file:py-1 file:text-xs file:font-medium file:text-purple-700"
-               onchange="previewPageAudio(this, ${idx})">
-        <div id="audio-new-preview-${idx}" class="hidden mt-1">
-            <audio controls class="w-full h-8" style="border-radius:.5rem;"></audio>
-            <p class="text-xs text-slate-400 mt-0.5">Preview audio baru</p>
-        </div>
+               class="block w-full text-xs text-slate-500 file:rounded-full file:border-0 file:bg-purple-50 file:px-2 file:py-1 file:text-xs file:text-purple-700"
+               onchange="previewSlideAudio(this)">
+        <div class="hidden mt-1" data-audio-preview><audio controls class="w-full"></audio></div>
     </div>
-    <label class="mb-1 block text-xs text-slate-500">Konten <span class="text-red-400">*</span></label>
-    <input type="hidden" name="pages[${idx}][content]" id="page-content-${idx}">
-    <div id="page-quill-${idx}" style="min-height:120px; background:white;"></div>
-    `;
-    container.appendChild(div);
-    // small delay so DOM settles before Quill init
-    setTimeout(() => initPageQuill(idx), 50);
+    <div class="slide-media-panel" data-panel="youtube" style="display:none">
+        <label class="mb-1 block text-xs text-slate-500">YouTube URL</label>
+        <input type="url" name="pages[${idx}][youtube_url]" placeholder="https://www.youtube.com/watch?v=..."
+               class="block w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-indigo-400">
+    </div>
+    <div class="slide-media-panel" data-panel="drive" style="display:none">
+        <label class="mb-1 block text-xs text-slate-500">Google Drive URL</label>
+        <input type="url" name="pages[${idx}][drive_url]" placeholder="https://drive.google.com/file/d/..."
+               class="block w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-indigo-400">
+        <p class="mt-1 text-xs text-amber-600">Pastikan file diset <em>Anyone with the link can view</em>.</p>
+    </div>
+    <div class="mt-3">
+        <label class="mb-1 block text-xs text-slate-500">Konten Teks Slide <span class="text-slate-400">(opsional)</span></label>
+        <input type="hidden" name="pages[${idx}][content]" id="page-content-${idx}">
+        <div id="page-quill-${idx}" class="border border-slate-200" style="min-height:100px;background:white;border-radius:.5rem;"></div>
+    </div>`;
 }
 
-function removePage(btn) {
-    btn.closest('.page-item').remove();
-    renumberPages();
-}
-
-function renumberPages() {
-    const items = document.querySelectorAll('#pages-container .page-item');
-    items.forEach((item, i) => {
-        item.querySelectorAll('input[name], textarea[name]').forEach(el => {
-            if (el.name) el.name = el.name.replace(/pages\[\d+\]/, `pages[${i}]`);
-            if (el.id)   el.id   = el.id.replace(/(page-(?:content|quill)-|img-preview(?:-wrap)?-|audio-(?:new-preview|current)-)\d+$/, `$1${i}`);
-        });
-        const num   = item.querySelector('.page-num');
-        const label = item.querySelector('.page-label');
-        if (num)   num.textContent   = i + 1;
-        if (label) label.textContent = `Page ${i + 1}`;
-        item.dataset.pageIndex = i;
-    });
-    document.getElementById('pages-count').value = items.length;
-    pageIndex = items.length;
-}
-
-function previewPageImage(input) {
-    const wrap = document.getElementById(input.dataset.previewWrap);
-    const img  = document.getElementById(input.dataset.preview);
-    if (img && input.files[0]) {
-        img.src = URL.createObjectURL(input.files[0]);
-        if (wrap) wrap.classList.remove('hidden');
+function removeSlide(btn) {
+    btn.closest('.slide-card').remove();
+    renumberSlides();
+    if (!document.querySelectorAll('#slides-container .slide-card').length) {
+        const empty = document.createElement('div');
+        empty.id = 'slides-empty';
+        empty.className = 'rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-center';
+        empty.innerHTML = '<p class="text-xs text-slate-400">Belum ada slide. Klik <strong>Tambah Slide</strong> untuk mulai.</p>';
+        document.getElementById('slides-container').appendChild(empty);
     }
 }
 
-// ─── Preview audio baru per slide ─────────────────────────────────────────────
-function previewPageAudio(input, idx) {
-    const wrap  = document.getElementById('audio-new-preview-' + idx);
-    if (!wrap) return;
-    const audio = wrap.querySelector('audio');
-    if (input.files[0]) {
+function renumberSlides() {
+    const cards = document.querySelectorAll('#slides-container .slide-card');
+    cards.forEach((card, i) => {
+        card.dataset.slideIndex = i;
+        // Rename all input names
+        card.querySelectorAll('[name]').forEach(el => {
+            el.name = el.name.replace(/pages\[\d+\]/, `pages[${i}]`);
+        });
+        // Rename IDs
+        card.querySelectorAll('[id]').forEach(el => {
+            el.id = el.id.replace(/(page-(?:content|quill)-)\d+$/, `$1${i}`);
+        });
+        const num = card.querySelector('.slide-num');
+        const lbl = card.querySelector('.slide-label');
+        if (num) num.textContent = i + 1;
+        if (lbl) lbl.textContent = `Slide ${i + 1}`;
+    });
+    document.getElementById('slides-count').value = cards.length;
+    slideIndex = cards.length;
+}
+
+// ─── Media Tab Switcher per slide ──────────────────────────────────────────
+function switchSlideMedia(btn, type, idx) {
+    const card = btn.closest('.slide-card');
+    // Update active tab
+    card.querySelectorAll('.media-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    // Update hidden input
+    card.querySelector('.slide-media-type-input').value = type;
+    // Show/hide panels
+    card.querySelectorAll('.slide-media-panel').forEach(panel => {
+        panel.style.display = panel.dataset.panel === type ? '' : 'none';
+    });
+}
+
+// ─── Preview Helpers ───────────────────────────────────────────────────────
+function previewSlideImage(input) {
+    const card = input.closest('.slide-card');
+    const wrap = card.querySelector('[data-img-preview]');
+    const img  = wrap?.querySelector('img');
+    if (img && input.files[0]) {
+        img.src = URL.createObjectURL(input.files[0]);
+        wrap.classList.remove('hidden');
+    }
+}
+
+function previewSlideVideo(input) {
+    const card  = input.closest('.slide-card');
+    const wrap  = card.querySelector('[data-video-preview]');
+    const video = wrap?.querySelector('video');
+    if (video && input.files[0]) {
+        video.src = URL.createObjectURL(input.files[0]);
+        wrap.classList.remove('hidden');
+    }
+}
+
+function previewSlideAudio(input) {
+    const card  = input.closest('.slide-card');
+    const wrap  = card.querySelector('[data-audio-preview]');
+    const audio = wrap?.querySelector('audio');
+    if (audio && input.files[0]) {
         audio.src = URL.createObjectURL(input.files[0]);
         wrap.classList.remove('hidden');
-    } else {
-        wrap.classList.add('hidden');
-        audio.src = '';
     }
 }
 </script>

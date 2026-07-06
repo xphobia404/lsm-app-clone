@@ -20,17 +20,13 @@ class SectionController extends Controller
     public function index(Request $request)
     {
         $perPage = in_array($request->input('per_page'), [5, 10, 25, 50])
-            ? (int) $request->input('per_page')
-            : 10;
+            ? (int) $request->input('per_page') : 10;
 
-        $baseQuery = Section::with('courseType')
-            ->withCount('quizzes')
-            ->orderBy('order');
+        $baseQuery = Section::with('courseType')->withCount('quizzes')->orderBy('order');
 
         if ($q = $request->input('q')) {
             $baseQuery->where('title', 'like', '%' . $q . '%');
         }
-
         if ($request->input('status') === 'published') {
             $baseQuery->where('is_published', true);
         } elseif ($request->input('status') === 'draft') {
@@ -42,8 +38,7 @@ class SectionController extends Controller
         if ($ct = $request->input('course_type_id')) {
             $sections = (clone $baseQuery)
                 ->where('course_type_id', $ct)
-                ->paginate($perPage)
-                ->withQueryString();
+                ->paginate($perPage)->withQueryString();
 
             return view('admin.sections.index', [
                 'courseTypes'        => $courseTypes,
@@ -64,7 +59,7 @@ class SectionController extends Controller
     }
 
     // =========================================================================
-    // Create
+    // Create / Store
     // =========================================================================
 
     public function create()
@@ -77,30 +72,21 @@ class SectionController extends Controller
     {
         $data = $this->validateSection($request);
 
-        $data['order'] = $data['order'] ?? (Section::max('order') + 1);
-        $data['slug']  = Str::slug($data['title']) . '-' . time();
+        $data['order']        = $data['order'] ?? (Section::max('order') + 1);
+        $data['slug']         = Str::slug($data['title']) . '-' . time();
+        $data['content_mode'] = 'multi';
+        $data['content']      = null;
 
-        // Thumbnail
         if ($request->hasFile('thumbnail')) {
             $data['thumbnail'] = $this->mediaService->storeDirect(
-                $request->file('thumbnail'),
-                'sections/thumbnails'
+                $request->file('thumbnail'), 'sections/thumbnails'
             );
         }
 
-        // Video / Audio utama
-        $this->handleSectionMainMedia($request, $data);
-
-        // Multi-page images & audio
-        if (($data['content_mode'] ?? 'single') === 'multi' && !empty($data['pages'])) {
-            $data['pages'] = $this->handlePageMedia($request, $data['pages']);
-        }
-
-        // Bersihkan field tidak relevan
-        if (($data['content_mode'] ?? 'single') === 'multi') {
-            $data['content'] = null;
+        if (!empty($data['pages'])) {
+            $data['pages'] = $this->handleSlideMedia($request, $data['pages']);
         } else {
-            $data['pages'] = null;
+            $data['pages'] = [];
         }
 
         Section::create($data);
@@ -109,7 +95,7 @@ class SectionController extends Controller
     }
 
     // =========================================================================
-    // Edit
+    // Edit / Update
     // =========================================================================
 
     public function edit(Section $section)
@@ -122,38 +108,19 @@ class SectionController extends Controller
     {
         $data = $this->validateSection($request);
 
-        // Thumbnail
+        $data['content_mode'] = 'multi';
+        $data['content']      = null;
+
         if ($request->hasFile('thumbnail')) {
             $data['thumbnail'] = $this->mediaService->replaceDirect(
-                $request->file('thumbnail'),
-                'sections/thumbnails',
-                $section->thumbnail
+                $request->file('thumbnail'), 'sections/thumbnails', $section->thumbnail
             );
         }
 
-        // Video / Audio utama — hapus lama jika ada file baru
-        if ($request->hasFile('video_file') || $request->hasFile('audio_file')) {
-            if ($section->media_file && in_array($section->media_type, ['video_upload', 'audio_upload'])) {
-                $this->mediaService->deletePath($section->media_file);
-            }
-        }
-        $this->handleSectionMainMedia($request, $data);
-
-        // Multi-page images & audio
-        if (($data['content_mode'] ?? 'single') === 'multi' && !empty($data['pages'])) {
-            $data['pages'] = $this->handlePageMedia($request, $data['pages'], $section->pages ?? []);
-        }
-
-        // Jika mode berubah dari multi → single, hapus semua media per-slide
-        if (($data['content_mode'] ?? 'single') === 'single' && $section->content_mode === 'multi') {
-            $this->deleteAllPageMedia($section->pages ?? []);
-        }
-
-        // Bersihkan field tidak relevan
-        if (($data['content_mode'] ?? 'single') === 'multi') {
-            $data['content'] = null;
+        if (!empty($data['pages'])) {
+            $data['pages'] = $this->handleSlideMedia($request, $data['pages'], $section->pages ?? []);
         } else {
-            $data['pages'] = null;
+            $data['pages'] = [];
         }
 
         $section->update($data);
@@ -167,26 +134,13 @@ class SectionController extends Controller
 
     public function destroy(Section $section)
     {
-        // Hapus file storage langsung
-        $this->mediaService->deletePaths([
-            $section->thumbnail,
-            in_array($section->media_type, ['video_upload', 'audio_upload']) ? $section->media_file : null,
-        ]);
-
-        // Hapus gambar & audio tiap page
-        $this->deleteAllPageMedia($section->pages ?? []);
-
-        // Hapus semua polymorphic media (tabel media)
+        $this->mediaService->deletePath($section->thumbnail);
+        $this->deleteAllSlideMedia($section->pages ?? []);
         $this->mediaService->deleteAllMedia($section);
-
         $section->delete();
 
         return redirect()->route('admin.sections.index')->with('success', 'Section berhasil dihapus.');
     }
-
-    // =========================================================================
-    // Toggle Publish
-    // =========================================================================
 
     public function togglePublish(Section $section)
     {
@@ -199,107 +153,80 @@ class SectionController extends Controller
     // Private Helpers
     // =========================================================================
 
-    /**
-     * Validasi request section (dipakai store & update).
-     */
     private function validateSection(Request $request): array
     {
         return $request->validate([
-            'course_type_id'      => 'nullable|exists:course_types,id',
-            'title'               => 'required|string|max:255',
-            'description'         => 'nullable|string',
-            'content_mode'        => 'required|in:single,multi',
-            'content'             => 'nullable|string',
-            'pages'               => 'nullable|array',
-            'pages.*.title'       => 'nullable|string|max:255',
-            'pages.*.content'     => 'nullable|string',
-            'pages.*.image_url'   => 'nullable|string',
-            'pages.*.audio_url'   => 'nullable|string',
-            'pages.*.new_audio'   => 'nullable|file|mimetypes:audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac,audio/x-wav|max:51200',
-            'media_type'          => 'required|in:video_upload,audio_upload,youtube,drive',
-            'media_url'           => 'nullable|url',
-            'video_file'          => 'nullable|file|mimetypes:video/mp4,video/webm,video/ogg,video/quicktime|max:204800',
-            'audio_file'          => 'nullable|file|mimetypes:audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac,audio/x-wav|max:51200',
-            'thumbnail'           => 'nullable|image|max:5120',
-            'order'               => 'nullable|integer|min:0',
-            'is_published'        => 'boolean',
+            'course_type_id'            => 'nullable|exists:course_types,id',
+            'title'                     => 'required|string|max:255',
+            'description'               => 'nullable|string',
+            'thumbnail'                 => 'nullable|image|max:5120',
+            'order'                     => 'nullable|integer|min:0',
+            'is_published'              => 'boolean',
+            // pages / slides
+            'pages'                     => 'nullable|array',
+            'pages.*.title'             => 'nullable|string|max:255',
+            'pages.*.content'           => 'nullable|string',
+            'pages.*.slide_media_type'  => 'nullable|string|in:none,image,video_upload,audio,youtube,drive',
+            'pages.*.image_url'         => 'nullable|string',
+            'pages.*.image_path'        => 'nullable|string',
+            'pages.*.video_url'         => 'nullable|string',
+            'pages.*.video_path'        => 'nullable|string',
+            'pages.*.audio_url'         => 'nullable|string',
+            'pages.*.audio_path'        => 'nullable|string',
+            'pages.*.youtube_url'       => 'nullable|url',
+            'pages.*.drive_url'         => 'nullable|url',
+            'pages.*.new_image'         => 'nullable|file|image|max:5120',
+            'pages.*.new_video'         => 'nullable|file|mimetypes:video/mp4,video/webm,video/quicktime,video/x-msvideo|max:204800',
+            'pages.*.new_audio'         => 'nullable|file|mimetypes:audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/aac|max:51200',
         ]);
     }
 
     /**
-     * Proses upload video / audio utama section, atau simpan URL eksternal.
-     * Menggunakan MediaService::storeDirect() — hasil disimpan ke kolom media_file.
+     * Proses upload media per slide.
+     * Mendukung: image, video_upload, audio, youtube, drive.
      */
-    private function handleSectionMainMedia(Request $request, array &$data): void
+    private function handleSlideMedia(Request $request, array $pages, array $oldPages = []): array
     {
-        $type = $data['media_type'] ?? $request->input('media_type');
-
-        if ($type === 'video_upload' && $request->hasFile('video_file')) {
-            $data['media_file'] = $this->mediaService->storeDirect(
-                $request->file('video_file'),
-                'sections/videos'
-            );
-            $data['media_url'] = null;
-
-        } elseif ($type === 'audio_upload' && $request->hasFile('audio_file')) {
-            $data['media_file'] = $this->mediaService->storeDirect(
-                $request->file('audio_file'),
-                'sections/audios'
-            );
-            $data['media_url'] = null;
-
-        } elseif (in_array($type, ['youtube', 'drive'])) {
-            $data['media_url']  = $request->input('media_url');
-            $data['media_file'] = null;
-        }
-    }
-
-    /**
-     * Upload gambar & audio per-slide di multi-page mode.
-     * Menggunakan MediaService::storeDirect() & deletePath().
-     */
-    private function handlePageMedia(Request $request, array $pages, array $oldPages = []): array
-    {
-        $uploadedFiles = $request->file('pages') ?? [];
+        $uploaded = $request->file('pages') ?? [];
 
         foreach ($pages as $idx => &$page) {
+            $mediaType = $page['slide_media_type'] ?? 'none';
 
-            // Gambar per page
-            if (isset($uploadedFiles[$idx]['new_image'])
-                && $uploadedFiles[$idx]['new_image']->isValid()) {
+            // ── Gambar ──────────────────────────────────────────────────────
+            if ($mediaType === 'image' && isset($uploaded[$idx]['new_image'])
+                && $uploaded[$idx]['new_image']->isValid()) {
 
-                $path = $this->mediaService->storeDirect(
-                    $uploadedFiles[$idx]['new_image'],
-                    'sections/pages'
-                );
+                $this->mediaService->deletePath($oldPages[$idx]['image_path'] ?? null);
+                $path = $this->mediaService->storeDirect($uploaded[$idx]['new_image'], 'sections/slides/images');
                 $page['image_url']  = $this->mediaService->url($path);
                 $page['image_path'] = $path;
             }
             unset($page['new_image']);
 
-            // Audio per page
-            if (isset($uploadedFiles[$idx]['new_audio'])
-                && $uploadedFiles[$idx]['new_audio']->isValid()) {
+            // ── Video Upload ─────────────────────────────────────────────────
+            if ($mediaType === 'video_upload' && isset($uploaded[$idx]['new_video'])
+                && $uploaded[$idx]['new_video']->isValid()) {
 
-                $oldAudioPath = $oldPages[$idx]['audio_path'] ?? null;
-                $this->mediaService->deletePath($oldAudioPath);
-
-                $audioPath = $this->mediaService->storeDirect(
-                    $uploadedFiles[$idx]['new_audio'],
-                    'sections/pages/audios'
-                );
-                $page['audio_url']  = $this->mediaService->url($audioPath);
-                $page['audio_path'] = $audioPath;
+                $this->mediaService->deletePath($oldPages[$idx]['video_path'] ?? null);
+                $path = $this->mediaService->storeDirect($uploaded[$idx]['new_video'], 'sections/slides/videos');
+                $page['video_url']  = $this->mediaService->url($path);
+                $page['video_path'] = $path;
             }
+            unset($page['new_video']);
 
-            // Hapus audio slide jika admin centang hapus
-            if (!empty($page['remove_audio'])) {
+            // ── Audio ─────────────────────────────────────────────────────────
+            if ($mediaType === 'audio' && isset($uploaded[$idx]['new_audio'])
+                && $uploaded[$idx]['new_audio']->isValid()) {
+
                 $this->mediaService->deletePath($oldPages[$idx]['audio_path'] ?? null);
-                $page['audio_url']  = null;
-                $page['audio_path'] = null;
+                $path = $this->mediaService->storeDirect($uploaded[$idx]['new_audio'], 'sections/slides/audios');
+                $page['audio_url']  = $this->mediaService->url($path);
+                $page['audio_path'] = $path;
             }
+            unset($page['new_audio']);
 
-            unset($page['remove_audio'], $page['new_audio']);
+            // ── YouTube / Drive: hanya simpan URL, tidak ada upload ───────────
+            // Sudah di-handle oleh hidden input dari view, tidak perlu proses khusus.
         }
         unset($page);
 
@@ -307,13 +234,14 @@ class SectionController extends Controller
     }
 
     /**
-     * Hapus semua file gambar & audio pada tiap page.
+     * Hapus semua file media per slide saat section dihapus.
      */
-    private function deleteAllPageMedia(array $pages): void
+    private function deleteAllSlideMedia(array $pages): void
     {
         foreach ($pages as $page) {
             $this->mediaService->deletePaths([
                 $page['image_path'] ?? null,
+                $page['video_path'] ?? null,
                 $page['audio_path'] ?? null,
             ]);
         }
