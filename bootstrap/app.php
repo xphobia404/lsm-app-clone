@@ -12,6 +12,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Ganti ValidatePostSize bawaan dengan custom yang izinkan 200 MB
+        $middleware->replace(
+            \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
+            \App\Http\Middleware\ValidatePostSize::class,
+        );
+
         $middleware->alias([
             'role'         => \App\Http\Middleware\RoleMiddleware::class,
             'check.active' => \App\Http\Middleware\CheckUserActive::class,
