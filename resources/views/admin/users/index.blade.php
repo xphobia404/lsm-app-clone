@@ -16,28 +16,22 @@
     {{-- Filter bar --}}
     <form method="GET" action="{{ route('admin.users.index') }}" class="flex gap-2 flex-wrap">
         <input
-            type="text" name="q" value="{{ request('q') }}"
-            placeholder="Cari nama / username..."
+            type="text" name="search" value="{{ request('search') }}"
+            placeholder="Cari nama / username / email..."
             class="flex-1 min-w-[140px] rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
         >
+        <select name="role" class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <option value="">Semua Role</option>
+            <option value="admin" {{ request('role') === 'admin' ? 'selected' : '' }}>Admin</option>
+            <option value="user"  {{ request('role') === 'user'  ? 'selected' : '' }}>User</option>
+        </select>
         <select name="status" class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
             <option value="">Semua Status</option>
             <option value="active"   {{ request('status') === 'active'   ? 'selected' : '' }}>Aktif</option>
             <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Nonaktif</option>
         </select>
-        <select name="course_type_id" class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
-            <option value="">Semua Spesialisasi</option>
-            @foreach($courseTypes as $ct)
-                <option value="{{ $ct->id }}" {{ request('course_type_id') == $ct->id ? 'selected' : '' }}>{{ $ct->name }}</option>
-            @endforeach
-        </select>
-        <select name="per_page" class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
-            @foreach([5,10,25] as $n)
-                <option value="{{ $n }}" {{ request('per_page', 10) == $n ? 'selected' : '' }}>{{ $n }} / hal</option>
-            @endforeach
-        </select>
         <button type="submit" class="rounded-full bg-slate-100 px-4 py-2 text-xs font-medium text-slate-600 active:bg-slate-200 transition">Cari</button>
-        @if(request()->hasAny(['q','status','course_type_id','per_page']))
+        @if(request()->hasAny(['search','role','status']))
         <a href="{{ route('admin.users.index') }}" class="rounded-full bg-red-50 px-4 py-2 text-xs font-medium text-red-500 active:bg-red-100 transition">Reset</a>
         @endif
     </form>
@@ -75,6 +69,12 @@
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-1.5 flex-wrap">
                         <p class="text-sm font-semibold text-slate-800 truncate">{{ $user->name ?: $user->username }}</p>
+                        {{-- Role badge --}}
+                        <span class="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium
+                            {{ $user->role === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-500' }}">
+                            {{ ucfirst($user->role) }}
+                        </span>
+                        {{-- Status badge --}}
                         @if($user->is_active)
                             <span class="shrink-0 rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-600">Aktif</span>
                         @else
@@ -82,12 +82,8 @@
                         @endif
                     </div>
                     <p class="text-xs text-slate-400">&#64;{{ $user->username }}</p>
-                    @if($user->courseTypes->isNotEmpty())
-                    <div class="mt-1 flex flex-wrap gap-1">
-                        @foreach($user->courseTypes as $ct)
-                        <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600">{{ $ct->name }}</span>
-                        @endforeach
-                    </div>
+                    @if($user->email)
+                    <p class="text-xs text-slate-400 truncate">{{ $user->email }}</p>
                     @endif
                 </div>
 
