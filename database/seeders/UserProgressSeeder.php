@@ -14,15 +14,24 @@ class UserProgressSeeder extends Seeder
 {
     public function run(): void
     {
-        $users    = User::where('role', 'user')->get();
+        $users    = User::where('role', 'user')->with('courseTypes')->get();
         $sections = Section::orderBy('order')->get();
 
         if ($sections->isEmpty() || $users->isEmpty()) return;
 
-        $firstSection = $sections->first();
-
-        // Semua user unlock section pertama (not_started)
         foreach ($users as $user) {
+            // Hanya section yang sesuai course_type user (via pivot)
+            $userCourseTypeIds = $user->courseTypes->pluck('id');
+
+            $userSections = $sections->filter(
+                fn($s) => $s->course_type_id === null
+                       || $userCourseTypeIds->contains($s->course_type_id)
+            )->values();
+
+            if ($userSections->isEmpty()) continue;
+
+            // Unlock section pertama yang relevan
+            $firstSection = $userSections->first();
             UserProgress::updateOrCreate(
                 ['user_id' => $user->id, 'section_id' => $firstSection->id],
                 [
@@ -34,7 +43,8 @@ class UserProgressSeeder extends Seeder
             );
         }
 
-        // Simulasi progress per user [username => sections_completed]
+        // ─── Simulasi progress per user ───────────────────────────────────
+        // [username => berapa section yang sudah diselesaikan]
         $scenarios = [
             'budi'   => 3,
             'siti'   => 2,
@@ -44,12 +54,19 @@ class UserProgressSeeder extends Seeder
         ];
 
         foreach ($scenarios as $username => $completedUntil) {
-            $user = User::where('username', $username)->first();
+            $user = User::where('username', $username)->with('courseTypes')->first();
             if (!$user) continue;
 
-            foreach ($sections as $section) {
-                $isCompleted = $section->order <= $completedUntil;
-                $isUnlocked  = $section->order <= ($completedUntil + 1);
+            $userCourseTypeIds = $user->courseTypes->pluck('id');
+            $userSections = $sections->filter(
+                fn($s) => $s->course_type_id === null
+                       || $userCourseTypeIds->contains($s->course_type_id)
+            )->values();
+
+            foreach ($userSections as $index => $section) {
+                $sectionOrder = $index + 1; // urutan relatif untuk user ini
+                $isCompleted  = $sectionOrder <= $completedUntil;
+                $isUnlocked   = $sectionOrder <= ($completedUntil + 1);
 
                 if (!$isUnlocked) break;
 
@@ -68,19 +85,18 @@ class UserProgressSeeder extends Seeder
                 );
 
                 if ($isCompleted) {
-                    $quizzes     = Quiz::where('section_id', $section->id)->get();
-                    $totalSoal   = $quizzes->count();
-                    $submittedAt = $completedAt ?? Carbon::now();
+                    $quizzes   = Quiz::where('section_id', $section->id)->get();
+                    $totalSoal = $quizzes->count();
 
                     if ($totalSoal === 0) continue;
 
-                    $quizIds = $quizzes->pluck('id');
+                    $submittedAt = $completedAt ?? Carbon::now();
+                    $quizIds     = $quizzes->pluck('id');
 
-                    // Attempt 1 - gagal (40% salah)
-                    $wrongCount1   = max(1, (int) ($totalSoal * 0.4));
-                    $correctCount1 = $totalSoal - $wrongCount1;
+                    // Attempt 1 — gagal (60% benar, tidak lulus)
+                    $correctCount1 = (int) ($totalSoal * 0.6);
                     $scorePercent1 = (int) ($correctCount1 / $totalSoal * 100);
-                    $answers1 = [];
+                    $answers1      = [];
                     foreach ($quizIds as $i => $qid) {
                         $answers1[(string) $qid] = $i < $correctCount1 ? 'a' : 'b';
                     }
@@ -96,7 +112,7 @@ class UserProgressSeeder extends Seeder
                         ]
                     );
 
-                    // Attempt 2 - lulus (semua benar)
+                    // Attempt 2 — lulus (semua benar)
                     $answers2 = [];
                     foreach ($quizIds as $qid) {
                         $answers2[(string) $qid] = 'a';
