@@ -4,97 +4,67 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\LearningSchema;
-use App\Models\Section;
-use App\Models\Quiz;
 use App\Models\QuizAttempt;
+use App\Models\Section;
 use App\Models\User;
 use App\Models\UserProgress;
+use Illuminate\Support\Facades\DB;
 
 class AdminDashboardController extends Controller
 {
     public function dashboard()
     {
-        // ── Users ──────────────────────────────────────────────────────
-        $totalUsers    = User::where('role', 'user')->count();
-        $activeUsers   = User::where('role', 'user')->where('is_active', true)->count();
-        $inactiveUsers = User::where('role', 'user')->where('is_active', false)->count();
+        // ── Summary Cards ──────────────────────────────────────────────
+        $totalUsers        = User::where('role', 'user')->count();
+        $activeUsers       = User::where('role', 'user')->where('is_active', true)->count();
+        $totalSchemas      = LearningSchema::count();
+        $activeSchemas     = LearningSchema::where('is_active', true)->count();
+        $totalSections     = Section::count();
+        $activeSections    = Section::where('is_active', true)->count();
+        $totalAttempts     = QuizAttempt::count();
+        $completedProgress = UserProgress::where('status', 'completed')->count();
 
-        // ── Content ────────────────────────────────────────────────────
-        $totalSchemas  = LearningSchema::where('is_active', true)->count();
-        $totalSections = Section::count();
-        $totalQuizzes  = Quiz::count();
-        $totalAttempts = QuizAttempt::count();
+        // ── Progress Overview ──────────────────────────────────────────
+        $progressStats = UserProgress::select('status', DB::raw('count(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status')
+            ->toArray();
 
-        // ── Completed Users (selesai semua section) ────────────────────
-        $allSectionIds     = Section::pluck('id');
-        $totalSectionCount = $allSectionIds->count();
+        // ── Top Sections (paling banyak progress completed) ─────────
+        $topSections = Section::withCount([
+            'progresses as completed_count' => fn ($q) =>
+                $q->where('status', 'completed'),
+        ])
+        ->orderByDesc('completed_count')
+        ->limit(5)
+        ->get(['id', 'title']);
 
-        if ($totalSectionCount > 0) {
-            $completedUsers = User::where('role', 'user')
-                ->whereHas('progresses', function ($q) use ($totalSectionCount) {
-                    $q->where('status', 'completed');
-                }, '>=', $totalSectionCount)
-                ->get();
-        } else {
-            $completedUsers = collect();
-        }
+        // ── Recent Quiz Attempts ──────────────────────────────────────
+        $recentAttempts = QuizAttempt::with([
+            'user:id,name,username',
+            'section:id,title',
+        ])
+        ->latest('attempted_at')
+        ->limit(8)
+        ->get();
 
-        // ── Recent Progress ────────────────────────────────────────────
-        $recentProgress = UserProgress::with(['user', 'section'])
-            ->latest('updated_at')
-            ->take(10)
-            ->get();
+        // ── Registrasi user baru (7 hari terakhir) ────────────────
+        $newUsersThisWeek = User::where('role', 'user')
+            ->where('created_at', '>=', now()->subDays(7))
+            ->count();
 
-        // ── Donut Chart: status progress keseluruhan ───────────────────
-        $donutCompleted  = UserProgress::where('status', 'completed')->count();
-        $donutInProgress = UserProgress::where('status', 'in_progress')->count();
-        $donutNotStarted = UserProgress::where('status', 'not_started')->count();
-
-        // ── Bar Chart & Schema Stats ───────────────────────────────────
-        $schemaStats = LearningSchema::withCount('sections')
-            ->where('is_active', true)
-            ->orderByDesc('sections_count')
-            ->get();
-
-        // Bar chart: jumlah user yang selesai per schema
-        $schemas = LearningSchema::where('is_active', true)
-            ->with(['sections'])
-            ->get();
-
-        $chartLabels = collect();
-        $chartData   = collect();
-
-        foreach ($schemas as $schema) {
-            $sectionIds = $schema->sections->pluck('id');
-            if ($sectionIds->isEmpty()) continue;
-
-            $completed = User::where('role', 'user')
-                ->whereHas('progresses', function ($q) use ($sectionIds) {
-                    $q->whereIn('section_id', $sectionIds)
-                      ->where('status', 'completed');
-                }, '>=', $sectionIds->count())
-                ->count();
-
-            $chartLabels->push(\Str::limit($schema->title, 20));
-            $chartData->push($completed);
-        }
+        // ── Rata-rata score quiz ─────────────────────────────────────
+        $avgScore = QuizAttempt::whereColumn('total_questions', '>', DB::raw('0'))
+            ->selectRaw('ROUND(AVG(correct_answers * 100.0 / total_questions)) as avg_pct')
+            ->value('avg_pct') ?? 0;
 
         return view('admin.dashboard', compact(
-            'totalUsers',
-            'activeUsers',
-            'inactiveUsers',
-            'totalSchemas',
-            'totalSections',
-            'totalQuizzes',
-            'totalAttempts',
-            'completedUsers',
-            'recentProgress',
-            'donutCompleted',
-            'donutInProgress',
-            'donutNotStarted',
-            'schemaStats',
-            'chartLabels',
-            'chartData'
+            'totalUsers', 'activeUsers',
+            'totalSchemas', 'activeSchemas',
+            'totalSections', 'activeSections',
+            'totalAttempts', 'completedProgress',
+            'progressStats', 'topSections',
+            'recentAttempts', 'newUsersThisWeek', 'avgScore'
         ));
     }
 }
