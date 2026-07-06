@@ -90,22 +90,22 @@
             </div>
             @endif
 
-            {{-- ════ BLOK 2: GAMBAR KIRI (120×120) + TEKS KANAN ════ --}}
+            {{-- ════ BLOK 2: GAMBAR KIRI (300×300) + TEKS KANAN ════ --}}
             @if($hasImage || ($hasBody && !$content->isUrl() && !$content->isFile()))
             <div class="mb-4 {{ $hasImage ? 'flex gap-3 items-start' : '' }}">
 
-                {{-- Gambar kiri, fixed 120x120 --}}
+                {{-- Gambar kiri, fixed 300x300 --}}
                 @if($hasImage)
-                <div class="shrink-0 flex flex-col gap-2" style="width:120px">
+                <div class="shrink-0 flex flex-col gap-2" style="width:300px">
                     @foreach($images as $img)
-                    <div style="width:120px; height:120px; border-radius:12px; overflow:hidden; background:#f1f5f9">
+                    <div style="width:300px; height:300px; border-radius:14px; overflow:hidden; background:#f1f5f9">
                         <img src="{{ $img->getDisplayUrl() }}"
                              alt="{{ $img->title ?? $content->title }}"
-                             style="width:120px; height:120px; object-fit:cover"
+                             style="width:300px; height:300px; object-fit:cover"
                              loading="lazy">
                     </div>
                     @if($img->description)
-                    <p class="text-[9px] text-slate-400 text-center leading-tight">{{ $img->description }}</p>
+                    <p class="text-[10px] text-slate-400 text-center leading-tight">{{ $img->description }}</p>
                     @endif
                     @endforeach
                 </div>
