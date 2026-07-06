@@ -17,6 +17,7 @@ class User extends Authenticatable
         'password',
         'role',
         'is_active',
+        'last_login_at',
     ];
 
     protected $hidden = [
@@ -27,8 +28,9 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'password'   => 'hashed',
-            'is_active'  => 'boolean',
+            'password'      => 'hashed',
+            'is_active'     => 'boolean',
+            'last_login_at' => 'datetime',
         ];
     }
 
@@ -49,6 +51,17 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    /**
+     * Update kolom last_login_at ke waktu sekarang.
+     * Dipanggil setelah login berhasil di LoginController.
+     */
+    public function touchLastLogin(): void
+    {
+        $this->timestamps = false; // jangan update updated_at
+        $this->update(['last_login_at' => now()]);
+        $this->timestamps = true;
     }
 
     // ── Relations ─────────────────────────────────────────────
