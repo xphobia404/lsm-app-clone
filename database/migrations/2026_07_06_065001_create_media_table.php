@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('media', function (Blueprint $table) {
@@ -18,17 +15,16 @@ return new class extends Migration
             $table->string('title')->nullable();
             $table->text('description')->nullable();
             $table->string('file_path')->nullable(); // file lokal
-            $table->string('url')->nullable();       // youtube/google drive
+            $table->string('url')->nullable();       // youtube / external URL
             $table->unsignedInteger('media_order')->default(0);
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
 
-            $table->index(['media_type']);
+            $table->index('media_type');
+            $table->index(['mediable_type', 'mediable_id', 'media_order']);
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('media');
