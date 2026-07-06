@@ -10,11 +10,15 @@ use App\Models\QuizAttempt;
 
 class DashboardController extends Controller
 {
+    // =========================================================================
+    // Private: Kumpulkan data kursus user
+    // =========================================================================
+
     private function getUserCourseData(): array
     {
         $user = auth()->user();
 
-        if (!$user->hasSelectedCourseType()) {
+        if (! $user->hasSelectedCourseType()) {
             return [
                 'courseTypes'    => collect(),
                 'sectionsMap'    => collect(),
@@ -26,7 +30,6 @@ class DashboardController extends Controller
             ];
         }
 
-        // Ambil spesialisasi user beserta sections-nya (ordered)
         $courseTypeIds = $user->courseTypes()->pluck('course_types.id');
 
         $courseTypes = CourseType::whereIn('id', $courseTypeIds)
@@ -39,7 +42,7 @@ class DashboardController extends Controller
             ->orderBy('order')
             ->get();
 
-        // Group sections by course_type_id
+        // Group sections by course_type_id untuk tampilan per spesialisasi
         $sectionsMap = $sections->groupBy('course_type_id');
 
         if ($sections->isEmpty()) {
@@ -54,7 +57,7 @@ class DashboardController extends Controller
             ];
         }
 
-        // Unlock section pertama tiap spesialisasi
+        // Auto-unlock section pertama tiap spesialisasi
         foreach ($courseTypes as $ct) {
             $first = $sectionsMap->get($ct->id)?->first();
             if ($first) {
@@ -72,8 +75,8 @@ class DashboardController extends Controller
         $attemptsMap = QuizAttempt::where('user_id', $user->id)
             ->selectRaw('
                 section_id,
-                COUNT(*)               AS total_attempts,
-                MAX(score)             AS best_score,
+                COUNT(*)                                       AS total_attempts,
+                MAX(score)                                     AS best_score,
                 MAX(CASE WHEN passed = true THEN 1 ELSE 0 END) AS ever_passed
             ')
             ->groupBy('section_id')
@@ -86,6 +89,10 @@ class DashboardController extends Controller
         return compact('courseTypes', 'sectionsMap', 'progressMap', 'attemptsMap', 'completedCount', 'totalCount')
             + ['needSelectType' => false];
     }
+
+    // =========================================================================
+    // Actions
+    // =========================================================================
 
     public function index()
     {

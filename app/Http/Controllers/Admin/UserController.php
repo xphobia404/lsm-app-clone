@@ -14,18 +14,25 @@ use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
+    // =========================================================================
+    // Index
+    // =========================================================================
+
     public function index(Request $request)
     {
         $perPage = in_array($request->input('per_page'), [5, 10, 25])
             ? (int) $request->input('per_page')
             : 10;
 
-        $query = User::with('courseTypes')->withCount('quizAttempts')->where('role', 'user');
+        $query = User::with('courseTypes')
+            ->withCount('quizAttempts')
+            ->where('role', 'user');
 
         if ($q = $request->input('q')) {
             $query->where(function ($sq) use ($q) {
                 $sq->where('name', 'like', '%' . $q . '%')
-                   ->orWhere('username', 'like', '%' . $q . '%');
+                   ->orWhere('username', 'like', '%' . $q . '%')
+                   ->orWhere('email', 'like', '%' . $q . '%');
             });
         }
 
@@ -36,7 +43,7 @@ class UserController extends Controller
         }
 
         if ($ct = $request->input('course_type_id')) {
-            $query->whereHas('courseTypes', fn($sq) => $sq->where('course_types.id', $ct));
+            $query->whereHas('courseTypes', fn ($sq) => $sq->where('course_types.id', $ct));
         }
 
         $users       = $query->latest()->paginate($perPage)->withQueryString();
@@ -44,6 +51,10 @@ class UserController extends Controller
 
         return view('admin.users.index', compact('users', 'courseTypes'));
     }
+
+    // =========================================================================
+    // Create / Store
+    // =========================================================================
 
     public function create()
     {
@@ -56,6 +67,7 @@ class UserController extends Controller
         $data = $request->validate([
             'name'              => 'required|string|max:255',
             'username'          => 'required|string|max:50|unique:users',
+            'email'             => 'nullable|email|max:255|unique:users',
             'password'          => ['required', Password::min(6)],
             'course_type_ids'   => 'nullable|array',
             'course_type_ids.*' => 'exists:course_types,id',
@@ -66,7 +78,7 @@ class UserController extends Controller
 
         $user = User::create(collect($data)->except('course_type_ids')->toArray());
 
-        if (!empty($data['course_type_ids'])) {
+        if (! empty($data['course_type_ids'])) {
             $user->courseTypes()->sync($data['course_type_ids']);
         }
 
@@ -74,32 +86,32 @@ class UserController extends Controller
             ->with('success', 'User berhasil dibuat.');
     }
 
+    // =========================================================================
+    // Show
+    // =========================================================================
+
     public function show(User $user)
     {
         $user->load('courseTypes');
 
-        // Ambil sections berdasarkan spesialisasi user, atau semua jika tidak ada
         $courseTypeIds = $user->courseTypes->pluck('id');
-        if ($courseTypeIds->isNotEmpty()) {
-            $sections = Section::whereIn('course_type_id', $courseTypeIds)
-                ->orderBy('order')
-                ->get();
-        } else {
-            $sections = Section::orderBy('order')->get();
-        }
 
-        // Progress user, di-key by section_id
+        $sections = $courseTypeIds->isNotEmpty()
+            ? Section::whereIn('course_type_id', $courseTypeIds)->orderBy('course_type_id')->orderBy('order')->get()
+            : Section::orderBy('order')->get();
+
+        // Progress di-key by section_id
         $progress = UserProgress::where('user_id', $user->id)
             ->get()
             ->keyBy('section_id');
 
-        // Attempts per section — gunakan score_percent untuk best score
+        // Statistik attempt per section
         $attemptsPerSection = QuizAttempt::where('user_id', $user->id)
             ->selectRaw('
                 section_id,
-                COUNT(*) as total_attempts,
-                MAX(score_percent) as best_score,
-                MAX(CASE WHEN passed = true THEN 1 ELSE 0 END) as ever_passed
+                COUNT(*)                                       AS total_attempts,
+                MAX(score_percent)                             AS best_score,
+                MAX(CASE WHEN passed = true THEN 1 ELSE 0 END) AS ever_passed
             ')
             ->groupBy('section_id')
             ->get()
@@ -110,10 +122,15 @@ class UserController extends Controller
         ));
     }
 
+    // =========================================================================
+    // Edit / Update
+    // =========================================================================
+
     public function edit(User $user)
     {
         $courseTypes     = CourseType::active()->orderBy('order')->get();
         $selectedTypeIds = $user->courseTypes()->pluck('course_types.id')->toArray();
+
         return view('admin.users.edit', compact('user', 'courseTypes', 'selectedTypeIds'));
     }
 
@@ -122,6 +139,7 @@ class UserController extends Controller
         $data = $request->validate([
             'name'              => 'required|string|max:255',
             'username'          => 'required|string|max:50|unique:users,username,' . $user->id,
+            'email'             => 'nullable|email|max:255|unique:users,email,' . $user->id,
             'course_type_ids'   => 'nullable|array',
             'course_type_ids.*' => 'exists:course_types,id',
         ]);
@@ -133,12 +151,24 @@ class UserController extends Controller
             ->with('success', 'User berhasil diperbarui.');
     }
 
+    // =========================================================================
+    // Destroy
+    // =========================================================================
+
     public function destroy(User $user)
     {
+        $user->courseTypes()->detach();
+        $user->progresses()->delete();
+        $user->quizAttempts()->delete();
         $user->delete();
+
         return redirect()->route('admin.users.index')
             ->with('success', 'User berhasil dihapus.');
     }
+
+    // =========================================================================
+    // Actions
+    // =========================================================================
 
     public function resetPassword(Request $request, User $user)
     {
@@ -153,7 +183,10 @@ class UserController extends Controller
 
     public function toggleActive(User $user)
     {
-        $user->update(['is_active' => !$user->is_active]);
-        return back()->with('success', 'Status user berhasil diubah.');
+        $user->update(['is_active' => ! $user->is_active]);
+
+        $msg = $user->is_active ? 'User berhasil diaktifkan.' : 'User berhasil dinonaktifkan.';
+
+        return back()->with('success', $msg);
     }
 }

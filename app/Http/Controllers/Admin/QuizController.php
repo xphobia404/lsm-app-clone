@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Section;
 use App\Models\Quiz;
+use App\Models\Section;
 use App\Services\MediaService;
 use Illuminate\Http\Request;
 
@@ -12,11 +12,20 @@ class QuizController extends Controller
 {
     public function __construct(private readonly MediaService $mediaService) {}
 
+    // =========================================================================
+    // Index
+    // =========================================================================
+
     public function index(Section $section)
     {
         $quizzes = $section->quizzes()->with('media')->get();
+
         return view('admin.quizzes.index', compact('section', 'quizzes'));
     }
+
+    // =========================================================================
+    // Create / Store
+    // =========================================================================
 
     public function create(Section $section)
     {
@@ -34,6 +43,8 @@ class QuizController extends Controller
             'option_c'       => 'nullable|string|max:255',
             'option_d'       => 'nullable|string|max:255',
             'correct_answer' => ['required', 'in:' . implode(',', $filledOptions)],
+            'explanation'    => 'nullable|string',
+            'order'          => 'nullable|integer|min:0',
         ], [
             'question.required'       => 'Pertanyaan wajib diisi.',
             'option_a.required'       => 'Pilihan A wajib diisi.',
@@ -41,7 +52,7 @@ class QuizController extends Controller
             'correct_answer.in'       => 'Jawaban benar harus dipilih dari opsi yang sudah diisi.',
         ]);
 
-        $quiz = Quiz::create(array_merge(
+        Quiz::create(array_merge(
             $request->only(['question', 'option_a', 'option_b', 'option_c', 'option_d', 'correct_answer', 'order', 'explanation']),
             ['section_id' => $section->id]
         ));
@@ -49,6 +60,10 @@ class QuizController extends Controller
         return redirect()->route('admin.sections.quizzes.index', $section)
             ->with('success', 'Soal berhasil ditambahkan. Tambahkan media di halaman Edit.');
     }
+
+    // =========================================================================
+    // Edit / Update
+    // =========================================================================
 
     public function edit(Section $section, Quiz $quiz)
     {
@@ -67,6 +82,8 @@ class QuizController extends Controller
             'option_c'       => 'nullable|string|max:255',
             'option_d'       => 'nullable|string|max:255',
             'correct_answer' => ['required', 'in:' . implode(',', $filledOptions)],
+            'explanation'    => 'nullable|string',
+            'order'          => 'nullable|integer|min:0',
         ], [
             'question.required'       => 'Pertanyaan wajib diisi.',
             'option_a.required'       => 'Pilihan A wajib diisi.',
@@ -82,15 +99,22 @@ class QuizController extends Controller
             ->with('success', 'Soal berhasil diperbarui.');
     }
 
+    // =========================================================================
+    // Destroy
+    // =========================================================================
+
     public function destroy(Section $section, Quiz $quiz)
     {
-        // Hapus semua media via service
         $this->mediaService->deleteAllMedia($quiz);
         $quiz->delete();
 
         return redirect()->route('admin.sections.quizzes.index', $section)
             ->with('success', 'Soal berhasil dihapus.');
     }
+
+    // =========================================================================
+    // Private Helpers
+    // =========================================================================
 
     private function getFilledOptions(Request $request): array
     {

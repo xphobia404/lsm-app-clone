@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\CourseType;
-use App\Models\User;
-use App\Models\Section;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
+use App\Models\Section;
+use App\Models\User;
 use App\Models\UserProgress;
 use Illuminate\Support\Facades\DB;
 
@@ -15,32 +15,34 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $totalUsers    = User::where('role', 'user')->count();
-        $totalSections = Section::count();
-        $totalQuizzes  = Quiz::count();
-        $activeUsers   = User::where('role', 'user')->where('is_active', true)->count();
-        $inactiveUsers = $totalUsers - $activeUsers;
-        $totalAttempts = QuizAttempt::count();
+        // ── KPI Cards ──────────────────────────────────────────────────────────
+        $totalUsers       = User::where('role', 'user')->count();
+        $activeUsers      = User::where('role', 'user')->where('is_active', true)->count();
+        $inactiveUsers    = $totalUsers - $activeUsers;
+        $totalSections    = Section::count();
+        $totalQuizzes     = Quiz::count();
+        $totalAttempts    = QuizAttempt::count();
         $totalCourseTypes = CourseType::count();
 
-        // Users yang sudah lulus SEMUA section dari spesialisasi yang mereka ikuti
+        // ── Completed Users ────────────────────────────────────────────────────
+        // User dianggap "lulus" jika completed SEMUA section di spesialisasi mereka
         $completedUsers = User::where('role', 'user')
-            ->with(['courseTypes', 'progress'])
+            ->with(['courseTypes', 'progresses'])
             ->get()
-            ->filter(function ($user) {
-                // Ambil semua spesialisasi user
-                $courseTypes = $user->courseTypes;
+            ->filter(function (User $user) {
+                $courseTypeIds = $user->courseTypes->pluck('id');
 
-                // Jika user belum terdaftar di spesialisasi apapun, belum lulus
-                if ($courseTypes->isEmpty()) return false;
+                if ($courseTypeIds->isEmpty()) {
+                    return false;
+                }
 
-                // Ambil semua section_id dari spesialisasi yang diikuti user
-                $sectionIds = Section::whereIn('course_type_id', $courseTypes->pluck('id'))->pluck('id');
+                $sectionIds = Section::whereIn('course_type_id', $courseTypeIds)->pluck('id');
 
-                if ($sectionIds->isEmpty()) return false;
+                if ($sectionIds->isEmpty()) {
+                    return false;
+                }
 
-                // Hitung berapa section yang sudah completed oleh user ini
-                $completedCount = $user->progress
+                $completedCount = $user->progresses
                     ->whereIn('section_id', $sectionIds->toArray())
                     ->where('status', 'completed')
                     ->count();
@@ -49,24 +51,24 @@ class DashboardController extends Controller
             })
             ->values();
 
-        // 8 user dengan progress terbaru
-        $recentProgress = UserProgress::with(['user', 'section'])
-            ->whereHas('user', fn($q) => $q->where('role', 'user'))
+        // ── Recent Progress (8 terbaru) ────────────────────────────────────────
+        $recentProgress = UserProgress::with(['user', 'section.courseType'])
+            ->whereHas('user', fn ($q) => $q->where('role', 'user'))
             ->orderByDesc('updated_at')
             ->take(8)
             ->get();
 
-        // Chart data: jumlah user yang sudah completed SEMUA section dalam 1 spesialisasi
-        $courseTypes = CourseType::orderBy('order')->get();
-
-        $chartLabels = $courseTypes->pluck('name');
-        $chartData   = $courseTypes->map(function ($ct) {
+        // ── Bar Chart: user completed per spesialisasi ─────────────────────────
+        $courseTypes  = CourseType::orderBy('order')->get();
+        $chartLabels  = $courseTypes->pluck('name');
+        $chartData    = $courseTypes->map(function (CourseType $ct) {
             $sectionIds   = Section::where('course_type_id', $ct->id)->pluck('id');
             $sectionCount = $sectionIds->count();
 
-            if ($sectionCount === 0) return 0;
+            if ($sectionCount === 0) {
+                return 0;
+            }
 
-            // Subquery PostgreSQL-safe: ambil user_id yang completed >= sectionCount
             $completedUserIds = DB::table('user_progress')
                 ->select('user_id')
                 ->whereIn('section_id', $sectionIds)
@@ -80,14 +82,14 @@ class DashboardController extends Controller
                 ->count();
         });
 
-        // Donut: completed vs in_progress vs not_started
-        $allProgress      = UserProgress::whereHas('user', fn($q) => $q->where('role', 'user'))->get();
-        $donutCompleted   = $allProgress->where('status', 'completed')->count();
-        $donutInProgress  = $allProgress->where('status', 'in_progress')->count();
-        $donutNotStarted  = $allProgress->where('status', 'not_started')->count();
+        // ── Donut Chart: distribusi status progress ────────────────────────────
+        $allProgress     = UserProgress::whereHas('user', fn ($q) => $q->where('role', 'user'))->get();
+        $donutCompleted  = $allProgress->where('status', 'completed')->count();
+        $donutInProgress = $allProgress->where('status', 'in_progress')->count();
+        $donutNotStarted = $allProgress->where('status', 'not_started')->count();
 
-        // Spesialisasi stats
-        $courseTypeStats = CourseType::withCount('users')->orderBy('order')->get();
+        // ── Spesialisasi Stats (with user count) ───────────────────────────────
+        $courseTypeStats = CourseType::withCount(['users', 'sections'])->orderBy('order')->get();
 
         return view('admin.dashboard', compact(
             'totalUsers', 'totalSections', 'totalQuizzes',

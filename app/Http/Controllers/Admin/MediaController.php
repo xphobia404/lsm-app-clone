@@ -13,6 +13,10 @@ class MediaController extends Controller
 {
     public function __construct(private readonly MediaService $mediaService) {}
 
+    // =========================================================================
+    // Upload
+    // =========================================================================
+
     /**
      * Upload banyak file untuk Quiz.
      * POST /admin/sections/{section}/quizzes/{quiz}/media
@@ -23,9 +27,9 @@ class MediaController extends Controller
             'files'   => 'required|array|min:1|max:10',
             'files.*' => 'file|mimes:jpg,jpeg,png,webp,gif,mp4,mov,avi,mp3,wav,ogg|max:51200',
         ], [
-            'files.required'   => 'Pilih minimal 1 file.',
-            'files.*.mimes'    => 'Format file tidak didukung.',
-            'files.*.max'      => 'Ukuran file maksimal 50MB.',
+            'files.required' => 'Pilih minimal 1 file.',
+            'files.*.mimes'  => 'Format file tidak didukung.',
+            'files.*.max'    => 'Ukuran file maksimal 50MB.',
         ]);
 
         $this->mediaService->uploadMany(
@@ -47,9 +51,9 @@ class MediaController extends Controller
             'files'   => 'required|array|min:1|max:10',
             'files.*' => 'file|mimes:jpg,jpeg,png,webp,gif,mp4,mov,avi,mp3,wav,ogg|max:51200',
         ], [
-            'files.required'   => 'Pilih minimal 1 file.',
-            'files.*.mimes'    => 'Format file tidak didukung.',
-            'files.*.max'      => 'Ukuran file maksimal 50MB.',
+            'files.required' => 'Pilih minimal 1 file.',
+            'files.*.mimes'  => 'Format file tidak didukung.',
+            'files.*.max'    => 'Ukuran file maksimal 50MB.',
         ]);
 
         $this->mediaService->uploadMany(
@@ -61,6 +65,10 @@ class MediaController extends Controller
         return back()->with('success', 'Media berhasil diupload.');
     }
 
+    // =========================================================================
+    // Destroy
+    // =========================================================================
+
     /**
      * Hapus satu media.
      * DELETE /admin/media/{media}
@@ -68,8 +76,13 @@ class MediaController extends Controller
     public function destroy(Media $media)
     {
         $this->mediaService->deleteMedia($media);
+
         return back()->with('success', 'Media berhasil dihapus.');
     }
+
+    // =========================================================================
+    // Reorder
+    // =========================================================================
 
     /**
      * Reorder media via AJAX.

@@ -7,6 +7,7 @@ use App\Models\CourseType;
 use App\Models\Section;
 use App\Services\MediaService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class SectionController extends Controller
@@ -14,19 +15,23 @@ class SectionController extends Controller
     public function __construct(private readonly MediaService $mediaService) {}
 
     // =========================================================================
-    // List
+    // Index
     // =========================================================================
 
     public function index(Request $request)
     {
         $perPage = in_array($request->input('per_page'), [5, 10, 25, 50])
-            ? (int) $request->input('per_page') : 10;
+            ? (int) $request->input('per_page')
+            : 10;
 
-        $baseQuery = Section::with('courseType')->withCount('quizzes')->orderBy('order');
+        $baseQuery = Section::with('courseType')
+            ->withCount('quizzes')
+            ->orderBy('order');
 
         if ($q = $request->input('q')) {
             $baseQuery->where('title', 'like', '%' . $q . '%');
         }
+
         if ($request->input('status') === 'published') {
             $baseQuery->where('is_published', true);
         } elseif ($request->input('status') === 'draft') {
@@ -38,7 +43,8 @@ class SectionController extends Controller
         if ($ct = $request->input('course_type_id')) {
             $sections = (clone $baseQuery)
                 ->where('course_type_id', $ct)
-                ->paginate($perPage)->withQueryString();
+                ->paginate($perPage)
+                ->withQueryString();
 
             return view('admin.sections.index', [
                 'courseTypes'        => $courseTypes,
@@ -48,7 +54,9 @@ class SectionController extends Controller
             ]);
         }
 
-        $grouped = $baseQuery->get()->groupBy(fn ($s) => $s->courseType?->name ?? 'Tanpa Spesialisasi');
+        $grouped = $baseQuery->get()->groupBy(
+            fn (Section $s) => $s->courseType?->name ?? 'Tanpa Spesialisasi'
+        );
 
         return view('admin.sections.index', [
             'courseTypes'        => $courseTypes,
@@ -72,26 +80,26 @@ class SectionController extends Controller
     {
         $data = $this->validateSection($request);
 
-        $data['order']        = $data['order'] ?? (Section::max('order') + 1);
-        $data['slug']         = Str::slug($data['title']) . '-' . time();
-        $data['content_mode'] = 'multi';
-        $data['content']      = null;
+        $data['order']      = $data['order'] ?? (Section::max('order') + 1);
+        $data['slug']       = Str::slug($data['title']) . '-' . time();
+        $data['created_by'] = Auth::id();
+        $data['content']    = null;
 
         if ($request->hasFile('thumbnail')) {
             $data['thumbnail'] = $this->mediaService->storeDirect(
-                $request->file('thumbnail'), 'sections/thumbnails'
+                $request->file('thumbnail'),
+                'sections/thumbnails'
             );
         }
 
-        if (!empty($data['pages'])) {
-            $data['pages'] = $this->handleSlideMedia($request, $data['pages']);
-        } else {
-            $data['pages'] = [];
-        }
+        $data['pages'] = ! empty($data['pages'])
+            ? $this->handleSlideMedia($request, $data['pages'])
+            : [];
 
         Section::create($data);
 
-        return redirect()->route('admin.sections.index')->with('success', 'Section berhasil dibuat.');
+        return redirect()->route('admin.sections.index')
+            ->with('success', 'Section berhasil dibuat.');
     }
 
     // =========================================================================
@@ -108,24 +116,24 @@ class SectionController extends Controller
     {
         $data = $this->validateSection($request);
 
-        $data['content_mode'] = 'multi';
-        $data['content']      = null;
+        $data['content'] = null;
 
         if ($request->hasFile('thumbnail')) {
             $data['thumbnail'] = $this->mediaService->replaceDirect(
-                $request->file('thumbnail'), 'sections/thumbnails', $section->thumbnail
+                $request->file('thumbnail'),
+                'sections/thumbnails',
+                $section->thumbnail
             );
         }
 
-        if (!empty($data['pages'])) {
-            $data['pages'] = $this->handleSlideMedia($request, $data['pages'], $section->pages ?? []);
-        } else {
-            $data['pages'] = [];
-        }
+        $data['pages'] = ! empty($data['pages'])
+            ? $this->handleSlideMedia($request, $data['pages'], $section->pages ?? [])
+            : [];
 
         $section->update($data);
 
-        return redirect()->route('admin.sections.index')->with('success', 'Section berhasil diperbarui.');
+        return redirect()->route('admin.sections.index')
+            ->with('success', 'Section berhasil diperbarui.');
     }
 
     // =========================================================================
@@ -139,13 +147,18 @@ class SectionController extends Controller
         $this->mediaService->deleteAllMedia($section);
         $section->delete();
 
-        return redirect()->route('admin.sections.index')->with('success', 'Section berhasil dihapus.');
+        return redirect()->route('admin.sections.index')
+            ->with('success', 'Section berhasil dihapus.');
     }
 
     public function togglePublish(Section $section)
     {
-        $section->update(['is_published' => !$section->is_published]);
-        $msg = $section->is_published ? 'Section berhasil dipublikasikan.' : 'Section berhasil disembunyikan.';
+        $section->update(['is_published' => ! $section->is_published]);
+
+        $msg = $section->is_published
+            ? 'Section berhasil dipublikasikan.'
+            : 'Section berhasil disembunyikan.';
+
         return back()->with('success', $msg);
     }
 
@@ -160,6 +173,7 @@ class SectionController extends Controller
             'title'                     => 'required|string|max:255',
             'description'               => 'nullable|string',
             'thumbnail'                 => 'nullable|image|max:5120',
+            'passing_score'             => 'nullable|integer|min:0|max:100',
             'order'                     => 'nullable|integer|min:0',
             'is_published'              => 'boolean',
             // pages / slides
@@ -181,10 +195,6 @@ class SectionController extends Controller
         ]);
     }
 
-    /**
-     * Proses upload media per slide.
-     * Mendukung: image, video_upload, audio, youtube, drive.
-     */
     private function handleSlideMedia(Request $request, array $pages, array $oldPages = []): array
     {
         $uploaded = $request->file('pages') ?? [];
@@ -192,10 +202,8 @@ class SectionController extends Controller
         foreach ($pages as $idx => &$page) {
             $mediaType = $page['slide_media_type'] ?? 'none';
 
-            // ── Gambar ──────────────────────────────────────────────────────
             if ($mediaType === 'image' && isset($uploaded[$idx]['new_image'])
                 && $uploaded[$idx]['new_image']->isValid()) {
-
                 $this->mediaService->deletePath($oldPages[$idx]['image_path'] ?? null);
                 $path = $this->mediaService->storeDirect($uploaded[$idx]['new_image'], 'sections/slides/images');
                 $page['image_url']  = $this->mediaService->url($path);
@@ -203,10 +211,8 @@ class SectionController extends Controller
             }
             unset($page['new_image']);
 
-            // ── Video Upload ─────────────────────────────────────────────────
             if ($mediaType === 'video_upload' && isset($uploaded[$idx]['new_video'])
                 && $uploaded[$idx]['new_video']->isValid()) {
-
                 $this->mediaService->deletePath($oldPages[$idx]['video_path'] ?? null);
                 $path = $this->mediaService->storeDirect($uploaded[$idx]['new_video'], 'sections/slides/videos');
                 $page['video_url']  = $this->mediaService->url($path);
@@ -214,28 +220,20 @@ class SectionController extends Controller
             }
             unset($page['new_video']);
 
-            // ── Audio ─────────────────────────────────────────────────────────
             if ($mediaType === 'audio' && isset($uploaded[$idx]['new_audio'])
                 && $uploaded[$idx]['new_audio']->isValid()) {
-
                 $this->mediaService->deletePath($oldPages[$idx]['audio_path'] ?? null);
                 $path = $this->mediaService->storeDirect($uploaded[$idx]['new_audio'], 'sections/slides/audios');
                 $page['audio_url']  = $this->mediaService->url($path);
                 $page['audio_path'] = $path;
             }
             unset($page['new_audio']);
-
-            // ── YouTube / Drive: hanya simpan URL, tidak ada upload ───────────
-            // Sudah di-handle oleh hidden input dari view, tidak perlu proses khusus.
         }
         unset($page);
 
         return $pages;
     }
 
-    /**
-     * Hapus semua file media per slide saat section dihapus.
-     */
     private function deleteAllSlideMedia(array $pages): void
     {
         foreach ($pages as $page) {

@@ -8,6 +8,10 @@ use Illuminate\Http\Request;
 
 class CourseTypeController extends Controller
 {
+    // =========================================================================
+    // Index
+    // =========================================================================
+
     public function index()
     {
         $courseTypes = CourseType::withCount(['sections', 'users'])
@@ -16,6 +20,10 @@ class CourseTypeController extends Controller
 
         return view('admin.course-types.index', compact('courseTypes'));
     }
+
+    // =========================================================================
+    // Create / Store
+    // =========================================================================
 
     public function create()
     {
@@ -40,6 +48,10 @@ class CourseTypeController extends Controller
             ->with('success', 'Spesialisasi course berhasil dibuat.');
     }
 
+    // =========================================================================
+    // Edit / Update
+    // =========================================================================
+
     public function edit(CourseType $courseType)
     {
         return view('admin.course-types.edit', compact('courseType'));
@@ -61,12 +73,16 @@ class CourseTypeController extends Controller
             ->with('success', 'Spesialisasi course berhasil diperbarui.');
     }
 
+    // =========================================================================
+    // Destroy
+    // =========================================================================
+
     public function destroy(CourseType $courseType)
     {
-        // Lepas relasi pivot user sebelum hapus
+        // Lepas semua relasi pivot user
         $courseType->users()->detach();
 
-        // Set course_type_id sections ke null sebelum hapus
+        // Null-kan foreign key sections agar tidak cascade error
         $courseType->sections()->update(['course_type_id' => null]);
 
         $courseType->delete();
@@ -75,9 +91,10 @@ class CourseTypeController extends Controller
             ->with('success', 'Spesialisasi course berhasil dihapus.');
     }
 
-    /**
-     * Toggle show / hide (is_active) course type.
-     */
+    // =========================================================================
+    // Actions
+    // =========================================================================
+
     public function toggleActive(CourseType $courseType)
     {
         $courseType->update(['is_active' => ! $courseType->is_active]);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -13,6 +14,7 @@ class LoginController extends Controller
         if (Auth::check()) {
             return $this->redirectBasedOnRole();
         }
+
         return view('auth.login');
     }
 
@@ -27,24 +29,31 @@ class LoginController extends Controller
         ]);
 
         $credentials = [
-            'username' => $request->username,
-            'password' => $request->password,
+            'username'  => $request->username,
+            'password'  => $request->password,
             'is_active' => true,
         ];
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
-            auth()->user()->update(['last_login_at' => now()]);
+
+            // Update last_login_at via model method
+            auth()->user()->touchLastLogin();
+
             return $this->redirectBasedOnRole();
         }
 
-        // Check if user exists but inactive
-        $user = \App\Models\User::where('username', $request->username)->first();
-        if ($user && !$user->is_active) {
-            return back()->withErrors(['username' => 'Akun Anda telah dinonaktifkan. Hubungi Admin.']);
+        // Cek apakah user ada tapi nonaktif
+        $user = User::where('username', $request->username)->first();
+        if ($user && ! $user->is_active) {
+            return back()->withErrors([
+                'username' => 'Akun Anda telah dinonaktifkan. Hubungi Admin.',
+            ]);
         }
 
-        return back()->withErrors(['username' => 'Username atau password salah.'])->withInput($request->only('username'));
+        return back()
+            ->withErrors(['username' => 'Username atau password salah.'])
+            ->withInput($request->only('username'));
     }
 
     public function logout(Request $request)
@@ -52,12 +61,17 @@ class LoginController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
         return redirect()->route('login');
     }
 
+    // =========================================================================
+    // Private Helpers
+    // =========================================================================
+
     private function redirectBasedOnRole()
     {
-        return auth()->user()->role === 'admin'
+        return auth()->user()->isAdmin()
             ? redirect()->route('admin.dashboard')
             : redirect()->route('user.dashboard');
     }

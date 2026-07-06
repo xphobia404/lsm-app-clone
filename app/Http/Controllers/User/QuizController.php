@@ -3,43 +3,35 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\Section;
-use App\Models\Quiz;
-use App\Models\UserProgress;
 use App\Models\QuizAttempt;
+use App\Models\Section;
+use App\Models\UserProgress;
 use Illuminate\Http\Request;
 
 class QuizController extends Controller
 {
+    // =========================================================================
+    // Show Quiz
+    // =========================================================================
+
     public function show(Section $section)
     {
-        if (!$section->is_published) abort(404);
+        if (! $section->is_published) {
+            abort(404);
+        }
 
         $user = auth()->user();
+        $this->authorizeAccess($user, $section);
 
-        // ── Gate: pastikan section ini termasuk spesialisasi user ──────────────
-        $userCourseTypeIds = $user->courseTypes()->pluck('course_types.id');
-        if ($userCourseTypeIds->isNotEmpty() && !$userCourseTypeIds->contains($section->course_type_id)) {
-            return redirect()->route('user.courses')
-                ->with('error', 'Kamu tidak memiliki akses ke quiz ini.');
-        }
+        $progress = $this->getProgress($user->id, $section->id);
 
-        $progress = UserProgress::where('user_id', $user->id)
-            ->where('section_id', $section->id)
-            ->first();
-
-        if (!$progress || !$progress->unlocked) {
-            return redirect()->route('user.courses')
-                ->with('error', 'Section ini belum terbuka.');
-        }
-
-        // Cek apakah sudah pernah lulus
+        // Sudah lulus → tidak perlu quiz lagi
         $lastAttempt = QuizAttempt::where('user_id', $user->id)
             ->where('section_id', $section->id)
             ->orderByDesc('attempt_number')
             ->first();
 
-        if ($lastAttempt && $lastAttempt->passed) {
+        if ($lastAttempt?->passed) {
             return redirect()->route('user.section.show', $section)
                 ->with('info', 'Anda sudah lulus quiz ini.');
         }
@@ -51,58 +43,47 @@ class QuizController extends Controller
                 ->with('info', 'Section ini tidak memiliki quiz.');
         }
 
-        $attemptNumber = $lastAttempt ? $lastAttempt->attempt_number + 1 : 1;
+        $attemptNumber = QuizAttempt::nextAttemptNumber($user->id, $section->id);
 
         return view('user.quiz', compact('section', 'quizzes', 'lastAttempt', 'attemptNumber'));
     }
 
+    // =========================================================================
+    // Submit Quiz
+    // =========================================================================
+
     public function submit(Request $request, Section $section)
     {
-        if (!$section->is_published) abort(404);
+        if (! $section->is_published) {
+            abort(404);
+        }
 
         $user = auth()->user();
-
-        // ── Gate: pastikan section ini termasuk spesialisasi user ──────────────
-        $userCourseTypeIds = $user->courseTypes()->pluck('course_types.id');
-        if ($userCourseTypeIds->isNotEmpty() && !$userCourseTypeIds->contains($section->course_type_id)) {
-            abort(403, 'Akses tidak diizinkan.');
-        }
-
-        $progress = UserProgress::where('user_id', $user->id)
-            ->where('section_id', $section->id)
-            ->first();
-
-        if (!$progress || !$progress->unlocked) {
-            abort(403);
-        }
+        $this->authorizeAccess($user, $section);
+        $this->getProgress($user->id, $section->id);
 
         $quizzes = $section->quizzes()->orderBy('order')->get();
 
+        // Validasi: semua soal wajib dijawab
         $request->validate(
-            collect($quizzes)->mapWithKeys(fn($q) => ["answers.{$q->id}" => 'required|in:a,b,c,d'])->toArray(),
-            collect($quizzes)->mapWithKeys(fn($q) => ["answers.{$q->id}.required" => 'Semua soal wajib dijawab.'])->toArray()
+            $quizzes->mapWithKeys(fn ($q) => ["answers.{$q->id}" => 'required|in:a,b,c,d'])->toArray(),
+            $quizzes->mapWithKeys(fn ($q) => ["answers.{$q->id}.required" => 'Semua soal wajib dijawab.'])->toArray()
         );
 
         $answers        = $request->input('answers', []);
-        $correctCount   = 0;
         $totalQuestions = $quizzes->count();
+        $correctCount   = $quizzes->filter(
+            fn ($q) => strtolower($answers[$q->id] ?? '') === strtolower($q->correct_answer)
+        )->count();
 
-        foreach ($quizzes as $quiz) {
-            if (strtolower($answers[$quiz->id] ?? '') === strtolower($quiz->correct_answer)) {
-                $correctCount++;
-            }
-        }
-
-        $passed       = ($correctCount === $totalQuestions);
+        $passingScore = $section->passing_score ?? 100;
         $scorePercent = $totalQuestions > 0
             ? (int) round(($correctCount / $totalQuestions) * 100)
             : 0;
+        $passed = $scorePercent >= $passingScore;
 
-        $lastAttempt   = QuizAttempt::where('user_id', $user->id)
-            ->where('section_id', $section->id)
-            ->orderByDesc('attempt_number')
-            ->first();
-        $attemptNumber = $lastAttempt ? $lastAttempt->attempt_number + 1 : 1;
+        // Simpan attempt
+        $attemptNumber = QuizAttempt::nextAttemptNumber($user->id, $section->id);
 
         QuizAttempt::create([
             'user_id'        => $user->id,
@@ -116,14 +97,15 @@ class QuizController extends Controller
         ]);
 
         if ($passed) {
-            // Tandai section ini selesai
-            $progress->update([
-                'status'         => 'completed',
-                'completed_at'   => now(),
-                'quiz_passed_at' => now(),
-            ]);
+            // Tandai section selesai & quiz lulus via model method
+            $progress = UserProgress::where('user_id', $user->id)
+                ->where('section_id', $section->id)
+                ->first();
 
-            // Cari section berikutnya — HANYA dalam spesialisasi yang sama
+            $progress->markCompleted();
+            $progress->markQuizPassed();
+
+            // Unlock section berikutnya (dalam spesialisasi yang sama)
             $nextSection = Section::where('is_published', true)
                 ->where('course_type_id', $section->course_type_id)
                 ->where('order', '>', $section->order)
@@ -140,13 +122,45 @@ class QuizController extends Controller
                     ->with('success', '🎉 Selamat! Kamu lulus. Lanjut ke section berikutnya.');
             }
 
-            // Semua section di spesialisasi ini selesai
             return redirect()->route('user.courses')
                 ->with('success', '🏆 Selamat! Kamu telah menyelesaikan semua materi di spesialisasi ini.');
         }
 
-        // Gagal — balik ke quiz
         return redirect()->route('user.quiz.show', $section)
-            ->with('error', "Belum semua benar. Skor kamu: {$scorePercent}%. Coba lagi ya!");
+            ->with('error', "Belum lulus. Skor kamu: {$scorePercent}% (min: {$passingScore}%). Coba lagi ya!");
+    }
+
+    // =========================================================================
+    // Private Helpers
+    // =========================================================================
+
+    /**
+     * Gate: pastikan section ini termasuk spesialisasi user.
+     */
+    private function authorizeAccess($user, Section $section): void
+    {
+        $userCourseTypeIds = $user->courseTypes()->pluck('course_types.id');
+
+        if ($userCourseTypeIds->isNotEmpty()
+            && ! $userCourseTypeIds->contains($section->course_type_id)
+        ) {
+            abort(403, 'Kamu tidak memiliki akses ke quiz ini.');
+        }
+    }
+
+    /**
+     * Ambil progress user untuk section ini, abort 403 jika belum unlock.
+     */
+    private function getProgress(int $userId, int $sectionId): UserProgress
+    {
+        $progress = UserProgress::where('user_id', $userId)
+            ->where('section_id', $sectionId)
+            ->first();
+
+        if (! $progress || ! $progress->unlocked) {
+            abort(403, 'Section ini belum terbuka.');
+        }
+
+        return $progress;
     }
 }
