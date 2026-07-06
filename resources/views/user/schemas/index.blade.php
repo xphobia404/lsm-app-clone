@@ -28,8 +28,7 @@
     <div class="space-y-3">
         @forelse($schemas as $schema)
         @php
-            {{-- $progressMap adalah Collection grouped by section_id
-                 Hitung done dengan cara aman --}}
+            // $progressMap adalah Collection grouped by section_id
             $totalSec = $schema->sections_count ?? 0;
             $doneSec  = 0;
             if (isset($schema->sections)) {
