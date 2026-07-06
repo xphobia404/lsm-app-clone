@@ -49,7 +49,7 @@
         </div>
     @endif
 
-    {{-- URL --}}
+    {{-- URL konten --}}
     @if($content->url)
         <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
             <h3 class="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">URL</h3>
@@ -58,28 +58,71 @@
         </div>
     @endif
 
-    {{-- Media --}}
-    @if($content->media->isNotEmpty())
-        <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
-            <h3 class="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wide">Media ({{ $content->media->count() }})</h3>
-            <div class="space-y-2">
+    {{-- ── Media Lampiran ── --}}
+    <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
+        <h3 class="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wide">
+            Media Lampiran
+            <span class="ml-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-600">{{ $content->media->count() }}</span>
+        </h3>
+
+        @if($content->media->isEmpty())
+            <p class="text-xs text-slate-400 italic">Belum ada media untuk konten ini.</p>
+        @else
+            <div class="space-y-3">
                 @foreach($content->media as $m)
-                    <div class="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                        <span class="text-xs font-semibold text-slate-500 w-12">{{ strtoupper($m->media_type) }}</span>
-                        @if($m->url)
-                            <a href="{{ $m->url }}" target="_blank" class="text-xs text-indigo-600 truncate hover:underline">{{ $m->title ?: $m->url }}</a>
-                        @elseif($m->file_path)
-                            <span class="text-xs text-slate-600 truncate">{{ $m->title ?: $m->file_path }}</span>
+                @php
+                    $mColor = match($m->media_type) {
+                        'video' => ['bg' => 'bg-rose-50',   'text' => 'text-rose-600',   'badge' => 'bg-rose-100 text-rose-600'],
+                        'audio' => ['bg' => 'bg-violet-50', 'text' => 'text-violet-600', 'badge' => 'bg-violet-100 text-violet-600'],
+                        'url'   => ['bg' => 'bg-sky-50',    'text' => 'text-sky-600',    'badge' => 'bg-sky-100 text-sky-600'],
+                        default => ['bg' => 'bg-indigo-50', 'text' => 'text-indigo-600', 'badge' => 'bg-indigo-100 text-indigo-600'],
+                    };
+                @endphp
+                <div class="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                    {{-- Icon --}}
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl {{ $mColor['bg'] }}">
+                        @if($m->media_type === 'image')
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 {{ $mColor['text'] }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                        @elseif($m->media_type === 'video')
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 {{ $mColor['text'] }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
+                        @elseif($m->media_type === 'audio')
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 {{ $mColor['text'] }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+                        @else
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 {{ $mColor['text'] }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
                         @endif
-                        <span class="ml-auto text-[10px] rounded-full px-2 py-0.5
-                            {{ $m->is_active ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400' }}">
-                            {{ $m->is_active ? 'Aktif' : 'Non-aktif' }}
-                        </span>
                     </div>
+
+                    {{-- Info --}}
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-1.5 mb-0.5">
+                            <p class="text-xs font-semibold text-slate-700 truncate">{{ $m->title ?: '(' . strtoupper($m->media_type) . ')' }}</p>
+                            <span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $mColor['badge'] }}">{{ strtoupper($m->media_type) }}</span>
+                            <span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold
+                                {{ $m->is_active ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400' }}">
+                                {{ $m->is_active ? 'Aktif' : 'Non-aktif' }}
+                            </span>
+                            <span class="text-[10px] text-slate-400">#{{ $m->media_order }}</span>
+                        </div>
+                        @if($m->description)
+                            <p class="text-[11px] text-slate-400 line-clamp-1 mb-1">{{ $m->description }}</p>
+                        @endif
+                        @if($m->url)
+                            <a href="{{ $m->url }}" target="_blank" rel="noopener noreferrer"
+                               class="text-[11px] text-indigo-500 break-all hover:underline">{{ $m->url }}</a>
+                        @endif
+                        @if($m->file_path)
+                            <div class="flex items-center gap-1.5 mt-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                <a href="{{ Storage::url($m->file_path) }}" target="_blank"
+                                   class="text-[11px] text-indigo-500 hover:underline truncate">{{ basename($m->file_path) }}</a>
+                            </div>
+                        @endif
+                    </div>
+                </div>
                 @endforeach
             </div>
-        </div>
-    @endif
+        @endif
+    </div>
 
     {{-- Meta --}}
     <div class="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-xs text-slate-400 space-y-1">
