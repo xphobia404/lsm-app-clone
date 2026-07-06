@@ -13,23 +13,17 @@ class ContentController extends Controller
 {
     public function index(Request $request, Section $section)
     {
-        $query = $section->contents()
+        $contents = $section->contents()
             ->when($request->filled('search'), fn ($q) =>
                 $q->where('title', 'like', "%{$request->search}%")
             )
-            ->when($request->filled('type'), fn ($q) =>
-                $q->where('content_type', $request->type)
+            ->when($request->filled('status'), fn ($q) =>
+                $q->where('is_active', $request->status === 'active')
             )
             ->withCount('media')
-            ->orderBy('content_order');
-
-        // Default: hanya tampilkan konten aktif kecuali admin pilih status lain
-        $status = $request->input('status', 'active');
-        if ($status !== 'all') {
-            $query->where('is_active', $status === 'active');
-        }
-
-        $contents = $query->paginate(15)->withQueryString();
+            ->orderBy('content_order')
+            ->paginate(15)
+            ->withQueryString();
 
         return view('admin.contents.index', compact('section', 'contents'));
     }
@@ -149,7 +143,7 @@ class ContentController extends Controller
         return back()->with('success', 'Status konten diperbarui.');
     }
 
-    // ── PRIVATE ────────────────────────────────────────────────────────────────────
+    // ── PRIVATE ──────────────────────────────────────────────────────────────
 
     private function authorizeContent(Section $section, Content $content): void
     {

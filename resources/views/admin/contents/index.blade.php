@@ -46,9 +46,9 @@
             <option value="url"   {{ request('type') === 'url'   ? 'selected' : '' }}>URL</option>
         </select>
         <select name="status" class="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs focus:border-indigo-400 focus:outline-none">
-            <option value="active"   {{ request('status', 'active') === 'active'   ? 'selected' : '' }}>Aktif</option>
+            <option value="">Semua Status</option>
+            <option value="active"   {{ request('status') === 'active'   ? 'selected' : '' }}>Aktif</option>
             <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Non-aktif</option>
-            <option value="all"      {{ request('status') === 'all'      ? 'selected' : '' }}>Semua Status</option>
         </select>
         <button type="submit" class="rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition">Filter</button>
         @if(request()->hasAny(['search','type','status']))
@@ -65,13 +65,13 @@
     <div class="space-y-3">
         @forelse($contents as $content)
             @php
-                $typeColor = match($content->content_type ?? 'text') {
+                $typeColor = match($content->content_type) {
                     'video' => 'bg-rose-50 text-rose-600',
                     'file'  => 'bg-amber-50 text-amber-600',
                     'url'   => 'bg-sky-50 text-sky-600',
                     default => 'bg-indigo-50 text-indigo-600',
                 };
-                $typeLabel = match($content->content_type ?? 'text') {
+                $typeLabel = match($content->content_type) {
                     'video' => 'Video',
                     'file'  => 'File',
                     'url'   => 'URL',

@@ -32,7 +32,7 @@ class SectionController extends Controller
         ));
     }
 
-    // ── Admin methods ──────────────────────────────────────────────
+    // ── Admin methods ──────────────────────────────────────────────────
 
     public function allIndex(Request $request)
     {
@@ -42,11 +42,8 @@ class SectionController extends Controller
         if ($request->filled('search')) {
             $query->where('title', 'like', "%{$request->search}%");
         }
-
-        // Default: hanya tampilkan yang aktif kecuali admin pilih status lain
-        $status = $request->input('status', 'active');
-        if ($status !== 'all') {
-            $query->where('is_active', $status === 'active');
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->status === 'active');
         }
 
         $sections = $query->orderBy('title')->paginate(15)->withQueryString();
@@ -62,11 +59,8 @@ class SectionController extends Controller
         if ($request->filled('search')) {
             $query->where('sections.title', 'like', "%{$request->search}%");
         }
-
-        // Default: hanya tampilkan yang aktif kecuali admin pilih status lain
-        $status = $request->input('status', 'active');
-        if ($status !== 'all') {
-            $query->where('sections.is_active', $status === 'active');
+        if ($request->filled('status')) {
+            $query->where('sections.is_active', $request->status === 'active');
         }
 
         $sections = $query->paginate(15)->withQueryString();
