@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LearningSchema;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -36,21 +37,24 @@ class UserController extends Controller
 
     public function create()
     {
-        return view('admin.users.create');
+        $allSchemas = LearningSchema::active()->orderBy('title')->get();
+        return view('admin.users.create', compact('allSchemas'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'      => 'required|string|max:255',
-            'username'  => 'required|string|max:50|unique:users,username|alpha_dash',
-            'email'     => 'required|email|max:255|unique:users,email',
-            'password'  => ['required', Password::min(8)],
-            'role'      => 'required|in:admin,user',
-            'is_active' => 'sometimes|boolean',
+            'name'         => 'required|string|max:255',
+            'username'     => 'required|string|max:50|unique:users,username|alpha_dash',
+            'email'        => 'required|email|max:255|unique:users,email',
+            'password'     => ['required', Password::min(8)],
+            'role'         => 'required|in:admin,user',
+            'is_active'    => 'sometimes|boolean',
+            'schema_ids'   => 'nullable|array',
+            'schema_ids.*' => 'integer|exists:learning_schemas,id',
         ]);
 
-        User::create([
+        $user = User::create([
             'name'      => $validated['name'],
             'username'  => $validated['username'],
             'email'     => $validated['email'],
@@ -58,6 +62,15 @@ class UserController extends Controller
             'role'      => $validated['role'],
             'is_active' => $request->boolean('is_active'),
         ]);
+
+        // Enroll ke learning schemas yang dipilih
+        if (!empty($validated['schema_ids'])) {
+            $pivot = [];
+            foreach ($validated['schema_ids'] as $id) {
+                $pivot[$id] = ['enrolled_at' => now(), 'status' => 'active'];
+            }
+            $user->learningSchemas()->sync($pivot);
+        }
 
         return redirect()
             ->route('admin.users.index')
@@ -68,7 +81,8 @@ class UserController extends Controller
     {
         $user->loadCount(['progresses', 'quizAttempts']);
         $user->load([
-            'progresses' => fn ($q) => $q->with('section:id,title')->latest('updated_at')->limit(5),
+            'learningSchemas' => fn ($q) => $q->withCount('sections'),
+            'progresses'      => fn ($q) => $q->with('section:id,title')->latest('updated_at')->limit(5),
         ]);
 
         return view('admin.users.show', compact('user'));
@@ -76,18 +90,23 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
-        return view('admin.users.edit', compact('user'));
+        $allSchemas    = LearningSchema::active()->orderBy('title')->get();
+        $enrolledIds   = $user->learningSchemas()->pluck('learning_schema_id')->toArray();
+        $enrollments   = $user->learningSchemas()->get();
+        return view('admin.users.edit', compact('user', 'allSchemas', 'enrolledIds', 'enrollments'));
     }
 
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'name'      => 'required|string|max:255',
-            'username'  => 'required|string|max:50|unique:users,username,' . $user->id . '|alpha_dash',
-            'email'     => 'required|email|max:255|unique:users,email,' . $user->id,
-            'password'  => ['nullable', Password::min(8)],
-            'role'      => 'required|in:admin,user',
-            'is_active' => 'sometimes|boolean',
+            'name'         => 'required|string|max:255',
+            'username'     => 'required|string|max:50|unique:users,username,' . $user->id . '|alpha_dash',
+            'email'        => 'required|email|max:255|unique:users,email,' . $user->id,
+            'password'     => ['nullable', Password::min(8)],
+            'role'         => 'required|in:admin,user',
+            'is_active'    => 'sometimes|boolean',
+            'schema_ids'   => 'nullable|array',
+            'schema_ids.*' => 'integer|exists:learning_schemas,id',
         ]);
 
         $updateData = [
@@ -98,36 +117,40 @@ class UserController extends Controller
             'is_active' => $request->boolean('is_active'),
         ];
 
-        if (! empty($validated['password'])) {
+        if (!empty($validated['password'])) {
             $updateData['password'] = Hash::make($validated['password']);
         }
 
         $user->update($updateData);
 
+        // Sync enrollment — preserve enrolled_at untuk yang sudah ada
+        $schemaIds = $validated['schema_ids'] ?? [];
+        $existing  = $user->learningSchemas()->pluck('learning_schema_id')->toArray();
+        $pivot = [];
+        foreach ($schemaIds as $id) {
+            $pivot[$id] = in_array($id, $existing)
+                ? [] // keep pivot lama
+                : ['enrolled_at' => now(), 'status' => 'active'];
+        }
+        $user->learningSchemas()->sync($pivot);
+
         return redirect()
-            ->route('admin.users.index')
+            ->route('admin.users.show', $user)
             ->with('success', 'User berhasil diperbarui.');
     }
 
     public function destroy(User $user)
     {
-        // Cegah hapus diri sendiri
         abort_if($user->id === auth()->id(), 403, 'Tidak bisa menghapus akun sendiri.');
-
         $user->delete();
-
-        return redirect()
-            ->route('admin.users.index')
-            ->with('success', 'User berhasil dihapus.');
+        return redirect()->route('admin.users.index')->with('success', 'User berhasil dihapus.');
     }
 
     public function toggleActive(User $user)
     {
         abort_if($user->id === auth()->id(), 403, 'Tidak bisa menonaktifkan akun sendiri.');
-
-        $user->update(['is_active' => ! $user->is_active]);
+        $user->update(['is_active' => !$user->is_active]);
         $label = $user->is_active ? 'diaktifkan' : 'dinonaktifkan';
-
         return back()->with('success', "User berhasil {$label}.");
     }
 }

@@ -8,9 +8,12 @@
         </div>
     </div>
     @include('admin.users._form', [
-        'method' => 'POST',
-        'action' => route('admin.users.store'),
-        'user'   => null,
+        'method'      => 'POST',
+        'action'      => route('admin.users.store'),
+        'user'        => null,
+        'allSchemas'  => $allSchemas,
+        'enrolledIds' => [],
+        'enrollments' => collect(),
     ])
 </div>
 </x-admin-layout>
