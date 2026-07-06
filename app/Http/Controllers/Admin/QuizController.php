@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Section;
 use App\Models\Quiz;
+use App\Services\MediaService;
 use Illuminate\Http\Request;
 
 class QuizController extends Controller
 {
+    public function __construct(private readonly MediaService $mediaService) {}
+
     public function index(Section $section)
     {
         $quizzes = $section->quizzes()->with('media')->get();
@@ -44,7 +47,7 @@ class QuizController extends Controller
         ));
 
         return redirect()->route('admin.sections.quizzes.index', $section)
-            ->with('success', 'Soal berhasil ditambahkan.');
+            ->with('success', 'Soal berhasil ditambahkan. Tambahkan media di halaman Edit.');
     }
 
     public function edit(Section $section, Quiz $quiz)
@@ -81,8 +84,10 @@ class QuizController extends Controller
 
     public function destroy(Section $section, Quiz $quiz)
     {
-        $quiz->media()->each(fn($m) => $m->delete());
+        // Hapus semua media via service
+        $this->mediaService->deleteAllMedia($quiz);
         $quiz->delete();
+
         return redirect()->route('admin.sections.quizzes.index', $section)
             ->with('success', 'Soal berhasil dihapus.');
     }

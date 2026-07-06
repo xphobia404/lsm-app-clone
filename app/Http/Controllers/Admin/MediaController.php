@@ -6,24 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Media;
 use App\Models\Quiz;
 use App\Models\Section;
+use App\Services\MediaService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class MediaController extends Controller
 {
-    /**
-     * Mapping tipe MIME ke enum type.
-     */
-    private function detectType(string $mime): string
-    {
-        if (str_starts_with($mime, 'image/')) return 'image';
-        if (str_starts_with($mime, 'video/')) return 'video';
-        if (str_starts_with($mime, 'audio/')) return 'audio';
-        return 'image';
-    }
+    public function __construct(private readonly MediaService $mediaService) {}
 
     /**
-     * Upload satu atau banyak file untuk Quiz.
+     * Upload banyak file untuk Quiz.
      * POST /admin/sections/{section}/quizzes/{quiz}/media
      */
     public function storeForQuiz(Request $request, Section $section, Quiz $quiz)
@@ -37,28 +28,17 @@ class MediaController extends Controller
             'files.*.max'      => 'Ukuran file maksimal 50MB.',
         ]);
 
-        $lastOrder = $quiz->media()->max('order') ?? -1;
-
-        foreach ($request->file('files') as $file) {
-            $mime = $file->getMimeType();
-            $path = $file->store('media/quizzes/' . $quiz->id, 'public');
-
-            $quiz->media()->create([
-                'type'          => $this->detectType($mime),
-                'disk'          => 'public',
-                'path'          => $path,
-                'original_name' => $file->getClientOriginalName(),
-                'mime_type'     => $mime,
-                'size'          => $file->getSize(),
-                'order'         => ++$lastOrder,
-            ]);
-        }
+        $this->mediaService->uploadMany(
+            $quiz,
+            $request->file('files'),
+            'media/quizzes/' . $quiz->id
+        );
 
         return back()->with('success', 'Media berhasil diupload.');
     }
 
     /**
-     * Upload satu atau banyak file untuk Section.
+     * Upload banyak file untuk Section.
      * POST /admin/sections/{section}/media
      */
     public function storeForSection(Request $request, Section $section)
@@ -72,22 +52,11 @@ class MediaController extends Controller
             'files.*.max'      => 'Ukuran file maksimal 50MB.',
         ]);
 
-        $lastOrder = $section->media()->max('order') ?? -1;
-
-        foreach ($request->file('files') as $file) {
-            $mime = $file->getMimeType();
-            $path = $file->store('media/sections/' . $section->id, 'public');
-
-            $section->media()->create([
-                'type'          => $this->detectType($mime),
-                'disk'          => 'public',
-                'path'          => $path,
-                'original_name' => $file->getClientOriginalName(),
-                'mime_type'     => $mime,
-                'size'          => $file->getSize(),
-                'order'         => ++$lastOrder,
-            ]);
-        }
+        $this->mediaService->uploadMany(
+            $section,
+            $request->file('files'),
+            'media/sections/' . $section->id
+        );
 
         return back()->with('success', 'Media berhasil diupload.');
     }
@@ -98,12 +67,12 @@ class MediaController extends Controller
      */
     public function destroy(Media $media)
     {
-        $media->delete(); // otomatis hapus file fisik via Model::booted()
+        $this->mediaService->deleteMedia($media);
         return back()->with('success', 'Media berhasil dihapus.');
     }
 
     /**
-     * Update urutan media (reorder via drag-drop / AJAX).
+     * Reorder media via AJAX.
      * PUT /admin/media/reorder
      */
     public function reorder(Request $request)
@@ -113,9 +82,7 @@ class MediaController extends Controller
             'orders.*' => 'integer|exists:media,id',
         ]);
 
-        foreach ($request->orders as $order => $id) {
-            Media::where('id', $id)->update(['order' => $order]);
-        }
+        $this->mediaService->reorder($request->input('orders'));
 
         return response()->json(['success' => true]);
     }
