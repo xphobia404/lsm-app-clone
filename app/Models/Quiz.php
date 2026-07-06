@@ -2,16 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Quiz extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'section_id',
-        'quiz_order',
         'question',
         'option_a',
         'option_b',
@@ -19,18 +17,34 @@ class Quiz extends Model
         'option_d',
         'correct_answer',
         'explanation',
+        'quiz_order',
         'is_active',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'is_active'   => 'boolean',
+        'quiz_order'  => 'integer',
+    ];
+
+    // ── Relationships ───────────────────────────────────────────────
+
+    public function section(): BelongsTo
     {
-        return [
-            'is_active'  => 'boolean',
-            'quiz_order' => 'integer',
-        ];
+        return $this->belongsTo(Section::class);
     }
 
-    // Scopes
+    /**
+     * Media untuk soal quiz (misal: gambar soal, diagram, ilustrasi).
+     * Bisa dipakai: $quiz->media, $quiz->media()->ofType('image')->get()
+     */
+    public function media(): MorphMany
+    {
+        return $this->morphMany(Media::class, 'mediable')
+            ->orderBy('media_order');
+    }
+
+    // ── Scopes ──────────────────────────────────────────────────
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
@@ -41,23 +55,16 @@ class Quiz extends Model
         return $query->orderBy('quiz_order');
     }
 
-    // Relationships
-    public function section()
-    {
-        return $this->belongsTo(Section::class);
-    }
+    // ── Helpers ─────────────────────────────────────────────────
 
-    public function attempts()
-    {
-        return $this->hasMany(QuizAttempt::class);
-    }
-
-    // Helpers
     public function isCorrect(string $answer): bool
     {
-        return strtolower($answer) === $this->correct_answer;
+        return strtolower($answer) === strtolower($this->correct_answer);
     }
 
+    /**
+     * Kembalikan semua opsi yang terisi sebagai array ['a' => '...', 'b' => '...'].
+     */
     public function getOptions(): array
     {
         return array_filter([
@@ -66,5 +73,21 @@ class Quiz extends Model
             'c' => $this->option_c,
             'd' => $this->option_d,
         ]);
+    }
+
+    /**
+     * Kembalikan teks jawaban yang benar.
+     */
+    public function getCorrectAnswerText(): string
+    {
+        return $this->{'option_' . $this->correct_answer} ?? '';
+    }
+
+    /**
+     * Apakah quiz ini punya gambar soal?
+     */
+    public function hasMedia(): bool
+    {
+        return $this->media()->exists();
     }
 }
