@@ -2,99 +2,102 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
 class Section extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
+        'course_type_id',
+        'slug',
         'title',
         'description',
-        'content',
-        'video',
-        'video_type',
+        'content_mode',   // selalu 'multi'
+        'content',        // legacy, nullable
+        'pages',          // JSON array of slides
         'thumbnail',
         'order',
         'is_published',
         'created_by',
-        'course_type_id',
-        'pages',
     ];
 
     protected $casts = [
+        'pages'        => 'array',
         'is_published' => 'boolean',
         'order'        => 'integer',
-        'pages'        => 'array',
     ];
 
-    // -------------------------
-    // Relations
-    // -------------------------
+    // =========================================================================
+    // Relationships
+    // =========================================================================
 
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function quizzes()
-    {
-        return $this->hasMany(Quiz::class)->orderBy('order');
-    }
-
-    public function userProgress()
-    {
-        return $this->hasMany(UserProgress::class);
-    }
-
-    public function courseType()
+    public function courseType(): BelongsTo
     {
         return $this->belongsTo(CourseType::class);
     }
 
+    public function quizzes(): HasMany
+    {
+        return $this->hasMany(Quiz::class)->orderBy('order');
+    }
+
+    public function userProgress(): HasMany
+    {
+        return $this->hasMany(UserProgress::class);
+    }
+
+    // =========================================================================
+    // Accessors / Helpers
+    // =========================================================================
+
     /**
-     * Semua media milik section ini (polymorphic).
+     * URL thumbnail section (cover).
      */
-    public function media()
-    {
-        return $this->morphMany(Media::class, 'mediable')->orderBy('order');
-    }
-
-    public function images()
-    {
-        return $this->morphMany(Media::class, 'mediable')
-                    ->where('type', 'image')
-                    ->orderBy('order');
-    }
-
-    // -------------------------
-    // Helpers
-    // -------------------------
-
-    public function getVideoEmbedUrl(): ?string
-    {
-        if (!$this->video) return null;
-
-        if ($this->video_type === 'youtube') {
-            preg_match('/(?:v=|youtu\.be\/)([\w-]{11})/', $this->video, $m);
-            return isset($m[1]) ? "https://www.youtube.com/embed/{$m[1]}" : null;
-        }
-
-        return Storage::url($this->video);
-    }
-
     public function getThumbnailUrl(): ?string
     {
-        return $this->thumbnail ? Storage::url($this->thumbnail) : null;
+        if (!$this->thumbnail) return null;
+
+        // Absolute URL (YouTube embed, external CDN, dll)
+        if (str_starts_with($this->thumbnail, 'http')) {
+            return $this->thumbnail;
+        }
+
+        return Storage::disk('public')->url($this->thumbnail);
     }
 
-    public function isCompletedBy(User $user): bool
+    /**
+     * Jumlah slide yang dimiliki section ini.
+     */
+    public function getSlideCountAttribute(): int
     {
-        return $this->userProgress()
-                    ->where('user_id', $user->id)
-                    ->where('completed', true)
-                    ->exists();
+        return is_array($this->pages) ? count($this->pages) : 0;
+    }
+
+    /**
+     * Cek apakah sebuah slide punya minimal 1 media aktif.
+     */
+    public function slideHasMedia(array $slide): bool
+    {
+        return !empty($slide['image_url'])
+            || !empty($slide['video_url'])
+            || !empty($slide['audio_url'])
+            || !empty($slide['youtube_url'])
+            || !empty($slide['drive_url']);
+    }
+
+    // =========================================================================
+    // Scopes
+    // =========================================================================
+
+    public function scopePublished($query)
+    {
+        return $query->where('is_published', true);
+    }
+
+    public function scopeOrdered($query)
+    {
+        return $query->orderBy('order');
     }
 }
