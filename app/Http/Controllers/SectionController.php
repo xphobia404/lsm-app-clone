@@ -32,7 +32,7 @@ class SectionController extends Controller
         ));
     }
 
-    // ── Admin methods ────────────────────────────────────────────
+    // ── Admin methods ──────────────────────────────────────────────
 
     public function allIndex(Request $request)
     {
@@ -47,9 +47,8 @@ class SectionController extends Controller
             });
         }
 
-        $status = $request->input('status', 'active');
-        if ($status !== 'all') {
-            $query->where('is_active', $status === 'active');
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->status === 'active');
         }
 
         $sections = $query->orderBy('title')->paginate(15)->withQueryString();
@@ -70,9 +69,8 @@ class SectionController extends Controller
             });
         }
 
-        $status = $request->input('status', 'active');
-        if ($status !== 'all') {
-            $query->where('sections.is_active', $status === 'active');
+        if ($request->filled('status')) {
+            $query->where('sections.is_active', $request->status === 'active');
         }
 
         $sections = $query->paginate(15)->withQueryString();
