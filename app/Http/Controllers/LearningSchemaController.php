@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 
 class LearningSchemaController extends Controller
 {
-    // ── ADMIN ────────────────────────────────────────────────────────────
+    // ── ADMIN ──────────────────────────────────────────────────────────────
 
     public function index(Request $request)
     {
@@ -49,17 +49,14 @@ class LearningSchemaController extends Controller
             ->with('success', 'Materi berhasil ditambahkan.');
     }
 
-    /**
-     * Admin: detail materi + daftar section yang terlampir.
-     */
     public function show(LearningSchema $learningSchema)
     {
+        // Eager load sections via pivot — withCount tidak bisa langsung,
+        // tambahkan loadCount manual setelah eager load
         $learningSchema->load([
-            'sections' => fn ($q) => $q->withCount(['contents', 'quizzes'])
-                ->orderByPivot('section_order'),
+            'sections' => fn ($q) => $q->withCount(['contents', 'quizzes']),
         ]);
 
-        // Section yang belum terhubung ke materi ini (untuk form attach)
         $availableSections = Section::whereDoesntHave('learningSchemas', fn ($q) =>
             $q->where('learning_schemas.id', $learningSchema->id)
         )->orderBy('title')->get(['id', 'title', 'is_active']);
@@ -106,21 +103,17 @@ class LearningSchemaController extends Controller
         return back()->with('success', "Materi berhasil {$label}.");
     }
 
-    /**
-     * Attach section ke materi dari halaman show admin.
-     */
     public function attachSection(Request $request, LearningSchema $learningSchema)
     {
-        $request->validate([
-            'section_id' => 'required|exists:sections,id',
-        ]);
+        $request->validate(['section_id' => 'required|exists:sections,id']);
 
-        // Cegah duplikat
         if ($learningSchema->sections()->where('sections.id', $request->section_id)->exists()) {
             return back()->with('error', 'Section sudah terhubung ke materi ini.');
         }
 
-        $maxOrder = $learningSchema->sections()->max('learning_schema_section.section_order') ?? 0;
+        $maxOrder = $learningSchema->sections()
+            ->max('learning_schema_section.section_order') ?? 0;
+
         $learningSchema->sections()->attach($request->section_id, [
             'section_order' => $maxOrder + 1,
         ]);
@@ -128,9 +121,6 @@ class LearningSchemaController extends Controller
         return back()->with('success', 'Section berhasil dihubungkan.');
     }
 
-    /**
-     * Detach section dari materi.
-     */
     public function detachSection(LearningSchema $learningSchema, Section $section)
     {
         $learningSchema->sections()->detach($section->id);
@@ -138,16 +128,11 @@ class LearningSchemaController extends Controller
         return back()->with('success', 'Section berhasil dilepas dari materi ini.');
     }
 
-    // ── USER-FACING ─────────────────────────────────────────────────
+    // ── USER-FACING ────────────────────────────────────────────────
 
-    /**
-     * User: list semua materi aktif.
-     * Route: GET /app/schemas
-     */
     public function userIndex(Request $request)
     {
         $schemas = LearningSchema::active()
-            ->withCount(['sections' => fn ($q) => $q->where('is_active', true)])
             ->when($request->filled('search'), fn ($q) =>
                 $q->where('title', 'like', "%{$request->search}%")
             )
@@ -155,8 +140,17 @@ class LearningSchemaController extends Controller
             ->paginate(12)
             ->withQueryString();
 
-        // Progress user untuk setiap schema
-        $user = auth()->user();
+        // Tambahkan sections_count manual via collection setelah paginate
+        $schemaIds = $schemas->pluck('id');
+        $sectionCounts = \Illuminate\Support\Facades\DB::table('learning_schema_section')
+            ->whereIn('learning_schema_id', $schemaIds)
+            ->selectRaw('learning_schema_id, count(*) as total')
+            ->groupBy('learning_schema_id')
+            ->pluck('total', 'learning_schema_id');
+
+        $schemas->each(fn ($s) => $s->sections_count = $sectionCounts[$s->id] ?? 0);
+
+        $user        = auth()->user();
         $progressMap = $user->progresses()
             ->select('section_id', 'status')
             ->get()
@@ -165,21 +159,16 @@ class LearningSchemaController extends Controller
         return view('user.schemas.index', compact('schemas', 'progressMap'));
     }
 
-    /**
-     * User: detail materi + list section.
-     * Route: GET /app/schemas/{learningSchema}
-     */
     public function userShow(LearningSchema $learningSchema)
     {
         abort_if(! $learningSchema->is_active, 404);
 
         $learningSchema->load([
             'sections' => fn ($q) => $q->where('is_active', true)
-                ->withCount(['contents', 'quizzes'])
-                ->orderByPivot('section_order'),
+                ->withCount(['contents', 'quizzes']),
         ]);
 
-        $user    = auth()->user();
+        $user        = auth()->user();
         $progressMap = $user->progresses()
             ->whereIn('section_id', $learningSchema->sections->pluck('id'))
             ->pluck('status', 'section_id');

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class LearningSchema extends Model
 {
@@ -19,25 +20,31 @@ class LearningSchema extends Model
         ];
     }
 
-    // ── Scopes ────────────────────────────────────────────────
+    // ── Scopes ─────────────────────────────────────────────
 
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
     }
 
-    // ── Relations ─────────────────────────────────────────────
+    // ── Relations ───────────────────────────────────────────
 
-    public function sections()
+    /**
+     * Sections yang terhubung ke schema ini (pivot: learning_schema_section).
+     * Diurutkan berdasarkan section_order di pivot.
+     */
+    public function sections(): BelongsToMany
     {
-        return $this->hasMany(Section::class)->orderBy('section_order');
+        return $this->belongsToMany(Section::class, 'learning_schema_section')
+            ->withPivot('section_order')
+            ->withTimestamps()
+            ->orderByPivot('section_order');
     }
 
     /**
-     * Users yang enroll ke schema ini.
-     * Akses pivot: $user->pivot->enrolled_at, $user->pivot->status
+     * Users yang enroll ke schema ini (pivot: learning_schema_user).
      */
-    public function enrolledUsers()
+    public function enrolledUsers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'learning_schema_user')
             ->withPivot(['enrolled_at', 'status'])
@@ -45,7 +52,7 @@ class LearningSchema extends Model
             ->orderByPivot('enrolled_at', 'desc');
     }
 
-    public function activeEnrollments()
+    public function activeEnrollments(): BelongsToMany
     {
         return $this->enrolledUsers()->wherePivot('status', 'active');
     }

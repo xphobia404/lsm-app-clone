@@ -15,18 +15,18 @@ class AdminDashboardController extends Controller
 {
     public function dashboard()
     {
-        // ── User Stats ─────────────────────────────────────────────────
+        // ── User Stats ─────────────────────────────────────────────
         $totalUsers    = User::users()->count();
         $activeUsers   = User::users()->active()->count();
         $inactiveUsers = $totalUsers - $activeUsers;
 
-        // ── Schema & Section Stats ─────────────────────────────────────
+        // ── Schema & Section Stats ───────────────────────────────
         $totalSchemas  = LearningSchema::count();
         $totalSections = Section::count();
         $totalQuizzes  = Quiz::count();
         $totalAttempts = QuizAttempt::count();
 
-        // ── Progress Donut Chart Data ─────────────────────────────────
+        // ── Progress Donut Chart Data ───────────────────────────
         $progressStats   = UserProgress::select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
             ->pluck('total', 'status');
@@ -35,7 +35,7 @@ class AdminDashboardController extends Controller
         $donutInProgress = $progressStats['in_progress'] ?? 0;
         $donutNotStarted = $progressStats['not_started'] ?? 0;
 
-        // ── Completed Users (selesai SEMUA section aktif) ────────────────
+        // ── Completed Users (selesai SEMUA section aktif) ────────────
         $totalActiveSections = Section::where('is_active', true)->count();
 
         $completedUsers = $totalActiveSections > 0
@@ -48,7 +48,7 @@ class AdminDashboardController extends Controller
                 ->get(['id', 'name', 'username'])
             : collect();
 
-        // ── Recent Progress Activity ────────────────────────────────
+        // ── Recent Progress Activity ────────────────────────────
         $recentProgress = UserProgress::with([
             'user:id,name,username',
             'section:id,title',
@@ -58,20 +58,27 @@ class AdminDashboardController extends Controller
         ->limit(8)
         ->get();
 
-        // ── Schema Stats (section count per schema) ───────────────────
-        $schemaStats = LearningSchema::withCount('sections')
+        // ── Schema Stats (section count per schema via pivot) ─────────
+        // withCount tidak bisa dipakai langsung untuk BelongsToMany,
+        // kita pakai subquery manual via DB::raw
+        $schemaStats = LearningSchema::select('id', 'title')
+            ->selectSub(
+                DB::table('learning_schema_section')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('learning_schema_section.learning_schema_id', 'learning_schemas.id'),
+                'sections_count'
+            )
             ->orderByDesc('sections_count')
             ->limit(6)
-            ->get(['id', 'title']);
+            ->get();
 
-        // ── Bar Chart: completed per schema ──────────────────────────
-        // Hitung berapa user yang sudah complete semua section di tiap schema
+        // ── Bar Chart: completed per schema ──────────────────────
         $schemaCompletion = LearningSchema::with(['sections:id'])
             ->active()
             ->limit(6)
             ->get(['id', 'title'])
             ->map(function ($schema) {
-                $sectionIds  = $schema->sections->pluck('id');
+                $sectionIds   = $schema->sections->pluck('id');
                 $sectionCount = $sectionIds->count();
 
                 if ($sectionCount === 0) {
@@ -94,19 +101,12 @@ class AdminDashboardController extends Controller
         $chartData   = $schemaCompletion->pluck('count');
 
         return view('admin.dashboard', compact(
-            // User
             'totalUsers', 'activeUsers', 'inactiveUsers',
-            // Schema / Section / Quiz
             'totalSchemas', 'totalSections', 'totalQuizzes', 'totalAttempts',
-            // Donut
             'donutCompleted', 'donutInProgress', 'donutNotStarted',
-            // Completed users
             'completedUsers',
-            // Recent activity
             'recentProgress',
-            // Schema stats bar
             'schemaStats',
-            // Bar chart
             'chartLabels', 'chartData',
         ));
     }
