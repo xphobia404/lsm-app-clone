@@ -8,22 +8,30 @@ use Illuminate\Http\Request;
 
 class SectionController extends Controller
 {
-    /**
-     * Halaman detail section untuk user.
-     *
-     * Route: GET app/schemas/{learningSchema}/sections/{section}
-     * Name : user.sections.show
-     */
     public function userShow(LearningSchema $learningSchema, Section $section)
     {
-        $section->load(['contents', 'quizzes']);
+        $section->load([
+            'contents' => fn ($q) => $q->active()->ordered(),
+            'quizzes'  => fn ($q) => $q->where('is_active', true),
+        ]);
 
-        return view('user.section', compact('learningSchema', 'section'));
+        // Urutan section dalam schema ini (untuk next/prev section)
+        $allSections = $learningSchema->sections()
+            ->where('is_active', true)
+            ->orderBy('learning_schema_section.section_order')
+            ->get(['sections.id', 'sections.title']);
+
+        $currentIndex = $allSections->search(fn ($s) => $s->id === $section->id);
+        $prevSection  = $currentIndex > 0 ? $allSections[$currentIndex - 1] : null;
+        $nextSection  = $currentIndex < $allSections->count() - 1 ? $allSections[$currentIndex + 1] : null;
+
+        return view('user.section', compact(
+            'learningSchema', 'section', 'prevSection', 'nextSection'
+        ));
     }
 
-    /**
-     * Flat list semua section (halaman Sections di bottom nav admin).
-     */
+    // ── Admin methods ──────────────────────────────────────────────────────────
+
     public function allIndex(Request $request)
     {
         $query = Section::withCount(['contents', 'quizzes'])
@@ -42,13 +50,6 @@ class SectionController extends Controller
         return view('admin.sections.index', compact('sections'));
     }
 
-    /**
-     * List section yang tergabung dalam satu Learning Schema tertentu.
-     * Dipanggil dari tombol "Sections" di halaman admin.learning-schemas.index.
-     *
-     * Route: GET admin/learning-schemas/{learningSchema}/sections
-     * Name : admin.learning-schemas.sections.index
-     */
     public function schemaIndex(Request $request, LearningSchema $learningSchema)
     {
         $query = $learningSchema->sections()
@@ -80,11 +81,11 @@ class SectionController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title'               => 'required|string|max:255',
-            'description'         => 'nullable|string|max:2000',
-            'is_active'           => 'sometimes|boolean',
-            'learning_schema_ids' => 'nullable|array',
-            'learning_schema_ids.*' => 'exists:learning_schemas,id',
+            'title'                => 'required|string|max:255',
+            'description'          => 'nullable|string|max:2000',
+            'is_active'            => 'sometimes|boolean',
+            'learning_schema_ids'  => 'nullable|array',
+            'learning_schema_ids.*'=> 'exists:learning_schemas,id',
         ]);
 
         $section = Section::create([
@@ -117,11 +118,11 @@ class SectionController extends Controller
     public function update(Request $request, Section $section)
     {
         $validated = $request->validate([
-            'title'               => 'required|string|max:255',
-            'description'         => 'nullable|string|max:2000',
-            'is_active'           => 'sometimes|boolean',
-            'learning_schema_ids' => 'nullable|array',
-            'learning_schema_ids.*' => 'exists:learning_schemas,id',
+            'title'                => 'required|string|max:255',
+            'description'          => 'nullable|string|max:2000',
+            'is_active'            => 'sometimes|boolean',
+            'learning_schema_ids'  => 'nullable|array',
+            'learning_schema_ids.*'=> 'exists:learning_schemas,id',
         ]);
 
         $section->update([
