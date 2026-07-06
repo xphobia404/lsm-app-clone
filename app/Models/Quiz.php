@@ -13,7 +13,6 @@ class Quiz extends Model
         'section_id',
         'order',
         'question',
-        'question_image',
         'option_a',
         'option_b',
         'option_c',
@@ -35,22 +34,33 @@ class Quiz extends Model
         return $this->belongsTo(Section::class);
     }
 
+    /**
+     * Semua media milik soal ini (polymorphic).
+     */
+    public function media()
+    {
+        return $this->morphMany(Media::class, 'mediable')->orderBy('order');
+    }
+
+    /**
+     * Shortcut: hanya gambar.
+     */
+    public function images()
+    {
+        return $this->morphMany(Media::class, 'mediable')
+                    ->where('type', 'image')
+                    ->orderBy('order');
+    }
+
     // -------------------------
     // Helpers
     // -------------------------
 
-    /**
-     * Cek apakah jawaban user benar.
-     */
     public function checkAnswer(string $answer): bool
     {
         return strtolower(trim($answer)) === strtolower(trim($this->correct_answer));
     }
 
-    /**
-     * Ambil semua opsi dalam format key => label.
-     * Berguna untuk looping di Blade/Vue.
-     */
     public function getOptions(): array
     {
         return [

@@ -26,12 +26,29 @@
                 {{ $quiz->question }}
             </p>
 
-            {{-- Gambar Soal --}}
-            @if($quiz->question_image)
-            <div class="mb-3">
-                <img src="{{ Storage::url($quiz->question_image) }}"
-                     alt="Gambar soal {{ $i+1 }}"
-                     class="max-h-48 w-full rounded-xl border border-slate-200 object-contain bg-slate-50">
+            {{-- Media terlampir --}}
+            @if($quiz->media->isNotEmpty())
+            <div class="mb-3 grid grid-cols-3 gap-1.5">
+                @foreach($quiz->media as $m)
+                <div class="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+                    @if($m->type === 'image')
+                        <img src="{{ $m->url }}" alt="{{ $m->original_name }}"
+                             class="h-20 w-full object-contain p-1">
+                    @elseif($m->type === 'video')
+                        <video src="{{ $m->url }}" controls
+                               class="h-20 w-full object-contain bg-black"></video>
+                    @elseif($m->type === 'audio')
+                        <div class="flex flex-col items-center justify-center h-20 px-2">
+                            <svg class="h-6 w-6 text-indigo-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                      d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                            </svg>
+                            <audio src="{{ $m->url }}" controls class="w-full"></audio>
+                        </div>
+                    @endif
+                    <p class="truncate px-1.5 py-0.5 text-xs text-slate-400">{{ $m->original_name }}</p>
+                </div>
+                @endforeach
             </div>
             @endif
 
@@ -43,9 +60,11 @@
                 </div>
                 @endforeach
             </div>
+
             @if($quiz->explanation)
             <p class="mb-3 text-xs text-slate-500 italic">💡 {{ $quiz->explanation }}</p>
             @endif
+
             <div class="flex items-center gap-2">
                 <a href="{{ route('admin.sections.quizzes.edit', [$section, $quiz]) }}"
                    class="flex-1 rounded-full border border-slate-300 px-3 py-2 text-center text-xs font-medium text-slate-700 active:bg-slate-50 transition">Edit</a>
