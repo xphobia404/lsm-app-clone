@@ -35,7 +35,7 @@
         <div class="mt-3">
             <div class="flex items-center justify-between mb-1">
                 <span class="text-xs text-amber-100">Passing score</span>
-                <span class="text-xs font-bold">{{ $section->passing_score ?? 70 }}%</span>
+                <span class="text-xs font-bold">100%</span>
             </div>
             <div class="h-1.5 w-full rounded-full bg-white/20">
                 <div class="h-1.5 rounded-full bg-white" id="progress-bar" style="width:0%"></div>

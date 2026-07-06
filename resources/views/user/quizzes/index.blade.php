@@ -58,7 +58,7 @@
                         <p class="text-[10px] text-slate-400">Total Soal</p>
                     </div>
                     <div class="text-center">
-                        <p class="text-2xl font-extrabold text-green-600">70%</p>
+                        <p class="text-2xl font-extrabold text-green-600">100%</p>
                         <p class="text-[10px] text-slate-400">Nilai Lulus</p>
                     </div>
                 </div>
