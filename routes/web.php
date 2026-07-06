@@ -43,7 +43,7 @@ Route::middleware(['auth', 'role:user', 'check.active'])
 
         Route::get('/schemas',                                         [LearningSchemaController::class, 'index'])->name('schemas.index');
         Route::get('/schemas/{learningSchema}',                        [LearningSchemaController::class, 'show'])->name('schemas.show');
-        Route::get('/schemas/{learningSchema}/sections/{section}',     [SectionController::class, 'show'])->name('sections.show');
+        Route::get('/sections/{section}',                              [SectionController::class, 'show'])->name('sections.show');
         Route::get('/sections/{section}/contents/{content}',          [ContentController::class, 'show'])->name('contents.show');
         Route::get('/sections/{section}/quizzes',                      [QuizController::class, 'index'])->name('quizzes.index');
         Route::get('/sections/{section}/quizzes/{quiz}',               [QuizController::class, 'show'])->name('quizzes.show');
@@ -61,30 +61,32 @@ Route::middleware(['auth', 'role:admin'])
 
         Route::get('/dashboard', [AdminDashboardController::class, 'dashboard'])->name('dashboard');
 
-        // ── User Management ────────────────────────────────────────────
+        // ── User Management ──────────────────────────────────────
         Route::resource('users', UserController::class);
         Route::post('users/{user}/toggle-active',
             [UserController::class, 'toggleActive'])->name('users.toggle-active');
 
-        // ── Learning Schema Management ─────────────────────────────────
+        // ── Learning Schema Management ───────────────────────────
         Route::resource('learning-schemas', LearningSchemaController::class);
         Route::post('learning-schemas/{learningSchema}/toggle-active',
             [LearningSchemaController::class, 'toggleActive'])->name('learning-schemas.toggle-active');
 
-        // ── Section Management ──────────────────────────────────────────
-        // Standalone index (bottom nav)
-        Route::get('sections', [SectionController::class, 'allIndex'])->name('sections.index');
-        // Nested CRUD (under learning-schema)
-        Route::resource('learning-schemas.sections', SectionController::class);
-        Route::post('learning-schemas/{learningSchema}/sections/{section}/toggle-active',
-            [SectionController::class, 'toggleActive'])->name('learning-schemas.sections.toggle-active');
+        // ── Section Management (standalone, many-to-many) ─────────────
+        Route::get('sections',                   [SectionController::class, 'allIndex'])->name('sections.index');
+        Route::get('sections/create',            [SectionController::class, 'create'])->name('sections.create');
+        Route::post('sections',                  [SectionController::class, 'store'])->name('sections.store');
+        Route::get('sections/{section}/edit',    [SectionController::class, 'edit'])->name('sections.edit');
+        Route::put('sections/{section}',         [SectionController::class, 'update'])->name('sections.update');
+        Route::delete('sections/{section}',      [SectionController::class, 'destroy'])->name('sections.destroy');
+        Route::post('sections/{section}/toggle-active',
+            [SectionController::class, 'toggleActive'])->name('sections.toggle-active');
 
-        // ── Content Management (nested under section) ──────────────────
+        // ── Content Management (nested under section) ───────────────
         Route::resource('sections.contents', ContentController::class);
         Route::post('sections/{section}/contents/{content}/toggle-active',
             [ContentController::class, 'toggleActive'])->name('sections.contents.toggle-active');
 
-        // ── Quiz Management (nested under section) ─────────────────────
+        // ── Quiz Management (nested under section) ─────────────────
         Route::resource('sections.quizzes', QuizController::class);
         Route::post('sections/{section}/quizzes/{quiz}/toggle-active',
             [QuizController::class, 'toggleActive'])->name('sections.quizzes.toggle-active');

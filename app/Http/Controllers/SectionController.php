@@ -9,35 +9,12 @@ use Illuminate\Http\Request;
 class SectionController extends Controller
 {
     /**
-     * Standalone index — semua section lintas schema (untuk bottom nav).
+     * Flat list semua section (bottom nav).
      */
     public function allIndex(Request $request)
     {
-        $query = LearningSchema::with(['sections' => function ($q) use ($request) {
-            $q->withCount(['contents', 'quizzes']);
-
-            if ($request->filled('search')) {
-                $q->where('title', 'like', "%{$request->search}%");
-            }
-
-            if ($request->filled('status')) {
-                $q->where('is_active', $request->status === 'active');
-            }
-
-            $q->orderBy('section_order');
-        }])->orderBy('created_at', 'desc');
-
-        $learningSchemas = $query->get();
-
-        return view('admin.sections.all', compact('learningSchemas'));
-    }
-
-    /**
-     * Nested index — sections dalam satu schema.
-     */
-    public function index(Request $request, LearningSchema $learningSchema)
-    {
-        $query = $learningSchema->sections()->withCount(['contents', 'quizzes']);
+        $query = Section::withCount(['contents', 'quizzes'])
+            ->with('learningSchemas:id,title');
 
         if ($request->filled('search')) {
             $query->where('title', 'like', "%{$request->search}%");
@@ -47,89 +24,97 @@ class SectionController extends Controller
             $query->where('is_active', $request->status === 'active');
         }
 
-        $sections = $query->ordered()->paginate(10)->withQueryString();
+        $sections = $query->orderBy('title')->paginate(15)->withQueryString();
 
-        return view('admin.sections.index', compact('learningSchema', 'sections'));
+        return view('admin.sections.index', compact('sections'));
     }
 
-    public function create(LearningSchema $learningSchema)
+    public function create()
     {
-        $section  = null;
-        $nextOrder = $learningSchema->sections()->max('section_order') + 1;
-        return view('admin.sections.create', compact('learningSchema', 'section', 'nextOrder'));
+        $learningSchemas = LearningSchema::orderBy('title')->get(['id', 'title']);
+        return view('admin.sections.create', compact('learningSchemas'));
     }
 
-    public function store(Request $request, LearningSchema $learningSchema)
+    public function store(Request $request)
     {
         $validated = $request->validate([
-            'title'         => 'required|string|max:255',
-            'description'   => 'nullable|string|max:2000',
-            'section_order' => 'required|integer|min:1',
-            'is_active'     => 'sometimes|boolean',
+            'title'              => 'required|string|max:255',
+            'description'        => 'nullable|string|max:2000',
+            'is_active'          => 'sometimes|boolean',
+            'learning_schema_ids' => 'nullable|array',
+            'learning_schema_ids.*' => 'exists:learning_schemas,id',
         ]);
 
-        $validated['is_active'] = $request->boolean('is_active');
+        $section = Section::create([
+            'title'       => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'is_active'   => $request->boolean('is_active'),
+        ]);
 
-        $learningSchema->sections()->create($validated);
+        // Attach ke learning schemas yang dipilih
+        if (!empty($validated['learning_schema_ids'])) {
+            $pivotData = [];
+            foreach ($validated['learning_schema_ids'] as $order => $schemaId) {
+                $maxOrder = LearningSchema::find($schemaId)
+                    ->sections()->max('learning_schema_section.section_order') ?? 0;
+                $pivotData[$schemaId] = ['section_order' => $maxOrder + 1];
+            }
+            $section->learningSchemas()->attach($pivotData);
+        }
 
-        return redirect()
-            ->route('admin.learning-schemas.sections.index', $learningSchema)
-            ->with('success', 'Section berhasil ditambahkan.');
+        return redirect()->route('admin.sections.index')
+            ->with('success', 'Section berhasil dibuat.');
     }
 
-    public function show(LearningSchema $learningSchema, Section $section)
+    public function edit(Section $section)
     {
-        $this->authorizeSection($learningSchema, $section);
-        $section->load(['contents', 'quizzes', 'media']);
-        return view('admin.sections.show', compact('learningSchema', 'section'));
+        $learningSchemas    = LearningSchema::orderBy('title')->get(['id', 'title']);
+        $attachedSchemaIds  = $section->learningSchemas->pluck('id')->toArray();
+        return view('admin.sections.edit', compact('section', 'learningSchemas', 'attachedSchemaIds'));
     }
 
-    public function edit(LearningSchema $learningSchema, Section $section)
+    public function update(Request $request, Section $section)
     {
-        $this->authorizeSection($learningSchema, $section);
-        return view('admin.sections.edit', compact('learningSchema', 'section'));
-    }
-
-    public function update(Request $request, LearningSchema $learningSchema, Section $section)
-    {
-        $this->authorizeSection($learningSchema, $section);
-
         $validated = $request->validate([
-            'title'         => 'required|string|max:255',
-            'description'   => 'nullable|string|max:2000',
-            'section_order' => 'required|integer|min:1',
-            'is_active'     => 'sometimes|boolean',
+            'title'              => 'required|string|max:255',
+            'description'        => 'nullable|string|max:2000',
+            'is_active'          => 'sometimes|boolean',
+            'learning_schema_ids' => 'nullable|array',
+            'learning_schema_ids.*' => 'exists:learning_schemas,id',
         ]);
 
-        $validated['is_active'] = $request->boolean('is_active');
+        $section->update([
+            'title'       => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'is_active'   => $request->boolean('is_active'),
+        ]);
 
-        $section->update($validated);
+        // Sync relasi (tambah/hapus schema yang tidak dipilih)
+        $schemaIds = $validated['learning_schema_ids'] ?? [];
+        $syncData  = [];
+        foreach ($schemaIds as $schemaId) {
+            $existing = $section->learningSchemas()->where('learning_schemas.id', $schemaId)->first();
+            $order    = $existing ? $existing->pivot->section_order
+                : (LearningSchema::find($schemaId)->sections()->max('learning_schema_section.section_order') + 1);
+            $syncData[$schemaId] = ['section_order' => $order];
+        }
+        $section->learningSchemas()->sync($syncData);
 
-        return redirect()
-            ->route('admin.learning-schemas.sections.index', $learningSchema)
+        return redirect()->route('admin.sections.index')
             ->with('success', 'Section berhasil diperbarui.');
     }
 
-    public function destroy(LearningSchema $learningSchema, Section $section)
+    public function destroy(Section $section)
     {
-        $this->authorizeSection($learningSchema, $section);
         $section->delete();
-
-        return redirect()
-            ->route('admin.learning-schemas.sections.index', $learningSchema)
+        return redirect()->route('admin.sections.index')
             ->with('success', 'Section berhasil dihapus.');
     }
 
-    public function toggleActive(LearningSchema $learningSchema, Section $section)
+    public function toggleActive(Section $section)
     {
-        $this->authorizeSection($learningSchema, $section);
         $section->update(['is_active' => ! $section->is_active]);
         $status = $section->is_active ? 'diaktifkan' : 'dinonaktifkan';
         return back()->with('success', "Section berhasil {$status}.");
-    }
-
-    private function authorizeSection(LearningSchema $learningSchema, Section $section): void
-    {
-        abort_if($section->learning_schema_id !== $learningSchema->id, 404);
     }
 }

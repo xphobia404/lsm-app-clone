@@ -2,30 +2,55 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Section extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
-        'learning_schema_id',
         'title',
         'description',
-        'section_order',
         'is_active',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
+
+    // ── Relationships ────────────────────────────────────────────────
+
+    public function learningSchemas(): BelongsToMany
     {
-        return [
-            'is_active'     => 'boolean',
-            'section_order' => 'integer',
-        ];
+        return $this->belongsToMany(LearningSchema::class, 'learning_schema_section')
+            ->withPivot('section_order')
+            ->withTimestamps()
+            ->orderByPivot('section_order');
     }
 
-    // Scopes
+    public function contents(): HasMany
+    {
+        return $this->hasMany(Content::class)->orderBy('content_order');
+    }
+
+    public function quizzes(): HasMany
+    {
+        return $this->hasMany(Quiz::class)->orderBy('created_at');
+    }
+
+    public function progresses(): HasMany
+    {
+        return $this->hasMany(UserProgress::class);
+    }
+
+    public function media(): MorphMany
+    {
+        return $this->morphMany(Media::class, 'mediable');
+    }
+
+    // ── Scopes ───────────────────────────────────────────────────────
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
@@ -33,32 +58,6 @@ class Section extends Model
 
     public function scopeOrdered($query)
     {
-        return $query->orderBy('section_order');
-    }
-
-    // Relationships
-    public function learningSchema()
-    {
-        return $this->belongsTo(LearningSchema::class);
-    }
-
-    public function contents()
-    {
-        return $this->hasMany(Content::class)->orderBy('content_order');
-    }
-
-    public function quizzes()
-    {
-        return $this->hasMany(Quiz::class)->orderBy('quiz_order');
-    }
-
-    public function media()
-    {
-        return $this->morphMany(Media::class, 'mediable')->orderBy('media_order');
-    }
-
-    public function progresses()
-    {
-        return $this->hasMany(UserProgress::class);
+        return $query->orderBy('title');
     }
 }

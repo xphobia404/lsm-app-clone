@@ -22,9 +22,7 @@
                   focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100
                   @error('title') border-red-400 bg-red-50 @enderror"
            placeholder="Contoh: Pengenalan Laporan Keuangan" required maxlength="255">
-    @error('title')
-        <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-    @enderror
+    @error('title')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
 </div>
 
 {{-- Deskripsi --}}
@@ -37,27 +35,34 @@
                      placeholder-slate-300 transition resize-none
                      focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100
                      @error('description') border-red-400 bg-red-50 @enderror"
-              placeholder="Deskripsi singkat mengenai section ini...">{{ old('description', $section->description ?? '') }}</textarea>
-    @error('description')
-        <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-    @enderror
+              placeholder="Deskripsi singkat section ini...">{{ old('description', $section->description ?? '') }}</textarea>
+    @error('description')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
 </div>
 
-{{-- Urutan --}}
+{{-- Relasi ke Materi (Learning Schema) --}}
 <div>
-    <label for="section_order" class="mb-1.5 block text-xs font-semibold text-slate-700">
-        Urutan <span class="text-red-500">*</span>
+    <label class="mb-1.5 block text-xs font-semibold text-slate-700">
+        Hubungkan ke Materi
+        <span class="text-slate-400 font-normal">(opsional, bisa lebih dari satu)</span>
     </label>
-    <input type="number" id="section_order" name="section_order" min="1"
-           value="{{ old('section_order', $section->section_order ?? $nextOrder ?? 1) }}"
-           class="block w-32 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800
-                  transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100
-                  @error('section_order') border-red-400 bg-red-50 @enderror"
-           required>
-    <p class="mt-1 text-xs text-slate-400">Urutan tampil section dalam schema.</p>
-    @error('section_order')
-        <p class="mt-1 text-xs text-red-500">{{ $message }}</p>
-    @enderror
+    <div class="space-y-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        @forelse($learningSchemas as $ls)
+            <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox"
+                       name="learning_schema_ids[]"
+                       value="{{ $ls->id }}"
+                       {{ in_array($ls->id, old('learning_schema_ids', $attachedSchemaIds ?? [])) ? 'checked' : '' }}
+                       class="h-4 w-4 rounded accent-indigo-600">
+                <span class="text-xs font-medium text-slate-700">{{ $ls->title }}</span>
+                @unless($ls->is_active)
+                    <span class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] text-slate-500">Non-aktif</span>
+                @endunless
+            </label>
+        @empty
+            <p class="text-xs text-slate-400 italic">Belum ada materi. Buat materi terlebih dahulu.</p>
+        @endforelse
+    </div>
+    @error('learning_schema_ids')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
 </div>
 
 {{-- Status Aktif --}}
