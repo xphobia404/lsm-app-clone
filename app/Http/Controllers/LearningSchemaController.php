@@ -8,14 +8,18 @@ use Illuminate\Http\Request;
 
 class LearningSchemaController extends Controller
 {
-    // ── ADMIN ──────────────────────────────────────────────────────────────────
+    // ── ADMIN ────────────────────────────────────────────────────────────────────────────
 
     public function index(Request $request)
     {
         $query = LearningSchema::withCount('sections');
 
         if ($request->filled('search')) {
-            $query->where('title', 'like', "%{$request->search}%");
+            $search = '%' . $request->search . '%';
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'ilike', $search)
+                  ->orWhere('description', 'ilike', $search);
+            });
         }
 
         if ($request->filled('status')) {
@@ -52,7 +56,6 @@ class LearningSchemaController extends Controller
     public function show(LearningSchema $learningSchema)
     {
         $learningSchema->load([
-            // Fix: hanya tampilkan sections yang aktif di halaman detail admin
             'sections' => fn ($q) => $q->where('sections.is_active', true)
                 ->withCount(['contents', 'quizzes'])
                 ->orderBy('learning_schema_section.section_order'),
@@ -129,22 +132,20 @@ class LearningSchemaController extends Controller
         return back()->with('success', 'Section berhasil dilepas dari materi ini.');
     }
 
-    // ── USER-FACING ─────────────────────────────────────────────────────────────
+    // ── USER-FACING ─────────────────────────────────────────────────────────────────────────
 
     public function userIndex(Request $request)
     {
         $user = auth()->user();
 
-        // Hanya schema yang di-enroll admin ke user ini
         $schemas = $user->learningSchemas()
             ->with(['sections' => fn ($q) => $q->where('is_active', true)])
             ->when($request->filled('search'), fn ($q) =>
-                $q->where('title', 'like', "%{$request->search}%")
+                $q->where('title', 'ilike', '%' . $request->search . '%')
             )
             ->paginate(12)
             ->withQueryString();
 
-        // progressMap: section_id => status string
         $allSectionIds = $schemas->flatMap(fn ($s) => $s->sections->pluck('id'));
         $progressMap   = $user->progresses()
             ->whereIn('section_id', $allSectionIds)
@@ -155,7 +156,6 @@ class LearningSchemaController extends Controller
 
     public function userShow(LearningSchema $learningSchema)
     {
-        // Pastikan user memang di-enroll ke schema ini
         abort_unless(
             auth()->user()->isEnrolledIn($learningSchema->id),
             403,

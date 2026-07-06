@@ -11,15 +11,23 @@ use Illuminate\Support\Facades\Storage;
 
 class QuizController extends Controller
 {
-    // ── ADMIN ────────────────────────────────────────────────────────────────────
+    // ── ADMIN ────────────────────────────────────────────────────────────────────────────
 
     public function index(Request $request, Section $section)
     {
         $quizzes = $section->quizzes()
             ->withCount('media')
-            ->when($request->filled('search'), fn ($q) =>
-                $q->where('question', 'like', "%{$request->search}%")
-            )
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = '%' . $request->search . '%';
+                $q->where(function ($q2) use ($search) {
+                    $q2->where('question', 'ilike', $search)
+                       ->orWhere('explanation', 'ilike', $search)
+                       ->orWhere('option_a', 'ilike', $search)
+                       ->orWhere('option_b', 'ilike', $search)
+                       ->orWhere('option_c', 'ilike', $search)
+                       ->orWhere('option_d', 'ilike', $search);
+                });
+            })
             ->when($request->filled('status'), fn ($q) =>
                 $q->where('is_active', $request->status === 'active')
             )
@@ -154,13 +162,12 @@ class QuizController extends Controller
         return back()->with('success', "Quiz berhasil {$label}.");
     }
 
-    // ── USER-FACING ────────────────────────────────────────────────────────────────
+    // ── USER-FACING ────────────────────────────────────────────────────────────────────────────
 
     public function userIndex(Section $section)
     {
         abort_if(! $section->is_active, 404);
 
-        // eager-load gambar (type=image) saja yang aktif
         $quizzes = $section->quizzes()
             ->active()
             ->with(['activeMedia' => fn ($q) => $q->where('media_type', 'image')])
@@ -239,7 +246,7 @@ class QuizController extends Controller
         ));
     }
 
-    // ── PRIVATE ────────────────────────────────────────────────────────────────
+    // ── PRIVATE ────────────────────────────────────────────────────────────────────────────
 
     private function syncMedia(Request $request, Quiz $quiz): void
     {

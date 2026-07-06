@@ -14,9 +14,13 @@ class ContentController extends Controller
     public function index(Request $request, Section $section)
     {
         $contents = $section->contents()
-            ->when($request->filled('search'), fn ($q) =>
-                $q->where('title', 'like', "%{$request->search}%")
-            )
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = '%' . $request->search . '%';
+                $q->where(function ($q2) use ($search) {
+                    $q2->where('title', 'ilike', $search)
+                       ->orWhere('body', 'ilike', $search);
+                });
+            })
             ->when($request->filled('status'), fn ($q) =>
                 $q->where('is_active', $request->status === 'active')
             )
@@ -143,7 +147,7 @@ class ContentController extends Controller
         return back()->with('success', 'Status konten diperbarui.');
     }
 
-    // ── PRIVATE ──────────────────────────────────────────────────────────────
+    // ── PRIVATE ────────────────────────────────────────────────────────────────────────────
 
     private function authorizeContent(Section $section, Content $content): void
     {

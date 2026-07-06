@@ -15,10 +15,11 @@ class UserController extends Controller
         $query = User::query();
 
         if ($request->filled('search')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('username', 'like', "%{$request->search}%")
-                  ->orWhere('email', 'like', "%{$request->search}%");
+            $search = '%' . $request->search . '%';
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'ilike', $search)
+                  ->orWhere('username', 'ilike', $search)
+                  ->orWhere('email', 'ilike', $search);
             });
         }
 
@@ -63,7 +64,6 @@ class UserController extends Controller
             'is_active' => $request->boolean('is_active'),
         ]);
 
-        // Enroll ke learning schemas yang dipilih
         if (!empty($validated['schema_ids'])) {
             $pivot = [];
             foreach ($validated['schema_ids'] as $id) {
@@ -123,13 +123,12 @@ class UserController extends Controller
 
         $user->update($updateData);
 
-        // Sync enrollment — preserve enrolled_at untuk yang sudah ada
         $schemaIds = $validated['schema_ids'] ?? [];
         $existing  = $user->learningSchemas()->pluck('learning_schema_id')->toArray();
         $pivot = [];
         foreach ($schemaIds as $id) {
             $pivot[$id] = in_array($id, $existing)
-                ? [] // keep pivot lama
+                ? []
                 : ['enrolled_at' => now(), 'status' => 'active'];
         }
         $user->learningSchemas()->sync($pivot);

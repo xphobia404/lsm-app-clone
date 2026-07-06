@@ -32,7 +32,7 @@ class SectionController extends Controller
         ));
     }
 
-    // ── Admin methods ──────────────────────────────────────────────
+    // ── Admin methods ────────────────────────────────────────────
 
     public function allIndex(Request $request)
     {
@@ -40,10 +40,13 @@ class SectionController extends Controller
             ->with('learningSchemas:id,title');
 
         if ($request->filled('search')) {
-            $query->where('title', 'like', "%{$request->search}%");
+            $search = '%' . $request->search . '%';
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'ilike', $search)
+                  ->orWhere('description', 'ilike', $search);
+            });
         }
 
-        // Default: hanya tampilkan yang aktif kecuali admin pilih status lain
         $status = $request->input('status', 'active');
         if ($status !== 'all') {
             $query->where('is_active', $status === 'active');
@@ -60,10 +63,13 @@ class SectionController extends Controller
             ->orderBy('learning_schema_section.section_order');
 
         if ($request->filled('search')) {
-            $query->where('sections.title', 'like', "%{$request->search}%");
+            $search = '%' . $request->search . '%';
+            $query->where(function ($q) use ($search) {
+                $q->where('sections.title', 'ilike', $search)
+                  ->orWhere('sections.description', 'ilike', $search);
+            });
         }
 
-        // Default: hanya tampilkan yang aktif kecuali admin pilih status lain
         $status = $request->input('status', 'active');
         if ($status !== 'all') {
             $query->where('sections.is_active', $status === 'active');
@@ -78,7 +84,6 @@ class SectionController extends Controller
 
     public function create()
     {
-        // Fix: hanya tampilkan materi yang aktif di form pilihan
         $learningSchemas = LearningSchema::where('is_active', true)
             ->orderBy('title')
             ->get(['id', 'title', 'is_active']);
@@ -117,9 +122,6 @@ class SectionController extends Controller
 
     public function edit(Section $section)
     {
-        // Fix: hanya tampilkan materi yang aktif di form pilihan
-        // Materi yang sudah di-attach tapi nonaktif tetap dipertahankan di $attachedSchemaIds
-        // supaya checkbox-nya masih terchecklist (tidak hilang saat edit)
         $learningSchemas   = LearningSchema::where('is_active', true)
             ->orderBy('title')
             ->get(['id', 'title', 'is_active']);
