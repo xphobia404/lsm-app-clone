@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\LearningSchema;
 use App\Models\Section;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LearningSchemaController extends Controller
 {
-    // ── ADMIN ──────────────────────────────────────────────────────────────
+    // ── ADMIN ──────────────────────────────────────────────────────────────────
 
     public function index(Request $request)
     {
@@ -51,8 +52,6 @@ class LearningSchemaController extends Controller
 
     public function show(LearningSchema $learningSchema)
     {
-        // Eager load sections via pivot — withCount tidak bisa langsung,
-        // tambahkan loadCount manual setelah eager load
         $learningSchema->load([
             'sections' => fn ($q) => $q->withCount(['contents', 'quizzes']),
         ]);
@@ -128,11 +127,12 @@ class LearningSchemaController extends Controller
         return back()->with('success', 'Section berhasil dilepas dari materi ini.');
     }
 
-    // ── USER-FACING ────────────────────────────────────────────────
+    // ── USER-FACING ─────────────────────────────────────────────────────────────
 
     public function userIndex(Request $request)
     {
         $schemas = LearningSchema::active()
+            ->with(['sections' => fn ($q) => $q->where('is_active', true)])
             ->when($request->filled('search'), fn ($q) =>
                 $q->where('title', 'like', "%{$request->search}%")
             )
@@ -140,21 +140,13 @@ class LearningSchemaController extends Controller
             ->paginate(12)
             ->withQueryString();
 
-        // Tambahkan sections_count manual via collection setelah paginate
-        $schemaIds = $schemas->pluck('id');
-        $sectionCounts = \Illuminate\Support\Facades\DB::table('learning_schema_section')
-            ->whereIn('learning_schema_id', $schemaIds)
-            ->selectRaw('learning_schema_id, count(*) as total')
-            ->groupBy('learning_schema_id')
-            ->pluck('total', 'learning_schema_id');
+        $user = auth()->user();
 
-        $schemas->each(fn ($s) => $s->sections_count = $sectionCounts[$s->id] ?? 0);
-
-        $user        = auth()->user();
-        $progressMap = $user->progresses()
-            ->select('section_id', 'status')
-            ->get()
-            ->groupBy('section_id');
+        // progressMap: section_id => status (string)
+        $allSectionIds = $schemas->flatMap(fn ($s) => $s->sections->pluck('id'));
+        $progressMap   = $user->progresses()
+            ->whereIn('section_id', $allSectionIds)
+            ->pluck('status', 'section_id');
 
         return view('user.schemas.index', compact('schemas', 'progressMap'));
     }
