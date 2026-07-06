@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CourseType;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class CourseTypeController extends Controller
 {
@@ -41,6 +42,8 @@ class CourseTypeController extends Controller
         ]);
 
         $data['order'] = $data['order'] ?? (CourseType::max('order') + 1);
+        // Auto-generate slug dari name + timestamp agar unik
+        $data['slug']  = Str::slug($data['name']) . '-' . time();
 
         CourseType::create($data);
 
@@ -66,6 +69,11 @@ class CourseTypeController extends Controller
             'order'       => 'nullable|integer|min:0',
             'is_active'   => 'boolean',
         ]);
+
+        // Regenerate slug hanya jika nama berubah
+        if ($data['name'] !== $courseType->name) {
+            $data['slug'] = Str::slug($data['name']) . '-' . time();
+        }
 
         $courseType->update($data);
 

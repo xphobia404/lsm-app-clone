@@ -28,6 +28,15 @@ class LoginController extends Controller
             'password.required' => 'Password wajib diisi.',
         ]);
 
+        // Cek user terlebih dahulu (1 query) untuk bedakan "nonaktif" vs "salah password"
+        $user = User::where('username', $request->username)->first();
+
+        if ($user && ! $user->is_active) {
+            return back()->withErrors([
+                'username' => 'Akun Anda telah dinonaktifkan. Hubungi Admin.',
+            ])->withInput($request->only('username'));
+        }
+
         $credentials = [
             'username'  => $request->username,
             'password'  => $request->password,
@@ -36,19 +45,8 @@ class LoginController extends Controller
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
-
-            // Update last_login_at via model method
             auth()->user()->touchLastLogin();
-
             return $this->redirectBasedOnRole();
-        }
-
-        // Cek apakah user ada tapi nonaktif
-        $user = User::where('username', $request->username)->first();
-        if ($user && ! $user->is_active) {
-            return back()->withErrors([
-                'username' => 'Akun Anda telah dinonaktifkan. Hubungi Admin.',
-            ]);
         }
 
         return back()

@@ -189,4 +189,31 @@ class UserController extends Controller
 
         return back()->with('success', $msg);
     }
+
+    /**
+     * Reset seluruh progress & quiz attempts user untuk course type tertentu.
+     * Berguna ketika admin ingin user mengulang dari awal pada 1 spesialisasi.
+     * Route: POST /admin/users/{user}/reset-progress
+     */
+    public function resetProgress(Request $request, User $user)
+    {
+        $request->validate([
+            'course_type_id' => 'required|exists:course_types,id',
+        ]);
+
+        $sectionIds = Section::where('course_type_id', $request->course_type_id)
+            ->pluck('id');
+
+        UserProgress::where('user_id', $user->id)
+            ->whereIn('section_id', $sectionIds)
+            ->delete();
+
+        QuizAttempt::where('user_id', $user->id)
+            ->whereIn('section_id', $sectionIds)
+            ->delete();
+
+        $courseTypeName = CourseType::find($request->course_type_id)?->name ?? 'Course Type';
+
+        return back()->with('success', "Progress user untuk spesialisasi '{$courseTypeName}' berhasil direset.");
+    }
 }

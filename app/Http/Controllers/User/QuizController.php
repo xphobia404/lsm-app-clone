@@ -7,6 +7,7 @@ use App\Models\QuizAttempt;
 use App\Models\Section;
 use App\Models\UserProgress;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class QuizController extends Controller
 {
@@ -82,22 +83,25 @@ class QuizController extends Controller
             : 0;
         $passed = $scorePercent >= $passingScore;
 
-        // Simpan attempt
-        $attemptNumber = QuizAttempt::nextAttemptNumber($user->id, $section->id);
+        // Bungkus dalam transaksi agar simpan attempt + update progress + unlock next section atomic
+        $nextSection = DB::transaction(function () use ($user, $section, $answers, $correctCount, $scorePercent, $passed) {
+            $attemptNumber = QuizAttempt::nextAttemptNumber($user->id, $section->id);
 
-        QuizAttempt::create([
-            'user_id'        => $user->id,
-            'section_id'     => $section->id,
-            'attempt_number' => $attemptNumber,
-            'answers'        => $answers,
-            'score'          => $correctCount,
-            'score_percent'  => $scorePercent,
-            'passed'         => $passed,
-            'submitted_at'   => now(),
-        ]);
+            QuizAttempt::create([
+                'user_id'        => $user->id,
+                'section_id'     => $section->id,
+                'attempt_number' => $attemptNumber,
+                'answers'        => $answers,
+                'score'          => $correctCount,
+                'score_percent'  => $scorePercent,
+                'passed'         => $passed,
+                'submitted_at'   => now(),
+            ]);
 
-        if ($passed) {
-            // Tandai section selesai & quiz lulus via model method
+            if (! $passed) {
+                return null;
+            }
+
             $progress = UserProgress::where('user_id', $user->id)
                 ->where('section_id', $section->id)
                 ->first();
@@ -106,28 +110,34 @@ class QuizController extends Controller
             $progress->markQuizPassed();
 
             // Unlock section berikutnya (dalam spesialisasi yang sama)
-            $nextSection = Section::where('is_published', true)
+            $next = Section::where('is_published', true)
                 ->where('course_type_id', $section->course_type_id)
                 ->where('order', '>', $section->order)
                 ->orderBy('order')
                 ->first();
 
-            if ($nextSection) {
+            if ($next) {
                 UserProgress::updateOrCreate(
-                    ['user_id' => $user->id, 'section_id' => $nextSection->id],
+                    ['user_id' => $user->id, 'section_id' => $next->id],
                     ['unlocked' => true, 'status' => 'not_started']
                 );
-
-                return redirect()->route('user.section.show', $nextSection)
-                    ->with('success', '🎉 Selamat! Kamu lulus. Lanjut ke section berikutnya.');
             }
 
-            return redirect()->route('user.courses')
-                ->with('success', '🏆 Selamat! Kamu telah menyelesaikan semua materi di spesialisasi ini.');
+            return $next;
+        });
+
+        if (! $passed) {
+            return redirect()->route('user.quiz.show', $section)
+                ->with('error', "Belum lulus. Skor kamu: {$scorePercent}% (min: {$passingScore}%). Coba lagi ya!");
         }
 
-        return redirect()->route('user.quiz.show', $section)
-            ->with('error', "Belum lulus. Skor kamu: {$scorePercent}% (min: {$passingScore}%). Coba lagi ya!");
+        if ($nextSection) {
+            return redirect()->route('user.section.show', $nextSection)
+                ->with('success', '🎉 Selamat! Kamu lulus. Lanjut ke section berikutnya.');
+        }
+
+        return redirect()->route('user.courses')
+            ->with('success', '🏆 Selamat! Kamu telah menyelesaikan semua materi di spesialisasi ini.');
     }
 
     // =========================================================================

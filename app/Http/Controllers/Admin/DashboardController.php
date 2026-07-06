@@ -24,44 +24,53 @@ class DashboardController extends Controller
         $totalAttempts    = QuizAttempt::count();
         $totalCourseTypes = CourseType::count();
 
-        // ── Completed Users ────────────────────────────────────────────────────
-        // User dianggap "lulus" jika completed SEMUA section di spesialisasi mereka
-        $completedUsers = User::where('role', 'user')
-            ->with(['courseTypes', 'progresses'])
+        // ── Completed Users (optimized: hindari N+1) ───────────────────────────
+        // Ambil semua user sekaligus dengan relasi yang dibutuhkan
+        $allRegularUsers = User::where('role', 'user')
+            ->with(['courseTypes:id', 'progresses:user_id,section_id,status'])
+            ->get();
+
+        // Ambil semua section ids per course_type (1 query)
+        $sectionIdsByCourseType = Section::select('id', 'course_type_id')
             ->get()
-            ->filter(function (User $user) {
-                $courseTypeIds = $user->courseTypes->pluck('id');
+            ->groupBy('course_type_id')
+            ->map(fn ($s) => $s->pluck('id'));
 
-                if ($courseTypeIds->isEmpty()) {
-                    return false;
-                }
+        $completedUsers = $allRegularUsers->filter(function (User $user) use ($sectionIdsByCourseType) {
+            $courseTypeIds = $user->courseTypes->pluck('id');
 
-                $sectionIds = Section::whereIn('course_type_id', $courseTypeIds)->pluck('id');
+            if ($courseTypeIds->isEmpty()) {
+                return false;
+            }
 
-                if ($sectionIds->isEmpty()) {
-                    return false;
-                }
+            // Kumpulkan semua section ids milik user
+            $userSectionIds = $courseTypeIds
+                ->flatMap(fn ($ctId) => $sectionIdsByCourseType->get($ctId, collect()))
+                ->unique();
 
-                $completedCount = $user->progresses
-                    ->whereIn('section_id', $sectionIds->toArray())
-                    ->where('status', 'completed')
-                    ->count();
+            if ($userSectionIds->isEmpty()) {
+                return false;
+            }
 
-                return $completedCount >= $sectionIds->count();
-            })
-            ->values();
+            $completedCount = $user->progresses
+                ->whereIn('section_id', $userSectionIds->toArray())
+                ->where('status', 'completed')
+                ->count();
+
+            return $completedCount >= $userSectionIds->count();
+        })->values();
 
         // ── Recent Progress (8 terbaru) ────────────────────────────────────────
-        $recentProgress = UserProgress::with(['user', 'section.courseType'])
+        $recentProgress = UserProgress::with(['user:id,name,username', 'section:id,title,course_type_id', 'section.courseType:id,name'])
             ->whereHas('user', fn ($q) => $q->where('role', 'user'))
             ->orderByDesc('updated_at')
             ->take(8)
             ->get();
 
         // ── Bar Chart: user completed per spesialisasi ─────────────────────────
-        $courseTypes  = CourseType::orderBy('order')->get();
-        $chartLabels  = $courseTypes->pluck('name');
-        $chartData    = $courseTypes->map(function (CourseType $ct) {
+        $courseTypes = CourseType::orderBy('order')->get();
+        $chartLabels = $courseTypes->pluck('name');
+        $chartData   = $courseTypes->map(function (CourseType $ct) {
             $sectionIds   = Section::where('course_type_id', $ct->id)->pluck('id');
             $sectionCount = $sectionIds->count();
 

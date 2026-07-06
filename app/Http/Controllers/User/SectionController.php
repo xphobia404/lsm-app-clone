@@ -48,11 +48,28 @@ class SectionController extends Controller
         $prevSection = (clone $siblingQuery)->where('order', '<', $section->order)->get()->last();
         $nextSection = (clone $siblingQuery)->where('order', '>', $section->order)->first();
 
+        $hasQuiz = $section->quizzes()->count() > 0;
+
         // Cek apakah quiz section ini sudah pernah lulus
-        $quizPassed = QuizAttempt::where('user_id', $user->id)
-            ->where('section_id', $section->id)
-            ->where('passed', true)
-            ->exists();
+        $quizPassed = $hasQuiz
+            ? QuizAttempt::where('user_id', $user->id)
+                ->where('section_id', $section->id)
+                ->where('passed', true)
+                ->exists()
+            : false;
+
+        // Jika tidak ada quiz, auto-complete section saat dibuka
+        if (! $hasQuiz && $progress->status !== 'completed') {
+            $progress->markCompleted();
+
+            // Unlock section berikutnya otomatis jika tidak ada quiz
+            if ($nextSection) {
+                UserProgress::updateOrCreate(
+                    ['user_id' => $user->id, 'section_id' => $nextSection->id],
+                    ['unlocked' => true, 'status' => 'not_started']
+                );
+            }
+        }
 
         // Cek apakah next section sudah unlocked
         $nextUnlocked = $nextSection
@@ -61,8 +78,6 @@ class SectionController extends Controller
                 ->where('unlocked', true)
                 ->exists()
             : false;
-
-        $hasQuiz = $section->quizzes()->count() > 0;
 
         return view('user.section', compact(
             'section',
