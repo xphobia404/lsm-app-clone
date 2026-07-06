@@ -2,63 +2,63 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class QuizAttempt extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
-        'quiz_id',
         'user_id',
-        'attempt_number',
-        'score',
+        'section_id',
         'total_questions',
         'correct_answers',
-        'started_at',
-        'submitted_at',
+        'attempted_at',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'attempt_number'  => 'integer',
-            'score'           => 'integer',
-            'total_questions' => 'integer',
-            'correct_answers' => 'integer',
-            'started_at'      => 'datetime',
-            'submitted_at'    => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'attempted_at'    => 'datetime',
+        'total_questions' => 'integer',
+        'correct_answers' => 'integer',
+    ];
 
-    // Scopes
-    public function scopeByUser($query, int $userId)
-    {
-        return $query->where('user_id', $userId);
-    }
+    // ── Relationships ───────────────────────────────────────────────
 
-    public function scopeSubmitted($query)
-    {
-        return $query->whereNotNull('submitted_at');
-    }
-
-    // Relationships
-    public function quiz()
-    {
-        return $this->belongsTo(Quiz::class);
-    }
-
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    // Helpers
-    public function getScorePercentage(): float
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(Section::class);
+    }
+
+    // ── Scopes ──────────────────────────────────────────────────
+
+    public function scopeForUser($query, int $userId)
+    {
+        return $query->where('user_id', $userId);
+    }
+
+    public function scopeForSection($query, int $sectionId)
+    {
+        return $query->where('section_id', $sectionId);
+    }
+
+    public function scopePassed($query, int $passingScore = 70)
+    {
+        return $query->whereRaw(
+            'total_questions > 0 AND ROUND(correct_answers * 100.0 / total_questions) >= ?',
+            [$passingScore]
+        );
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────
+
+    public function getScorePercentage(): int
     {
         if ($this->total_questions === 0) return 0;
-        return round(($this->correct_answers / $this->total_questions) * 100, 2);
+        return (int) round(($this->correct_answers / $this->total_questions) * 100);
     }
 
     public function isPassed(int $passingScore = 70): bool
