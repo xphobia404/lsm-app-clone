@@ -47,7 +47,6 @@ class QuizController extends Controller
             'explanation'       => 'nullable|string|max:2000',
             'quiz_order'        => 'nullable|integer|min:0',
             'is_active'         => 'sometimes|boolean',
-            // Media
             'media'             => 'nullable|array|max:5',
             'media.*.media_type'  => 'required_with:media|in:image,video,audio,url',
             'media.*.title'       => 'nullable|string|max:255',
@@ -100,7 +99,6 @@ class QuizController extends Controller
             'explanation'       => 'nullable|string|max:2000',
             'quiz_order'        => 'nullable|integer|min:0',
             'is_active'         => 'sometimes|boolean',
-            // Media baru
             'media'             => 'nullable|array|max:5',
             'media.*.media_type'  => 'required_with:media|in:image,video,audio,url',
             'media.*.title'       => 'nullable|string|max:255',
@@ -108,7 +106,6 @@ class QuizController extends Controller
             'media.*.url'         => 'nullable|string|max:2000',
             'media.*.file'        => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mp3,wav|max:20480',
             'media.*.media_order' => 'nullable|integer|min:0',
-            // Media yang dihapus
             'delete_media'      => 'nullable|array',
             'delete_media.*'    => 'integer|exists:media,id',
         ]);
@@ -118,7 +115,6 @@ class QuizController extends Controller
 
         $quiz->update($validated);
 
-        // Hapus media yang di-checklist hapus
         if (!empty($validated['delete_media'])) {
             $toDelete = $quiz->media()->whereIn('id', $validated['delete_media'])->get();
             foreach ($toDelete as $m) {
@@ -138,7 +134,6 @@ class QuizController extends Controller
     {
         $this->authorizeQuiz($section, $quiz);
 
-        // Hapus file media sebelum delete quiz
         foreach ($quiz->media as $m) {
             if ($m->file_path) Storage::delete($m->file_path);
         }
@@ -173,7 +168,10 @@ class QuizController extends Controller
             ->latest('attempted_at')
             ->first();
 
-        return view('user.quizzes.index', compact('section', 'quizzes', 'lastAttempt'));
+        // Ambil learningSchema pertama yang terkait section ini (untuk back button)
+        $learningSchema = $section->learningSchemas()->first();
+
+        return view('user.quizzes.index', compact('section', 'quizzes', 'lastAttempt', 'learningSchema'));
     }
 
     public function userShow(Section $section, Quiz $quiz)
@@ -189,7 +187,9 @@ class QuizController extends Controller
         $next  = $currentIndex < $allQuizzes->count() - 1 ? $allQuizzes[$currentIndex + 1] : null;
         $total = $allQuizzes->count();
 
-        return view('user.quizzes.show', compact('section', 'quiz', 'prev', 'next', 'currentIndex', 'total'));
+        $learningSchema = $section->learningSchemas()->first();
+
+        return view('user.quizzes.show', compact('section', 'quiz', 'prev', 'next', 'currentIndex', 'total', 'learningSchema'));
     }
 
     public function userSubmit(Request $request, Section $section)
@@ -231,8 +231,10 @@ class QuizController extends Controller
                 ->update(['status' => 'completed', 'completed_at' => now()]);
         }
 
+        $learningSchema = $section->learningSchemas()->first();
+
         return view('user.quizzes.result', compact(
-            'section', 'quizzes', 'results', 'correctCount', 'percentage'
+            'section', 'quizzes', 'results', 'correctCount', 'percentage', 'learningSchema'
         ));
     }
 
