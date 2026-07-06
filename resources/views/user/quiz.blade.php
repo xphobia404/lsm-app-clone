@@ -126,7 +126,7 @@
                         </div>
                         @break
 
-                        {{-- VIDEO --}}
+                        {{-- VIDEO (file upload) --}}
                         @case('video')
                         <div class="rounded-xl overflow-hidden border border-slate-100 bg-black">
                             @if($media->file_path)
@@ -135,38 +135,66 @@
                                 Browser Anda tidak mendukung video.
                             </video>
                             @elseif($media->url)
-                                @php
-                                    $ytId = null;
-                                    if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/', $media->url, $m)) {
-                                        $ytId = $m[1];
-                                    }
-                                @endphp
-                                @if($ytId)
-                                <div class="relative w-full" style="padding-top:56.25%">
-                                    <iframe class="absolute inset-0 h-full w-full"
-                                            src="https://www.youtube.com/embed/{{ $ytId }}"
-                                            frameborder="0" allowfullscreen
-                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
-                                    </iframe>
-                                </div>
-                                @else
-                                <video controls class="w-full max-h-56" preload="metadata">
-                                    <source src="{{ $media->url }}">
-                                    Browser Anda tidak mendukung video.
-                                </video>
-                                @endif
+                            <video controls class="w-full max-h-56" preload="metadata">
+                                <source src="{{ $media->url }}">
+                                Browser Anda tidak mendukung video.
+                            </video>
                             @endif
                             @if($media->title)
-                            <p class="px-3 py-1.5 text-xs text-slate-400">{{ $media->title }}</p>
+                            <p class="px-3 py-1.5 text-xs text-slate-400 bg-black/40">{{ $media->title }}</p>
                             @endif
                         </div>
+                        @break
+
+                        {{-- YOUTUBE --}}
+                        @case('youtube')
+                        @php $ytEmbed = $media->getYouTubeEmbedUrl(); @endphp
+                        @if($ytEmbed)
+                        <div class="rounded-xl overflow-hidden border border-slate-100">
+                            @if($media->title)
+                            <p class="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-50 flex items-center gap-1">
+                                <svg class="h-3.5 w-3.5 text-red-500 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                                {{ $media->title }}
+                            </p>
+                            @endif
+                            <div class="relative w-full" style="padding-top:56.25%">
+                                <iframe class="absolute inset-0 h-full w-full"
+                                        src="{{ $ytEmbed }}"
+                                        frameborder="0" allowfullscreen
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+                                </iframe>
+                            </div>
+                        </div>
+                        @endif
+                        @break
+
+                        {{-- GOOGLE DRIVE --}}
+                        @case('google_drive')
+                        @php $driveEmbed = $media->getGoogleDriveEmbedUrl(); @endphp
+                        @if($driveEmbed)
+                        <div class="rounded-xl overflow-hidden border border-slate-100">
+                            @if($media->title)
+                            <p class="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-50 flex items-center gap-1">
+                                <svg class="h-3.5 w-3.5 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M4.433 22.396l4-6.929H24l-4 6.929H4.433zm3.566-6.929L2.566 6.536l4-6.929 5.434 9.403-4.001 6.857zM13.567 8.01L18.992.107 24 9.01H13.567z"/></svg>
+                                {{ $media->title }}
+                            </p>
+                            @endif
+                            <div class="relative w-full" style="padding-top:56.25%">
+                                <iframe class="absolute inset-0 h-full w-full"
+                                        src="{{ $driveEmbed }}"
+                                        frameborder="0" allowfullscreen
+                                        allow="autoplay">
+                                </iframe>
+                            </div>
+                        </div>
+                        @endif
                         @break
 
                         {{-- AUDIO --}}
                         @case('audio')
                         <div class="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
                             @if($media->title)
-                            <p class="mb-1.5 text-xs font-medium text-slate-600">{{ $media->title }}</p>
+                            <p class="mb-1.5 text-xs font-medium text-slate-600">🎵 {{ $media->title }}</p>
                             @endif
                             @if($media->file_path)
                             <audio controls class="w-full" preload="metadata">
@@ -211,8 +239,8 @@
 
                         @endswitch
 
-                        {{-- Deskripsi media (universal) --}}
-                        @if($media->description && $media->media_type !== 'audio')
+                        {{-- Deskripsi media (universal, kecuali audio sudah di dalam) --}}
+                        @if($media->description && !in_array($media->media_type, ['audio']))
                         <p class="text-xs text-slate-400 italic">{{ $media->description }}</p>
                         @endif
 
@@ -257,7 +285,6 @@
 
 </div>
 
-{{-- ═══════ STYLES ═══════ --}}
 <style>
 .quiz-option.selected {
     border-color: #6366f1;
@@ -270,11 +297,10 @@
 }
 </style>
 
-{{-- ═══════ SCRIPT ═══════ --}}
 <script>
 (function () {
-    const total      = {{ $quizzes->count() }};
-    const answered   = {};
+    const total        = {{ $quizzes->count() }};
+    const answered     = {};
     const progressBar  = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
     const hint         = document.getElementById('unanswered-hint');
@@ -292,7 +318,6 @@
             : 'text-center text-xs text-emerald-600 font-medium';
     }
 
-    // Delegated click on options
     document.getElementById('quiz-list').addEventListener('click', function (e) {
         const label = e.target.closest('.quiz-option');
         if (!label) return;
@@ -301,11 +326,9 @@
         const radio = label.querySelector('.quiz-radio');
         if (!radio) return;
 
-        // Deselect siblings
         document.querySelectorAll('.quiz-option[data-qid="' + qid + '"]')
             .forEach(l => l.classList.remove('selected'));
 
-        // Select this
         radio.checked = true;
         label.classList.add('selected');
         answered[qid] = radio.value;

@@ -110,7 +110,6 @@
             $hasImage = $images->isNotEmpty();
             $hasBody  = !empty(trim(strip_tags($content->body ?? '')));
 
-            // Embed URL untuk video dari field content.url (tipe video/url)
             $embedVideo = function(string $url): string {
                 if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([\\w-]+)/', $url, $m)) {
                     return 'https://www.youtube.com/embed/' . $m[1];
@@ -130,7 +129,7 @@
                 </div>
             </div>
 
-            {{-- VIDEO (file upload atau URL langsung di content) --}}
+            {{-- VIDEO --}}
             @php
                 $vRaw = '';
                 if ($content->isVideo() && $content->url) {
@@ -373,6 +372,7 @@
             @endfor
         </div>
 
+        {{-- Tombol next: di slide quiz terakhir (ada quiz), sembunyikan tombol Selesai --}}
         <button id="btn-next"
                 class="flex h-11 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold text-white transition active:opacity-80"
                 style="background:linear-gradient(135deg,#6366f1,#8b5cf6); min-width:90px">
@@ -389,9 +389,12 @@
 <script>
 (function () {
     const total       = {{ $totalSlides }};
+    const hasQuiz     = {{ $hasQuiz ? 'true' : 'false' }};
     const contentIds  = {!! $contentIdsJs !!};
     const progressUrl = '{{ route('user.sections.progress.update', $section) }}';
     const csrfToken   = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+    const quizUrl     = '{{ route('user.quizzes.index', $section) }}';
+    const backUrl     = '{{ route('user.schemas.show', $learningSchema) }}';
 
     const track   = document.getElementById('slides-track');
     const btnPrev = document.getElementById('btn-prev');
@@ -445,10 +448,17 @@
         setPrev(cur > 0);
 
         const isLast = cur === total - 1;
-        if (isLast) {
+
+        if (isLast && hasQuiz) {
+            // Slide terakhir = slide quiz → sembunyikan tombol next, navigasi handle di tombol "Mulai Quiz"
+            btnNext.style.display = 'none';
+        } else if (isLast && !hasQuiz) {
+            // Tidak ada quiz → tampilkan tombol Selesai
+            btnNext.style.display = '';
             btnNext.innerHTML = 'Selesai&nbsp;<svg style="display:inline;vertical-align:middle" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
             btnNext.style.background = 'linear-gradient(135deg,#10b981,#059669)';
         } else {
+            btnNext.style.display = '';
             btnNext.innerHTML = 'Lanjut&nbsp;<svg style="display:inline;vertical-align:middle" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>';
             btnNext.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)';
         }
@@ -459,8 +469,8 @@
 
     btnPrev.addEventListener('click', () => goTo(cur - 1));
     btnNext.addEventListener('click', () => {
-        if (cur === total - 1) {
-            window.location.href = '{{ route('user.schemas.show', $learningSchema) }}';
+        if (cur === total - 1 && !hasQuiz) {
+            window.location.href = backUrl;
         } else {
             goTo(cur + 1);
         }
