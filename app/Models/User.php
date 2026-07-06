@@ -36,14 +36,22 @@ class User extends Authenticatable
 
     // ── Scopes ────────────────────────────────────────────────
 
-    public function scopeActive($query)
+    /** Hanya role = user (bukan admin) */
+    public function scopeUsers($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('role', 'user');
     }
 
+    /** Hanya role = admin */
     public function scopeAdmins($query)
     {
         return $query->where('role', 'admin');
+    }
+
+    /** Hanya yang is_active = true */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
     }
 
     // ── Helpers ───────────────────────────────────────────────
