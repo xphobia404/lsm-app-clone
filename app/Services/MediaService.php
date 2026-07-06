@@ -7,214 +7,248 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-/**
- * MediaService
- *
- * Satu service terpusat untuk semua operasi upload, replace, dan hapus media.
- * Bisa dipakai oleh controller manapun yang butuh upload media.
- *
- * Contoh pemakaian:
- *   app(MediaService::class)->uploadMany($quiz, $request->file('files'), 'media/quizzes');
- *   app(MediaService::class)->uploadSingle($section, $request->file('thumbnail'), 'sections/thumbnails');
- *   app(MediaService::class)->replace($section, 'thumbnail', $request->file('thumbnail'), 'sections/thumbnails');
- *   app(MediaService::class)->deletePath('sections/thumbnails/file.jpg');
- */
 class MediaService
 {
-    // =========================================================================
-    // A. Polymorphic Media Table (tabel `media`)
-    // =========================================================================
+    /**
+     * Disk storage yang dipakai (default: public).
+     * Bisa diubah via config atau override di constructor.
+     */
+    public function __construct(
+        protected string $disk = 'public'
+    ) {}
+
+    // ── ATTACH ────────────────────────────────────────────────────
 
     /**
-     * Upload SATU file dan simpan ke tabel `media` (polymorphic).
+     * Upload file dan attach sebagai media ke model.
      *
-     * @param  Model         $model    Model pemilik (Quiz, Section, dll)
-     * @param  UploadedFile  $file     File yang diupload
-     * @param  string        $folder   Folder tujuan di storage/public (e.g. 'media/quizzes')
-     * @param  string        $disk     Default: 'public'
-     * @param  int|null      $order    Urutan tampil; null = auto-increment
+     * @param  Model        $mediable   Model target (Section, Content, Quiz, dll)
+     * @param  UploadedFile $file       File dari request
+     * @param  string       $mediaType  'image' | 'video' | 'audio' | 'url'
+     * @param  array        $extra      Override kolom tambahan (title, description, media_order)
      * @return Media
      */
-    public function uploadOne(
-        Model $model,
+    public function attachFile(
+        Model $mediable,
         UploadedFile $file,
-        string $folder,
-        string $disk = 'public',
-        ?int $order = null
+        string $mediaType = 'image',
+        array $extra = []
     ): Media {
-        $mime = $file->getMimeType();
-        $path = $file->store($folder, $disk);
+        $folder   = $this->resolveFolder($mediable);
+        $filePath = $file->store($folder, $this->disk);
 
-        if ($order === null) {
-            $order = ($model->media()->max('order') ?? -1) + 1;
-        }
-
-        return $model->media()->create([
-            'type'          => $this->detectType($mime),
-            'disk'          => $disk,
-            'path'          => $path,
-            'original_name' => $file->getClientOriginalName(),
-            'mime_type'     => $mime,
-            'size'          => $file->getSize(),
-            'order'         => $order,
-        ]);
+        return $mediable->media()->create(array_merge([
+            'media_type'  => $mediaType,
+            'title'       => $extra['title'] ?? $file->getClientOriginalName(),
+            'description' => $extra['description'] ?? null,
+            'file_path'   => $filePath,
+            'url'         => null,
+            'media_order' => $extra['media_order'] ?? $this->nextOrder($mediable),
+            'is_active'   => $extra['is_active'] ?? true,
+        ], $extra));
     }
 
     /**
-     * Upload BANYAK file sekaligus ke tabel `media` (polymorphic).
+     * Attach media berupa URL eksternal (YouTube, Google Drive, link gambar, dll).
      *
-     * @param  Model           $model
-     * @param  UploadedFile[]  $files
-     * @param  string          $folder
-     * @param  string          $disk
-     * @return Media[]
+     * @param  Model  $mediable
+     * @param  string $url
+     * @param  string $mediaType  'image' | 'video' | 'audio' | 'url'
+     * @param  array  $extra
+     * @return Media
      */
-    public function uploadMany(
-        Model $model,
-        array $files,
-        string $folder,
-        string $disk = 'public'
-    ): array {
-        $lastOrder = $model->media()->max('order') ?? -1;
-        $result    = [];
+    public function attachUrl(
+        Model $mediable,
+        string $url,
+        string $mediaType = 'url',
+        array $extra = []
+    ): Media {
+        return $mediable->media()->create(array_merge([
+            'media_type'  => $mediaType,
+            'title'       => $extra['title'] ?? null,
+            'description' => $extra['description'] ?? null,
+            'file_path'   => null,
+            'url'         => $url,
+            'media_order' => $extra['media_order'] ?? $this->nextOrder($mediable),
+            'is_active'   => $extra['is_active'] ?? true,
+        ], $extra));
+    }
 
-        foreach ($files as $file) {
-            if (!$file instanceof UploadedFile || !$file->isValid()) {
-                continue;
+    /**
+     * Attach dari request otomatis — deteksi apakah input berupa file atau URL.
+     *
+     * Contoh pemakaian di controller:
+     *   $mediaService->attachFromRequest($section, $request, 'attachment');
+     *
+     * @param  Model                    $mediable
+     * @param  \Illuminate\Http\Request $request
+     * @param  string                   $fileKey    Nama input file di form
+     * @param  string                   $urlKey     Nama input URL di form
+     * @param  array                    $extra
+     * @return Media|null
+     */
+    public function attachFromRequest(
+        Model $mediable,
+        \Illuminate\Http\Request $request,
+        string $fileKey = 'file',
+        string $urlKey  = 'url',
+        array  $extra   = []
+    ): ?Media {
+        if ($request->hasFile($fileKey)) {
+            $mediaType = $this->guessMediaTypeFromFile($request->file($fileKey));
+            return $this->attachFile($mediable, $request->file($fileKey), $mediaType, $extra);
+        }
+
+        if ($request->filled($urlKey)) {
+            $mediaType = $extra['media_type'] ?? 'url';
+            return $this->attachUrl($mediable, $request->input($urlKey), $mediaType, $extra);
+        }
+
+        return null;
+    }
+
+    // ── DETACH / DELETE ────────────────────────────────────────────
+
+    /**
+     * Hapus media record dan file fisiknya dari storage.
+     */
+    public function delete(Media $media): void
+    {
+        if ($media->file_path && Storage::disk($this->disk)->exists($media->file_path)) {
+            Storage::disk($this->disk)->delete($media->file_path);
+        }
+
+        $media->delete();
+    }
+
+    /**
+     * Hapus semua media milik sebuah model (beserta file fisik).
+     */
+    public function deleteAll(Model $mediable): void
+    {
+        $mediable->media()->each(fn (Media $media) => $this->delete($media));
+    }
+
+    // ── UPDATE ────────────────────────────────────────────────────
+
+    /**
+     * Update metadata media (title, description, is_active).
+     * Jika ada file baru dikirim, file lama dihapus dan diganti.
+     */
+    public function update(
+        Media $media,
+        array $data,
+        ?UploadedFile $newFile = null
+    ): Media {
+        if ($newFile) {
+            // Hapus file lama
+            if ($media->file_path && Storage::disk($this->disk)->exists($media->file_path)) {
+                Storage::disk($this->disk)->delete($media->file_path);
             }
-            $result[] = $this->uploadOne($model, $file, $folder, $disk, ++$lastOrder);
+
+            $folder            = $this->resolveFolderFromType($media->mediable_type);
+            $data['file_path'] = $newFile->store($folder, $this->disk);
+            $data['media_type'] = $this->guessMediaTypeFromFile($newFile);
         }
 
-        return $result;
+        $media->update($data);
+        return $media->fresh();
     }
 
-    /**
-     * Hapus satu record Media beserta file fisiknya.
-     *
-     * @param  Media  $media
-     * @return void
-     */
-    public function deleteMedia(Media $media): void
-    {
-        $media->delete(); // Model::booted() otomatis hapus file fisik
-    }
+    // ── REORDER ──────────────────────────────────────────────────
 
     /**
-     * Hapus SEMUA media milik sebuah model (polymorphic).
+     * Urutkan ulang media berdasarkan array of IDs.
      *
-     * @param  Model  $model
-     * @return void
+     * Contoh:
+     *   $mediaService->reorder($section, [3, 1, 2]);
+     *   // media id=3 → order 1, id=1 → order 2, id=2 → order 3
      */
-    public function deleteAllMedia(Model $model): void
+    public function reorder(Model $mediable, array $orderedIds): void
     {
-        $model->media()->each(fn (Media $m) => $m->delete());
-    }
-
-    /**
-     * Update urutan media (untuk drag-drop reorder).
-     *
-     * @param  array  $orders  [order_index => media_id, ...]
-     * @return void
-     */
-    public function reorder(array $orders): void
-    {
-        foreach ($orders as $order => $id) {
-            Media::where('id', $id)->update(['order' => (int) $order]);
+        foreach ($orderedIds as $order => $id) {
+            $mediable->media()
+                ->where('id', $id)
+                ->update(['media_order' => $order + 1]);
         }
     }
 
-    // =========================================================================
-    // B. File Storage Langsung (BUKAN tabel media)
-    //    Untuk thumbnail, video_file, audio_file, page images, dll
-    //    yang disimpan sebagai path string di kolom tabel utama.
-    // =========================================================================
+    // ── SYNC (bulk replace) ─────────────────────────────────────────
 
     /**
-     * Upload SATU file ke storage dan kembalikan path-nya (string).
-     * Tidak menyentuh tabel `media`.
+     * Sync media dari request — hapus media yang tidak ada di $keepIds,
+     * lalu upload file baru yang dikirim.
      *
-     * @param  UploadedFile  $file
-     * @param  string        $folder
-     * @param  string        $disk
-     * @return string         Path relatif di storage disk
+     * Cocok untuk form edit yang menampilkan media existing + upload baru.
+     *
+     * @param  Model                    $mediable
+     * @param  \Illuminate\Http\Request $request
+     * @param  array                    $keepIds    ID media yang tetap disimpan
+     * @param  string                   $fileKey    Input name untuk file baru (bisa array)
      */
-    public function storeDirect(
-        UploadedFile $file,
-        string $folder,
-        string $disk = 'public'
-    ): string {
-        return $file->store($folder, $disk);
-    }
+    public function syncFromRequest(
+        Model $mediable,
+        \Illuminate\Http\Request $request,
+        array $keepIds  = [],
+        string $fileKey = 'new_files'
+    ): void {
+        // Hapus media yang tidak ada di keepIds
+        $mediable->media()
+            ->when(! empty($keepIds), fn ($q) => $q->whereNotIn('id', $keepIds))
+            ->when(empty($keepIds), fn ($q) => $q) // hapus semua jika keepIds kosong
+            ->each(fn (Media $m) => $this->delete($m));
 
-    /**
-     * Replace file lama dengan file baru di storage langsung.
-     * Hapus file lama (jika ada), upload file baru, kembalikan path baru.
-     *
-     * @param  UploadedFile  $newFile
-     * @param  string        $folder
-     * @param  string|null   $oldPath   Path lama yang akan dihapus
-     * @param  string        $disk
-     * @return string         Path baru
-     */
-    public function replaceDirect(
-        UploadedFile $newFile,
-        string $folder,
-        ?string $oldPath = null,
-        string $disk = 'public'
-    ): string {
-        $this->deletePath($oldPath, $disk);
-        return $this->storeDirect($newFile, $folder, $disk);
-    }
+        // Upload file baru jika ada
+        if ($request->hasFile($fileKey)) {
+            $files = $request->file($fileKey);
+            $files = is_array($files) ? $files : [$files];
 
-    /**
-     * Hapus file dari storage berdasarkan path string.
-     * Aman dipanggil dengan null atau path kosong.
-     *
-     * @param  string|null  $path
-     * @param  string       $disk
-     * @return void
-     */
-    public function deletePath(?string $path, string $disk = 'public'): void
-    {
-        if ($path && Storage::disk($disk)->exists($path)) {
-            Storage::disk($disk)->delete($path);
+            foreach ($files as $file) {
+                $mediaType = $this->guessMediaTypeFromFile($file);
+                $this->attachFile($mediable, $file, $mediaType);
+            }
         }
     }
 
+    // ── PRIVATE HELPERS ────────────────────────────────────────────
+
     /**
-     * Hapus banyak path sekaligus.
-     *
-     * @param  array   $paths  [string|null, ...]
-     * @param  string  $disk
-     * @return void
+     * Tentukan folder penyimpanan berdasarkan jenis model.
      */
-    public function deletePaths(array $paths, string $disk = 'public'): void
+    protected function resolveFolder(Model $mediable): string
     {
-        foreach ($paths as $path) {
-            $this->deletePath($path, $disk);
-        }
+        return $this->resolveFolderFromType(get_class($mediable));
     }
 
-    // =========================================================================
-    // C. Helper Privat
-    // =========================================================================
-
-    /**
-     * Deteksi tipe media dari MIME type.
-     */
-    private function detectType(string $mime): string
+    protected function resolveFolderFromType(string $modelClass): string
     {
-        if (str_starts_with($mime, 'image/')) return 'image';
-        if (str_starts_with($mime, 'video/')) return 'video';
-        if (str_starts_with($mime, 'audio/')) return 'audio';
-        return 'image';
+        return match (true) {
+            str_ends_with($modelClass, 'Section') => 'media/sections',
+            str_ends_with($modelClass, 'Content') => 'media/contents',
+            str_ends_with($modelClass, 'Quiz')    => 'media/quizzes',
+            default                               => 'media/misc',
+        };
     }
 
     /**
-     * Buat URL publik dari path storage.
+     * Ambil nilai media_order berikutnya untuk model tertentu.
      */
-    public function url(string $path, string $disk = 'public'): string
+    protected function nextOrder(Model $mediable): int
     {
-        return Storage::disk($disk)->url($path);
+        return ((int) $mediable->media()->max('media_order')) + 1;
+    }
+
+    /**
+     * Tebak media_type dari ekstensi file yang diupload.
+     */
+    protected function guessMediaTypeFromFile(UploadedFile $file): string
+    {
+        $mime = $file->getMimeType() ?? '';
+
+        if (str_starts_with($mime, 'image/'))  return 'image';
+        if (str_starts_with($mime, 'video/'))  return 'video';
+        if (str_starts_with($mime, 'audio/'))  return 'audio';
+
+        return 'url'; // fallback untuk file lain (PDF, dll)
     }
 }
