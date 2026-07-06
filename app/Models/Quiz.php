@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Quiz extends Model
@@ -21,29 +22,15 @@ class Quiz extends Model
         'is_active',
     ];
 
-    protected $casts = [
-        'is_active'   => 'boolean',
-        'quiz_order'  => 'integer',
-    ];
-
-    // ── Relationships ───────────────────────────────────────────────
-
-    public function section(): BelongsTo
+    protected function casts(): array
     {
-        return $this->belongsTo(Section::class);
+        return [
+            'is_active' => 'boolean',
+            'quiz_order' => 'integer',
+        ];
     }
 
-    /**
-     * Media untuk soal quiz (misal: gambar soal, diagram, ilustrasi).
-     * Bisa dipakai: $quiz->media, $quiz->media()->ofType('image')->get()
-     */
-    public function media(): MorphMany
-    {
-        return $this->morphMany(Media::class, 'mediable')
-            ->orderBy('media_order');
-    }
-
-    // ── Scopes ──────────────────────────────────────────────────
+    // ── Scopes ───────────────────────────────────────────────────────────
 
     public function scopeActive($query)
     {
@@ -55,7 +42,36 @@ class Quiz extends Model
         return $query->orderBy('quiz_order');
     }
 
-    // ── Helpers ─────────────────────────────────────────────────
+    // ── Relations ────────────────────────────────────────────────────────
+
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(Section::class);
+    }
+
+    public function attempts(): HasMany
+    {
+        return $this->hasMany(QuizAttempt::class);
+    }
+
+    /**
+     * Media yang melekat pada soal quiz ini (gambar/video/audio/url).
+     * Diurutkan berdasarkan media_order.
+     */
+    public function media(): MorphMany
+    {
+        return $this->morphMany(Media::class, 'mediable')
+            ->orderBy('media_order');
+    }
+
+    public function activeMedia(): MorphMany
+    {
+        return $this->morphMany(Media::class, 'mediable')
+            ->where('is_active', true)
+            ->orderBy('media_order');
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────
 
     public function isCorrect(string $answer): bool
     {
@@ -63,7 +79,8 @@ class Quiz extends Model
     }
 
     /**
-     * Kembalikan semua opsi yang terisi sebagai array ['a' => '...', 'b' => '...'].
+     * Kembalikan array opsi yang diisi (tidak null).
+     * Contoh: ['a' => 'Benar', 'b' => 'Salah', 'c' => 'Mungkin']
      */
     public function getOptions(): array
     {
@@ -73,21 +90,5 @@ class Quiz extends Model
             'c' => $this->option_c,
             'd' => $this->option_d,
         ]);
-    }
-
-    /**
-     * Kembalikan teks jawaban yang benar.
-     */
-    public function getCorrectAnswerText(): string
-    {
-        return $this->{'option_' . $this->correct_answer} ?? '';
-    }
-
-    /**
-     * Apakah quiz ini punya gambar soal?
-     */
-    public function hasMedia(): bool
-    {
-        return $this->media()->exists();
     }
 }

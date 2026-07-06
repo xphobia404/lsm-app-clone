@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Media;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\Section;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class QuizController extends Controller
 {
@@ -14,6 +16,7 @@ class QuizController extends Controller
     public function index(Request $request, Section $section)
     {
         $quizzes = $section->quizzes()
+            ->withCount('media')
             ->when($request->filled('search'), fn ($q) =>
                 $q->where('question', 'like', "%{$request->search}%")
             )
@@ -35,15 +38,23 @@ class QuizController extends Controller
     public function store(Request $request, Section $section)
     {
         $validated = $request->validate([
-            'question'       => 'required|string|max:1000',
-            'option_a'       => 'required|string|max:255',
-            'option_b'       => 'required|string|max:255',
-            'option_c'       => 'nullable|string|max:255',
-            'option_d'       => 'nullable|string|max:255',
-            'correct_answer' => 'required|in:a,b,c,d',
-            'explanation'    => 'nullable|string|max:2000',
-            'quiz_order'     => 'nullable|integer|min:0',
-            'is_active'      => 'sometimes|boolean',
+            'question'          => 'required|string|max:1000',
+            'option_a'          => 'required|string|max:255',
+            'option_b'          => 'required|string|max:255',
+            'option_c'          => 'nullable|string|max:255',
+            'option_d'          => 'nullable|string|max:255',
+            'correct_answer'    => 'required|in:a,b,c,d',
+            'explanation'       => 'nullable|string|max:2000',
+            'quiz_order'        => 'nullable|integer|min:0',
+            'is_active'         => 'sometimes|boolean',
+            // Media
+            'media'             => 'nullable|array|max:5',
+            'media.*.media_type'  => 'required_with:media|in:image,video,audio,url',
+            'media.*.title'       => 'nullable|string|max:255',
+            'media.*.description' => 'nullable|string|max:500',
+            'media.*.url'         => 'nullable|string|max:2000',
+            'media.*.file'        => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mp3,wav|max:20480',
+            'media.*.media_order' => 'nullable|integer|min:0',
         ]);
 
         $this->ensureAnswerOptionFilled($validated);
@@ -52,7 +63,9 @@ class QuizController extends Controller
             ?? ($section->quizzes()->max('quiz_order') + 1);
         $validated['is_active'] = $request->boolean('is_active');
 
-        $section->quizzes()->create($validated);
+        $quiz = $section->quizzes()->create($validated);
+
+        $this->syncMedia($request, $quiz);
 
         return redirect()
             ->route('admin.sections.quizzes.index', $section)
@@ -62,12 +75,14 @@ class QuizController extends Controller
     public function show(Section $section, Quiz $quiz)
     {
         $this->authorizeQuiz($section, $quiz);
+        $quiz->load('media');
         return view('admin.quizzes.show', compact('section', 'quiz'));
     }
 
     public function edit(Section $section, Quiz $quiz)
     {
         $this->authorizeQuiz($section, $quiz);
+        $quiz->load('media');
         return view('admin.quizzes.edit', compact('section', 'quiz'));
     }
 
@@ -76,21 +91,43 @@ class QuizController extends Controller
         $this->authorizeQuiz($section, $quiz);
 
         $validated = $request->validate([
-            'question'       => 'required|string|max:1000',
-            'option_a'       => 'required|string|max:255',
-            'option_b'       => 'required|string|max:255',
-            'option_c'       => 'nullable|string|max:255',
-            'option_d'       => 'nullable|string|max:255',
-            'correct_answer' => 'required|in:a,b,c,d',
-            'explanation'    => 'nullable|string|max:2000',
-            'quiz_order'     => 'nullable|integer|min:0',
-            'is_active'      => 'sometimes|boolean',
+            'question'          => 'required|string|max:1000',
+            'option_a'          => 'required|string|max:255',
+            'option_b'          => 'required|string|max:255',
+            'option_c'          => 'nullable|string|max:255',
+            'option_d'          => 'nullable|string|max:255',
+            'correct_answer'    => 'required|in:a,b,c,d',
+            'explanation'       => 'nullable|string|max:2000',
+            'quiz_order'        => 'nullable|integer|min:0',
+            'is_active'         => 'sometimes|boolean',
+            // Media baru
+            'media'             => 'nullable|array|max:5',
+            'media.*.media_type'  => 'required_with:media|in:image,video,audio,url',
+            'media.*.title'       => 'nullable|string|max:255',
+            'media.*.description' => 'nullable|string|max:500',
+            'media.*.url'         => 'nullable|string|max:2000',
+            'media.*.file'        => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mp3,wav|max:20480',
+            'media.*.media_order' => 'nullable|integer|min:0',
+            // Media yang dihapus
+            'delete_media'      => 'nullable|array',
+            'delete_media.*'    => 'integer|exists:media,id',
         ]);
 
         $this->ensureAnswerOptionFilled($validated);
         $validated['is_active'] = $request->boolean('is_active');
 
         $quiz->update($validated);
+
+        // Hapus media yang di-checklist hapus
+        if (!empty($validated['delete_media'])) {
+            $toDelete = $quiz->media()->whereIn('id', $validated['delete_media'])->get();
+            foreach ($toDelete as $m) {
+                if ($m->file_path) Storage::delete($m->file_path);
+                $m->delete();
+            }
+        }
+
+        $this->syncMedia($request, $quiz);
 
         return redirect()
             ->route('admin.sections.quizzes.index', $section)
@@ -100,6 +137,12 @@ class QuizController extends Controller
     public function destroy(Section $section, Quiz $quiz)
     {
         $this->authorizeQuiz($section, $quiz);
+
+        // Hapus file media sebelum delete quiz
+        foreach ($quiz->media as $m) {
+            if ($m->file_path) Storage::delete($m->file_path);
+        }
+        $quiz->media()->delete();
         $quiz->delete();
 
         return redirect()
@@ -116,12 +159,8 @@ class QuizController extends Controller
         return back()->with('success', "Quiz berhasil {$label}.");
     }
 
-    // ── USER-FACING ─────────────────────────────────────────────────
+    // ── USER-FACING ──────────────────────────────────────────────────────
 
-    /**
-     * Halaman list quiz untuk user (sebelum dikerjakan).
-     * Route: GET /app/sections/{section}/quizzes
-     */
     public function userIndex(Section $section)
     {
         abort_if(! $section->is_active, 404);
@@ -129,7 +168,6 @@ class QuizController extends Controller
         $quizzes = $section->quizzes()->active()->orderBy('quiz_order')->get();
         $user    = auth()->user();
 
-        // Cek apakah user sudah pernah attempt
         $lastAttempt = QuizAttempt::where('user_id', $user->id)
             ->where('section_id', $section->id)
             ->latest('attempted_at')
@@ -138,28 +176,22 @@ class QuizController extends Controller
         return view('user.quizzes.index', compact('section', 'quizzes', 'lastAttempt'));
     }
 
-    /**
-     * Halaman mengerjakan 1 soal quiz.
-     * Route: GET /app/sections/{section}/quizzes/{quiz}
-     */
     public function userShow(Section $section, Quiz $quiz)
     {
         abort_if(! $section->is_active || ! $quiz->is_active, 404);
         $this->authorizeQuiz($section, $quiz);
 
+        $quiz->load('activeMedia');
+
         $allQuizzes   = $section->quizzes()->active()->orderBy('quiz_order')->get(['id', 'quiz_order']);
         $currentIndex = $allQuizzes->search(fn ($q) => $q->id === $quiz->id);
-        $prev = $currentIndex > 0 ? $allQuizzes[$currentIndex - 1] : null;
-        $next = $currentIndex < $allQuizzes->count() - 1 ? $allQuizzes[$currentIndex + 1] : null;
+        $prev  = $currentIndex > 0 ? $allQuizzes[$currentIndex - 1] : null;
+        $next  = $currentIndex < $allQuizzes->count() - 1 ? $allQuizzes[$currentIndex + 1] : null;
         $total = $allQuizzes->count();
 
         return view('user.quizzes.show', compact('section', 'quiz', 'prev', 'next', 'currentIndex', 'total'));
     }
 
-    /**
-     * Submit jawaban semua quiz sekaligus (dari form).
-     * Route: POST /app/sections/{section}/quizzes/submit
-     */
     public function userSubmit(Request $request, Section $section)
     {
         abort_if(! $section->is_active, 404);
@@ -181,8 +213,7 @@ class QuizController extends Controller
             ];
         }
 
-        // Simpan attempt
-        $attempt = QuizAttempt::create([
+        QuizAttempt::create([
             'user_id'         => auth()->id(),
             'section_id'      => $section->id,
             'total_questions' => $quizzes->count(),
@@ -190,7 +221,6 @@ class QuizController extends Controller
             'attempted_at'    => now(),
         ]);
 
-        // Update progress jika lulus (>= 70%)
         $percentage = $quizzes->count() > 0
             ? round(($correctCount / $quizzes->count()) * 100)
             : 0;
@@ -202,11 +232,37 @@ class QuizController extends Controller
         }
 
         return view('user.quizzes.result', compact(
-            'section', 'quizzes', 'results', 'correctCount', 'percentage', 'attempt'
+            'section', 'quizzes', 'results', 'correctCount', 'percentage'
         ));
     }
 
-    // ── PRIVATE ─────────────────────────────────────────────────────
+    // ── PRIVATE ──────────────────────────────────────────────────────────
+
+    private function syncMedia(Request $request, Quiz $quiz): void
+    {
+        $mediaInputs = $request->input('media', []);
+        $files       = $request->file('media', []);
+
+        foreach ($mediaInputs as $i => $item) {
+            $mediaType = $item['media_type'] ?? null;
+            if (! $mediaType) continue;
+
+            $filePath = null;
+            if (isset($files[$i]['file'])) {
+                $filePath = $files[$i]['file']->store('quizzes/media', 'public');
+            }
+
+            $quiz->media()->create([
+                'media_type'  => $mediaType,
+                'title'       => $item['title']       ?? null,
+                'description' => $item['description'] ?? null,
+                'url'         => $item['url']         ?? null,
+                'file_path'   => $filePath,
+                'media_order' => $item['media_order'] ?? ($i + 1),
+                'is_active'   => true,
+            ]);
+        }
+    }
 
     private function authorizeQuiz(Section $section, Quiz $quiz): void
     {
