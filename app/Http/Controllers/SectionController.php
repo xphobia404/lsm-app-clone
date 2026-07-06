@@ -8,6 +8,33 @@ use Illuminate\Http\Request;
 
 class SectionController extends Controller
 {
+    /**
+     * Standalone index — semua section lintas schema (untuk bottom nav).
+     */
+    public function allIndex(Request $request)
+    {
+        $query = LearningSchema::with(['sections' => function ($q) use ($request) {
+            $q->withCount(['contents', 'quizzes']);
+
+            if ($request->filled('search')) {
+                $q->where('title', 'like', "%{$request->search}%");
+            }
+
+            if ($request->filled('status')) {
+                $q->where('is_active', $request->status === 'active');
+            }
+
+            $q->orderBy('section_order');
+        }])->orderBy('created_at', 'desc');
+
+        $learningSchemas = $query->get();
+
+        return view('admin.sections.all', compact('learningSchemas'));
+    }
+
+    /**
+     * Nested index — sections dalam satu schema.
+     */
     public function index(Request $request, LearningSchema $learningSchema)
     {
         $query = $learningSchema->sections()->withCount(['contents', 'quizzes']);
@@ -27,7 +54,7 @@ class SectionController extends Controller
 
     public function create(LearningSchema $learningSchema)
     {
-        $section = null;
+        $section  = null;
         $nextOrder = $learningSchema->sections()->max('section_order') + 1;
         return view('admin.sections.create', compact('learningSchema', 'section', 'nextOrder'));
     }

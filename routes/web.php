@@ -71,7 +71,10 @@ Route::middleware(['auth', 'role:admin'])
         Route::post('learning-schemas/{learningSchema}/toggle-active',
             [LearningSchemaController::class, 'toggleActive'])->name('learning-schemas.toggle-active');
 
-        // ── Section Management (nested under learning-schema) ──────────
+        // ── Section Management ──────────────────────────────────────────
+        // Standalone index (bottom nav)
+        Route::get('sections', [SectionController::class, 'allIndex'])->name('sections.index');
+        // Nested CRUD (under learning-schema)
         Route::resource('learning-schemas.sections', SectionController::class);
         Route::post('learning-schemas/{learningSchema}/sections/{section}/toggle-active',
             [SectionController::class, 'toggleActive'])->name('learning-schemas.sections.toggle-active');
