@@ -37,16 +37,16 @@
             </div>
         </div>
 
-        {{-- Spesialisasi --}}
+        {{-- Total Learning Schema --}}
         <div class="rounded-2xl bg-gradient-to-br from-violet-500 to-violet-700 p-4 text-white shadow-md">
             <div class="flex items-center justify-between mb-3">
-                <p class="text-xs font-medium text-violet-100">Spesialisasi</p>
+                <p class="text-xs font-medium text-violet-100">Learning Schema</p>
                 <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                 </span>
             </div>
-            <p class="text-3xl font-extrabold">{{ $totalCourseTypes }}</p>
-            <p class="mt-2 text-xs text-violet-100">jenis spesialisasi aktif</p>
+            <p class="text-3xl font-extrabold">{{ $totalSchemas }}</p>
+            <p class="mt-2 text-xs text-violet-100">schema aktif</p>
         </div>
 
         {{-- Total Section --}}
@@ -54,7 +54,7 @@
             <div class="flex items-center justify-between mb-2">
                 <p class="text-xs text-slate-500">Total Section</p>
                 <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-50">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
                 </span>
             </div>
             <p class="text-2xl font-bold text-slate-800">{{ $totalSections }}</p>
@@ -120,40 +120,40 @@
         <div id="donutChart"></div>
     </div>
 
-    {{-- BAR CHART: Penyelesaian per Spesialisasi --}}
-    @if($chartLabels->count() > 0)
+    {{-- BAR CHART: Penyelesaian per Schema --}}
+    @if(isset($chartLabels) && $chartLabels->count() > 0)
     <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="flex items-center gap-2 mb-3">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-            <h3 class="text-sm font-semibold text-slate-700">Penyelesaian per Spesialisasi</h3>
+            <h3 class="text-sm font-semibold text-slate-700">Penyelesaian per Learning Schema</h3>
         </div>
         <div id="barChart"></div>
     </div>
     @endif
 
-    {{-- SPESIALISASI STATS --}}
-    @if($courseTypeStats->isNotEmpty())
+    {{-- SCHEMA STATS --}}
+    @if(isset($schemaStats) && $schemaStats->isNotEmpty())
     <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="flex items-center gap-2 mb-3">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            <h3 class="text-sm font-semibold text-slate-700">User per Spesialisasi</h3>
+            <h3 class="text-sm font-semibold text-slate-700">Section per Learning Schema</h3>
         </div>
         <div class="space-y-3">
-            @php $maxUsers = $courseTypeStats->max('users_count') ?: 1; @endphp
-            @foreach($courseTypeStats as $ct)
+            @php $maxSections = $schemaStats->max('sections_count') ?: 1; @endphp
+            @foreach($schemaStats as $schema)
             <div>
                 <div class="flex items-center justify-between mb-1">
                     <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-                        <span class="text-xs font-medium text-slate-700">{{ $ct->name }}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        <span class="text-xs font-medium text-slate-700">{{ $schema->title }}</span>
                     </div>
-                    <span class="text-xs font-bold text-slate-800">{{ $ct->users_count }}
-                        <span class="font-normal text-slate-400">user</span>
+                    <span class="text-xs font-bold text-slate-800">{{ $schema->sections_count }}
+                        <span class="font-normal text-slate-400">section</span>
                     </span>
                 </div>
                 <div class="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
                     <div class="h-full rounded-full bg-indigo-500 transition-all duration-500"
-                         style="width: {{ $maxUsers > 0 ? round(($ct->users_count / $maxUsers) * 100) : 0 }}%">
+                         style="width: {{ $maxSections > 0 ? round(($schema->sections_count / $maxSections) * 100) : 0 }}%">
                     </div>
                 </div>
             </div>
@@ -251,7 +251,7 @@
     if (barEl) {
         new ApexCharts(barEl, {
             chart: { type: 'bar', height: 210, toolbar: { show: false }, animations: { speed: 600 } },
-            series: [{ name: 'User Lulus Spesialisasi', data: {!! json_encode($chartData->values()) !!} }],
+            series: [{ name: 'User Selesai per Schema', data: {!! json_encode($chartData->values()) !!} }],
             xaxis: {
                 categories: {!! json_encode($chartLabels->values()) !!},
                 labels: { style: { fontSize: '10px', colors: '#94a3b8' }, rotate: -30, maxHeight: 60 }
@@ -261,7 +261,7 @@
             plotOptions: { bar: { borderRadius: 6, columnWidth: '52%', dataLabels: { position: 'top' } } },
             dataLabels: { enabled: true, offsetY: -18, style: { fontSize: '10px', colors: ['#475569'] } },
             grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-            tooltip: { y: { formatter: v => v + ' user lulus' } }
+            tooltip: { y: { formatter: v => v + ' user selesai' } }
         }).render();
     }
 </script>

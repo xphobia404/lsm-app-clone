@@ -12,28 +12,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
-        html {
-            scroll-padding-top: 104px;
-        }
-
-        body {
-            padding-top: 100px;
-        }
-
+        html { scroll-padding-top: 104px; }
+        body { padding-top: 100px; }
         nav.bottom-nav {
             padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
         }
-
         .nav-item.active svg,
-        .nav-item.active span {
-            color: #1d4ed8;
-        }
-
+        .nav-item.active span { color: #1d4ed8; }
         .nav-item svg,
-        .nav-item span {
-            color: #94a3b8;
-        }
-
+        .nav-item span { color: #94a3b8; }
         [x-cloak] { display: none !important; }
     </style>
 </head>
@@ -85,22 +72,22 @@
                 <span class="text-xs font-medium">Dashboard</span>
             </a>
 
-            {{-- Spesialisasi --}}
-            <a href="{{ route('admin.course-types.index') }}"
-                class="nav-item {{ request()->routeIs('admin.course-types.*') ? 'active' : '' }} flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition active:bg-slate-100">
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                <span class="text-xs font-medium">Spesialisasi</span>
-            </a>
-
-            {{-- Section --}}
-            <a href="{{ route('admin.sections.index') }}"
-                class="nav-item {{ request()->routeIs('admin.sections.*') ? 'active' : '' }} flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition active:bg-slate-100">
+            {{-- Learning Schema --}}
+            <a href="{{ route('admin.learning-schemas.index') }}"
+                class="nav-item {{ request()->routeIs('admin.learning-schemas.*') ? 'active' : '' }} flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition active:bg-slate-100">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round"
                         d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <span class="text-xs font-medium">Materi</span>
+            </a>
+
+            {{-- Sections (via learning-schemas) --}}
+            <a href="{{ route('admin.learning-schemas.index') }}"
+                class="nav-item {{ request()->routeIs('admin.learning-schemas.sections.*') || request()->routeIs('admin.sections.*') ? 'active' : '' }} flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition active:bg-slate-100">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
                 <span class="text-xs font-medium">Section</span>
             </a>
