@@ -17,7 +17,7 @@ class LearningSchema extends Model
         'is_active' => 'boolean',
     ];
 
-    // ── Relationships ────────────────────────────────────────────────
+    // ── Relationships ───────────────────────────────────────────────
 
     public function sections(): BelongsToMany
     {
@@ -27,10 +27,22 @@ class LearningSchema extends Model
             ->orderByPivot('section_order');
     }
 
-    // ── Scopes ───────────────────────────────────────────────────────
+    // ── Scopes ──────────────────────────────────────────────────
 
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────
+
+    public function isActive(): bool
+    {
+        return (bool) $this->is_active;
+    }
+
+    public function getActiveSectionsCount(): int
+    {
+        return $this->sections()->where('is_active', true)->count();
     }
 }
