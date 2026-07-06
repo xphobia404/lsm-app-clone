@@ -43,7 +43,7 @@
     {{-- Info jumlah --}}
     @if($users->total() > 0)
     <p class="text-xs text-slate-400">
-        Menampilkan {{ $users->firstItem() }}–{{ $users->lastItem() }} dari {{ $users->total() }} user
+        Menampilkan {{ $users->firstItem() }}&ndash;{{ $users->lastItem() }} dari {{ $users->total() }} user
     </p>
     @endif
 
@@ -58,8 +58,10 @@
     @else
     <div class="space-y-2.5">
         @foreach($users as $user)
-        <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div class="flex items-center gap-3">
+        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+            {{-- Row 1: avatar + info --}}
+            <div class="flex items-center gap-3 px-4 pt-3.5 pb-3">
                 {{-- Avatar inisial --}}
                 <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">
                     {{ strtoupper(substr($user->name ?: $user->username, 0, 1)) }}
@@ -68,13 +70,11 @@
                 {{-- Info --}}
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-1.5 flex-wrap">
-                        <p class="text-sm font-semibold text-slate-800 truncate">{{ $user->name ?: $user->username }}</p>
-                        {{-- Role badge --}}
+                        <p class="text-sm font-semibold text-slate-800 break-words">{{ $user->name ?: $user->username }}</p>
                         <span class="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium
                             {{ $user->role === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-500' }}">
                             {{ ucfirst($user->role) }}
                         </span>
-                        {{-- Status badge --}}
                         @if($user->is_active)
                             <span class="shrink-0 rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-600">Aktif</span>
                         @else
@@ -86,44 +86,53 @@
                     <p class="text-xs text-slate-400 truncate">{{ $user->email }}</p>
                     @endif
                 </div>
+            </div>
 
-                {{-- Actions --}}
-                <div class="flex flex-col gap-1.5 flex-shrink-0">
-                    <a href="{{ route('admin.users.show', $user) }}"
-                       class="inline-flex items-center justify-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 active:bg-indigo-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        Detail
-                    </a>
-                    {{-- Toggle Aktif / Nonaktif --}}
-                    <form method="POST" action="{{ route('admin.users.toggle-active', $user) }}">
-                        @csrf
-                        <button type="submit"
-                            class="inline-flex w-full items-center justify-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition
-                            {{ $user->is_active
-                                ? 'border border-amber-200 bg-amber-50 text-amber-700 active:bg-amber-100'
-                                : 'border border-green-200 bg-green-50 text-green-700 active:bg-green-100' }}">
-                            @if($user->is_active)
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-                            Nonaktifkan
-                            @else
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            Aktifkan
-                            @endif
-                        </button>
-                    </form>
-                    <a href="{{ route('admin.users.edit', $user) }}"
-                       class="inline-flex items-center justify-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 active:bg-slate-100 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-                        Edit
-                    </a>
-                    <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Hapus user {{ addslashes($user->name ?: $user->username) }}?')">
-                        @csrf @method('DELETE')
-                        <button type="submit" class="inline-flex w-full items-center justify-center gap-1 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 active:bg-red-100 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                            Hapus
-                        </button>
-                    </form>
-                </div>
+            {{-- Divider --}}
+            <div class="border-t border-slate-100 mx-4"></div>
+
+            {{-- Row 2: actions (horizontal scrollable) --}}
+            <div class="flex items-center gap-2 overflow-x-auto px-4 py-2.5"
+                 style="scrollbar-width:none;-webkit-overflow-scrolling:touch">
+
+                <a href="{{ route('admin.users.show', $user) }}"
+                   class="inline-flex shrink-0 items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 active:bg-indigo-100 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    Detail
+                </a>
+
+                <a href="{{ route('admin.users.edit', $user) }}"
+                   class="inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 active:bg-slate-100 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                    Edit
+                </a>
+
+                <form method="POST" action="{{ route('admin.users.toggle-active', $user) }}" class="shrink-0">
+                    @csrf
+                    <button type="submit"
+                        class="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition
+                        {{ $user->is_active
+                            ? 'border border-amber-200 bg-amber-50 text-amber-700 active:bg-amber-100'
+                            : 'border border-green-200 bg-green-50 text-green-700 active:bg-green-100' }}">
+                        @if($user->is_active)
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                        Nonaktifkan
+                        @else
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Aktifkan
+                        @endif
+                    </button>
+                </form>
+
+                <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="shrink-0"
+                      onsubmit="return confirm('Hapus user {{ addslashes($user->name ?: $user->username) }}?')">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 active:bg-red-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        Hapus
+                    </button>
+                </form>
+
             </div>
         </div>
         @endforeach
