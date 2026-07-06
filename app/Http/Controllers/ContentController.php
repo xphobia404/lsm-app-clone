@@ -6,6 +6,7 @@ use App\Models\Content;
 use App\Models\Media;
 use App\Models\Section;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 class ContentController extends Controller
@@ -36,52 +37,22 @@ class ContentController extends Controller
 
     public function store(Request $request, Section $section)
     {
-        // ============================================================
-        // DEBUG TEMPORARY — hapus setelah masalah ditemukan
-        // ============================================================
-        $debug = [
-            'POST media input'   => $request->input('media'),
-            'allFiles'           => array_map(function($row) {
-                $out = [];
-                foreach ($row as $field => $f) {
-                    if ($f instanceof \Illuminate\Http\UploadedFile) {
-                        $out[$field] = [
-                            'name'      => $f->getClientOriginalName(),
-                            'size'      => $f->getSize(),
-                            'mime'      => $f->getMimeType(),
-                            'isValid'   => $f->isValid(),
-                            'error'     => $f->getError(),
-                        ];
-                    } else {
-                        $out[$field] = $f;
-                    }
-                }
-                return $out;
-            }, $request->allFiles()['media'] ?? []),
-            '$_FILES raw'        => $_FILES,
-            'php upload_max'     => ini_get('upload_max_filesize'),
-            'php post_max'       => ini_get('post_max_size'),
-            'content_length'     => $_SERVER['CONTENT_LENGTH'] ?? 'N/A',
-        ];
-
-        dd($debug);
-        // ============================================================
-        // END DEBUG
-        // ============================================================
-
+        // TIDAK pakai rule 'file' karena trigger FileinfoMimeTypeGuesser error
+        // Upload dihandle manual di syncMedia()
         $request->validate([
             'title'               => 'required|string|max:255',
             'body'                => 'nullable|string',
             'content_order'       => 'nullable|integer|min:0',
             'is_active'           => 'sometimes|boolean',
             'media'               => 'nullable|array',
-            'media.*.media_type'  => 'required|in:image,video,audio,youtube,google_drive',
+            'media.*.media_type'  => 'required_with:media|in:image,video,audio,youtube,google_drive',
             'media.*.title'       => 'nullable|string|max:255',
             'media.*.description' => 'nullable|string',
             'media.*.url'         => 'nullable|string|max:2000',
             'media.*.media_order' => 'nullable|integer|min:0',
             'media.*.is_active'   => 'sometimes|boolean',
-            'media.*.file'        => 'nullable|file|max:204800',
+            // 'media.*.file' — sengaja TIDAK divalidasi via Laravel rule
+            // karena FileinfoMimeTypeGuesser crash saat fileinfo ext tidak aktif
         ]);
 
         $order = $request->input('content_order')
@@ -126,13 +97,13 @@ class ContentController extends Controller
             'is_active'           => 'sometimes|boolean',
             'media'               => 'nullable|array',
             'media.*.id'          => 'nullable|integer|exists:media,id',
-            'media.*.media_type'  => 'required|in:image,video,audio,youtube,google_drive',
+            'media.*.media_type'  => 'required_with:media|in:image,video,audio,youtube,google_drive',
             'media.*.title'       => 'nullable|string|max:255',
             'media.*.description' => 'nullable|string',
             'media.*.url'         => 'nullable|string|max:2000',
             'media.*.media_order' => 'nullable|integer|min:0',
             'media.*.is_active'   => 'sometimes|boolean',
-            'media.*.file'        => 'nullable|file|max:204800',
+            // 'media.*.file' — sengaja TIDAK divalidasi
             'deleted_media'       => 'nullable|string',
         ]);
 
@@ -200,21 +171,28 @@ class ContentController extends Controller
 
             $payload = [
                 'media_type'  => $type,
-                'title'       => $data['title']        ?? null,
-                'description' => $data['description']  ?? null,
+                'title'       => $data['title']       ?? null,
+                'description' => $data['description'] ?? null,
                 'url'         => $isUrl ? ($data['url'] ?? null) : null,
                 'media_order' => isset($data['media_order']) ? (int) $data['media_order'] : (int) $idx,
                 'is_active'   => isset($data['is_active']) ? (bool) $data['is_active'] : true,
             ];
 
+            // Upload file — handle manual tanpa rule Laravel
             if (! $isUrl) {
+                /** @var UploadedFile|null $uploadedFile */
                 $uploadedFile = $allFiles['media'][$idx]['file'] ?? null;
-                if ($uploadedFile !== null && $uploadedFile->isValid()) {
-                    $path = $uploadedFile->store('media', 'public');
+
+                if ($uploadedFile instanceof UploadedFile && $uploadedFile->getError() === UPLOAD_ERR_OK) {
+                    // Simpan dengan ekstensi asli dari nama file
+                    $ext  = $uploadedFile->getClientOriginalExtension();
+                    $name = uniqid('media_', true) . ($ext ? '.' . $ext : '');
+                    $path = $uploadedFile->storeAs('media', $name, 'public');
                     $payload['file_path'] = $path;
                 }
             }
 
+            // Update media yang sudah ada
             if (! empty($data['id'])) {
                 $existing = Media::find((int) $data['id']);
                 if ($existing) {
