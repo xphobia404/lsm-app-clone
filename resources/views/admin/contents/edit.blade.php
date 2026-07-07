@@ -1,4 +1,5 @@
 <x-admin-layout title="Edit Konten">
+<link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
 <div class="px-4 pt-5 pb-10 space-y-5">
 
     {{-- Breadcrumb --}}
@@ -12,7 +13,7 @@
 
     <h2 class="text-base font-bold text-slate-800">Edit Konten</h2>
 
-    <form method="POST" action="{{ route('admin.sections.contents.update', [$section, $content]) }}" enctype="multipart/form-data" class="space-y-5">
+    <form method="POST" action="{{ route('admin.sections.contents.update', [$section, $content]) }}" enctype="multipart/form-data" class="space-y-5" id="editContentForm">
         @csrf @method('PUT')
         <input type="hidden" id="deletedMediaField" name="deleted_media" value="">
 
@@ -29,9 +30,8 @@
 
             <div>
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Isi Konten</label>
-                <textarea name="body" rows="8"
-                          class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                          placeholder="Tulis isi konten di sini...">{{ old('body', $content->body) }}</textarea>
+                <div id="bodyEditor" style="min-height: 250px; background: white; border-radius: 0 0 0.75rem 0.75rem;"></div>
+                <textarea name="body" id="bodyInput" class="hidden">{!! old('body', $content->body) !!}</textarea>
                 @error('body')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
             </div>
 
@@ -151,8 +151,37 @@
     </form>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 <script>
 (function () {
+    // ── Quill Editor ──────────────────────────────────────────────
+    const quill = new Quill('#bodyEditor', {
+        theme: 'snow',
+        placeholder: 'Tulis isi konten di sini...',
+        modules: {
+            toolbar: [
+                [{ header: [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ color: [] }, { background: [] }],
+                [{ list: 'ordered' }, { list: 'bullet' }],
+                [{ align: [] }],
+                ['link', 'image', 'blockquote', 'code-block'],
+                ['clean']
+            ]
+        }
+    });
+
+    // Load existing content ke editor
+    const existing = document.getElementById('bodyInput').value.trim();
+    if (existing) quill.clipboard.dangerouslyPasteHTML(existing);
+
+    // Sync ke hidden textarea sebelum submit
+    const form = document.getElementById('editContentForm');
+    form.addEventListener('submit', function () {
+        document.getElementById('bodyInput').value = quill.getSemanticHTML();
+    });
+
+    // ── Media Builder ─────────────────────────────────────────────
     let idx          = {{ $content->media->count() }};
     const list       = document.getElementById('mediaList');
     const empty      = document.getElementById('mediaEmpty');

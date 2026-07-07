@@ -1,4 +1,5 @@
 <x-admin-layout title="Tambah Konten">
+<link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
 <div class="px-4 pt-5 pb-10 space-y-5">
 
     {{-- Breadcrumb --}}
@@ -30,9 +31,8 @@
 
             <div>
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Isi Konten</label>
-                <textarea name="body" rows="8"
-                          class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                          placeholder="Tulis isi konten di sini...">{{ old('body') }}</textarea>
+                <div id="bodyEditor" style="min-height: 250px; background: white; border-radius: 0 0 0.75rem 0.75rem;"></div>
+                <textarea name="body" id="bodyInput" class="hidden">{{ old('body') }}</textarea>
                 @error('body')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
             </div>
 
@@ -82,12 +82,40 @@
     </form>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 <script>
 (function () {
+    // ── Quill Editor ──────────────────────────────────────────────
+    const quill = new Quill('#bodyEditor', {
+        theme: 'snow',
+        placeholder: 'Tulis isi konten di sini...',
+        modules: {
+            toolbar: [
+                [{ header: [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ color: [] }, { background: [] }],
+                [{ list: 'ordered' }, { list: 'bullet' }],
+                [{ align: [] }],
+                ['link', 'image', 'blockquote', 'code-block'],
+                ['clean']
+            ]
+        }
+    });
+
+    // Load old() value jika ada (validasi gagal)
+    const existing = document.getElementById('bodyInput').value.trim();
+    if (existing) quill.clipboard.dangerouslyPasteHTML(existing);
+
+    // Sync ke hidden textarea sebelum submit
+    const form = document.getElementById('contentForm');
+    form.addEventListener('submit', function () {
+        document.getElementById('bodyInput').value = quill.getSemanticHTML();
+    });
+
+    // ── Media Builder ─────────────────────────────────────────────
     const list   = document.getElementById('mediaList');
     const empty  = document.getElementById('mediaEmpty');
     const btn    = document.getElementById('btnAddMedia');
-    const form   = document.getElementById('contentForm');
 
     const URL_TYPES   = ['youtube', 'google_drive'];
     const PLACEHOLDER = {
@@ -99,8 +127,6 @@
         google_drive: 'Link Google Drive',
     };
 
-    /* Bangun satu baris media — index sementara pakai 9999,
-       akan di-renumber sebelum submit */
     function buildRow() {
         const wrap = document.createElement('div');
         wrap.className = 'media-row rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3';
@@ -176,7 +202,6 @@
         return wrap;
     }
 
-    /* Renumber label tampilan saja */
     function renumber() {
         list.querySelectorAll('.row-num').forEach((el, i) => el.textContent = i + 1);
     }
@@ -185,7 +210,6 @@
         empty.classList.toggle('hidden', list.children.length > 0);
     }
 
-    /* Sebelum submit: assign name attribute dengan index berurutan 0,1,2,... */
     form.addEventListener('submit', function () {
         const rows = list.querySelectorAll('.media-row');
         rows.forEach((row, i) => {
@@ -193,7 +217,6 @@
                 const field = el.getAttribute('data-field');
                 el.name = `media[${i}][${field}]`;
             });
-            /* Pastikan urutan juga terisi otomatis */
             const orderInput = row.querySelector('[data-field="media_order"]');
             if (orderInput && orderInput.value === '') orderInput.value = i;
         });
