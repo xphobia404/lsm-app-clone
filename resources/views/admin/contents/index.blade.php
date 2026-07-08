@@ -99,7 +99,8 @@
                         @if($content->url)
                             <p class="text-xs text-slate-400 truncate">{{ $content->url }}</p>
                         @elseif($content->body)
-                            <p class="text-xs text-slate-400 line-clamp-1">{{ strip_tags($content->body) }}</p>
+                            {{-- ✅ FIX: decode entities lalu strip tags untuk preview bersih --}}
+                            <p class="text-xs text-slate-400 line-clamp-1">{{ strip_tags(html_entity_decode($content->body, ENT_QUOTES | ENT_HTML5, 'UTF-8')) }}</p>
                         @endif
                         <p class="mt-1 text-[10px] text-slate-300">Diperbarui {{ $content->updated_at->diffForHumans() }}</p>
                     </div>
