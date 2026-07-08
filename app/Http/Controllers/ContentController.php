@@ -58,7 +58,7 @@ class ContentController extends Controller
 
         $content = $section->contents()->create([
             'title'         => $request->input('title'),
-            'body'          => $request->input('body'),
+            'body'          => $this->cleanBody($request->input('body')),
             'content_order' => $order,
             'is_active'     => $request->boolean('is_active'),
         ]);
@@ -106,7 +106,7 @@ class ContentController extends Controller
 
         $content->update([
             'title'         => $request->input('title'),
-            'body'          => $request->input('body'),
+            'body'          => $this->cleanBody($request->input('body')),
             'content_order' => $request->input('content_order', $content->content_order),
             'is_active'     => $request->boolean('is_active'),
         ]);
@@ -152,6 +152,16 @@ class ContentController extends Controller
     private function authorizeContent(Section $section, Content $content): void
     {
         abort_if($content->section_id !== $section->id, 404);
+    }
+
+    /**
+     * Decode HTML entities dari output Quill (e.g. &nbsp; -> real space)
+     * agar tidak tersimpan sebagai literal string di database.
+     */
+    private function cleanBody(?string $body): ?string
+    {
+        if (is_null($body)) return null;
+        return html_entity_decode($body, ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
     private function syncMedia(Request $request, Content $content): void
