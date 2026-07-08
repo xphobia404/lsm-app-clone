@@ -1,4 +1,5 @@
 <x-admin-layout title="Edit Konten">
+<link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
 <div class="px-4 pt-5 pb-10 space-y-5">
 
     {{-- Breadcrumb --}}
@@ -29,12 +30,8 @@
 
             <div>
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Isi Konten</label>
-                <x-quill-editor
-                    name="body"
-                    :value="old('body', $content->body ?? '')"
-                    form-id="editContentForm"
-                    placeholder="Tulis isi konten di sini..."
-                />
+                <div id="bodyEditor" style="min-height: 250px; background: white; border-radius: 0 0 0.75rem 0.75rem;"></div>
+                <textarea name="body" id="bodyInput" class="hidden">{!! old('body', $content->body) !!}</textarea>
                 @error('body')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
             </div>
 
@@ -137,7 +134,7 @@
                 @endforeach
             </div>
 
-            <p id="mediaEmpty" class="{{ $content->media->count() > 0 ? 'hidden' : '' }} text-xs text-slate-400 italic">Belum ada media. Klik &quot;Tambah Media&quot; untuk menambahkan.</p>
+            <p id="mediaEmpty" class="{{ $content->media->count() > 0 ? 'hidden' : '' }} text-xs text-slate-400 italic">Belum ada media. Klik "Tambah Media" untuk menambahkan.</p>
         </div>
 
         {{-- Actions --}}
@@ -154,14 +151,43 @@
     </form>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 <script>
 (function () {
-    let idx        = {{ $content->media->count() }};
-    const list     = document.getElementById('mediaList');
-    const empty    = document.getElementById('mediaEmpty');
-    const btn      = document.getElementById('btnAddMedia');
-    const delField = document.getElementById('deletedMediaField');
-    let deletedIds = [];
+    // ── Quill Editor ──────────────────────────────────────────────
+    const quill = new Quill('#bodyEditor', {
+        theme: 'snow',
+        placeholder: 'Tulis isi konten di sini...',
+        modules: {
+            toolbar: [
+                [{ header: [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ color: [] }, { background: [] }],
+                [{ list: 'ordered' }, { list: 'bullet' }],
+                [{ align: [] }],
+                ['link', 'image', 'blockquote', 'code-block'],
+                ['clean']
+            ]
+        }
+    });
+
+    // Load existing content ke editor
+    const existing = document.getElementById('bodyInput').value.trim();
+    if (existing) quill.clipboard.dangerouslyPasteHTML(existing);
+
+    // Sync ke hidden textarea sebelum submit
+    const form = document.getElementById('editContentForm');
+    form.addEventListener('submit', function () {
+        document.getElementById('bodyInput').value = quill.getSemanticHTML();
+    });
+
+    // ── Media Builder ─────────────────────────────────────────────
+    let idx          = {{ $content->media->count() }};
+    const list       = document.getElementById('mediaList');
+    const empty      = document.getElementById('mediaEmpty');
+    const btn        = document.getElementById('btnAddMedia');
+    const delField   = document.getElementById('deletedMediaField');
+    let   deletedIds = [];
 
     const URL_TYPES   = ['youtube', 'google_drive'];
     const PLACEHOLDER = {
