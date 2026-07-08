@@ -1,5 +1,4 @@
 <x-admin-layout title="Tambah Konten">
-<link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
 <div class="px-4 pt-5 pb-10 space-y-5">
 
     {{-- Breadcrumb --}}
@@ -31,8 +30,12 @@
 
             <div>
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Isi Konten</label>
-                <div id="bodyEditor" style="min-height: 250px; background: white; border-radius: 0 0 0.75rem 0.75rem;"></div>
-                <textarea name="body" id="bodyInput" class="hidden">{{ old('body') }}</textarea>
+                <x-quill-editor
+                    name="body"
+                    :value="old('body', '')"
+                    form-id="contentForm"
+                    placeholder="Tulis isi konten di sini..."
+                />
                 @error('body')<p class="mt-1 text-xs text-red-500">{{ $message }}</p>@enderror
             </div>
 
@@ -65,7 +68,7 @@
                 </button>
             </div>
             <div id="mediaList" class="space-y-3"></div>
-            <p id="mediaEmpty" class="text-xs text-slate-400 italic">Belum ada media. Klik "Tambah Media" untuk menambahkan.</p>
+            <p id="mediaEmpty" class="text-xs text-slate-400 italic">Belum ada media. Klik &quot;Tambah Media&quot; untuk menambahkan.</p>
         </div>
 
         {{-- Actions --}}
@@ -82,40 +85,12 @@
     </form>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 <script>
 (function () {
-    // ── Quill Editor ──────────────────────────────────────────────
-    const quill = new Quill('#bodyEditor', {
-        theme: 'snow',
-        placeholder: 'Tulis isi konten di sini...',
-        modules: {
-            toolbar: [
-                [{ header: [1, 2, 3, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ color: [] }, { background: [] }],
-                [{ list: 'ordered' }, { list: 'bullet' }],
-                [{ align: [] }],
-                ['link', 'image', 'blockquote', 'code-block'],
-                ['clean']
-            ]
-        }
-    });
-
-    // Load old() value jika ada (validasi gagal)
-    const existing = document.getElementById('bodyInput').value.trim();
-    if (existing) quill.clipboard.dangerouslyPasteHTML(existing);
-
-    // Sync ke hidden textarea sebelum submit
-    const form = document.getElementById('contentForm');
-    form.addEventListener('submit', function () {
-        document.getElementById('bodyInput').value = quill.getSemanticHTML();
-    });
-
-    // ── Media Builder ─────────────────────────────────────────────
     const list   = document.getElementById('mediaList');
     const empty  = document.getElementById('mediaEmpty');
     const btn    = document.getElementById('btnAddMedia');
+    const form   = document.getElementById('contentForm');
 
     const URL_TYPES   = ['youtube', 'google_drive'];
     const PLACEHOLDER = {
@@ -194,9 +169,7 @@
         });
 
         wrap.querySelector('.btn-rm').addEventListener('click', () => {
-            wrap.remove();
-            renumber();
-            updateEmpty();
+            wrap.remove(); renumber(); updateEmpty();
         });
 
         return wrap;
@@ -211,11 +184,9 @@
     }
 
     form.addEventListener('submit', function () {
-        const rows = list.querySelectorAll('.media-row');
-        rows.forEach((row, i) => {
+        list.querySelectorAll('.media-row').forEach((row, i) => {
             row.querySelectorAll('[data-field]').forEach(el => {
-                const field = el.getAttribute('data-field');
-                el.name = `media[${i}][${field}]`;
+                el.name = `media[${i}][${el.getAttribute('data-field')}]`;
             });
             const orderInput = row.querySelector('[data-field="media_order"]');
             if (orderInput && orderInput.value === '') orderInput.value = i;
@@ -223,10 +194,7 @@
     });
 
     btn.addEventListener('click', () => {
-        const row = buildRow();
-        list.appendChild(row);
-        renumber();
-        updateEmpty();
+        list.appendChild(buildRow()); renumber(); updateEmpty();
     });
 
     updateEmpty();
