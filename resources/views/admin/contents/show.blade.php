@@ -1,4 +1,12 @@
 <x-admin-layout title="Detail Konten">
+<link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
+
+{{-- Override Quill border agar tidak muncul di halaman detail --}}
+<style>
+    .ql-container.ql-snow { border: none !important; }
+    .ql-editor { padding: 0 !important; font-size: 0.875rem; color: #334155; }
+</style>
+
 <div class="px-4 pt-5 pb-10 space-y-5">
 
     {{-- Breadcrumb --}}
@@ -45,7 +53,12 @@
     @if($content->body)
         <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
             <h3 class="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wide">Isi Konten</h3>
-            <div class="prose prose-sm max-w-none text-slate-700">{!! nl2br(e($content->body)) !!}</div>
+            {{-- ✅ FIX: render HTML dari Quill, bukan escaped plain text --}}
+            <div class="ql-snow">
+                <div class="ql-editor">
+                    {!! $content->body !!}
+                </div>
+            </div>
         </div>
     @endif
 
