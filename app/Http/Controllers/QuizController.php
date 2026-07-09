@@ -27,12 +27,12 @@ class QuizController extends Controller
             ->when($request->filled('search'), function ($q) use ($request) {
                 $search = '%' . $request->search . '%';
                 $q->where(function ($q2) use ($search) {
-                    $q2->where('question', 'ilike', $search)
-                    ->orWhere('explanation', 'ilike', $search)
-                    ->orWhere('option_a', 'ilike', $search)
-                    ->orWhere('option_b', 'ilike', $search)
-                    ->orWhere('option_c', 'ilike', $search)
-                    ->orWhere('option_d', 'ilike', $search);
+                    $q2->where('question', 'like', $search)
+                    ->orWhere('explanation', 'like', $search)
+                    ->orWhere('option_a', 'like', $search)
+                    ->orWhere('option_b', 'like', $search)
+                    ->orWhere('option_c', 'like', $search)
+                    ->orWhere('option_d', 'like', $search);
                 });
             })
             ->when($request->filled('status'), function ($q) use ($request) {

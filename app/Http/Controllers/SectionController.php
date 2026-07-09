@@ -42,8 +42,8 @@ class SectionController extends Controller
         if ($request->filled('search')) {
             $search = '%' . $request->search . '%';
             $query->where(function ($q) use ($search) {
-                $q->where('title', 'ilike', $search)
-                  ->orWhere('description', 'ilike', $search);
+                $q->where('title', 'like', $search)
+                  ->orWhere('description', 'like', $search);
             });
         }
 
@@ -64,8 +64,8 @@ class SectionController extends Controller
         if ($request->filled('search')) {
             $search = '%' . $request->search . '%';
             $query->where(function ($q) use ($search) {
-                $q->where('sections.title', 'ilike', $search)
-                  ->orWhere('sections.description', 'ilike', $search);
+                $q->where('sections.title', 'like', $search)
+                  ->orWhere('sections.description', 'like', $search);
             });
         }
 

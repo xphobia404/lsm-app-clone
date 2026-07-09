@@ -17,8 +17,8 @@ class LearningSchemaController extends Controller
         if ($request->filled('search')) {
             $search = '%' . $request->search . '%';
             $query->where(function ($q) use ($search) {
-                $q->where('title', 'ilike', $search)
-                  ->orWhere('description', 'ilike', $search);
+                $q->where('title', 'like', $search)
+                  ->orWhere('description', 'like', $search);
             });
         }
 
@@ -141,7 +141,7 @@ class LearningSchemaController extends Controller
         $schemas = $user->learningSchemas()
             ->with(['sections' => fn ($q) => $q->where('is_active', true)])
             ->when($request->filled('search'), fn ($q) =>
-                $q->where('title', 'ilike', '%' . $request->search . '%')
+                $q->where('title', 'like', '%' . $request->search . '%')
             )
             ->paginate(12)
             ->withQueryString();

@@ -17,8 +17,8 @@ class ContentController extends Controller
             ->when($request->filled('search'), function ($q) use ($request) {
                 $search = '%' . $request->search . '%';
                 $q->where(function ($q2) use ($search) {
-                    $q2->where('title', 'ilike', $search)
-                       ->orWhere('body', 'ilike', $search);
+                    $q2->where('title', 'like', $search)
+                       ->orWhere('body', 'like', $search);
                 });
             })
             ->when($request->filled('status'), fn ($q) =>
