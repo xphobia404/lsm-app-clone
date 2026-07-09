@@ -11,99 +11,38 @@
 @endphp
 
 <style>
-/* ── Media split: 1/4 gambar | 3/4 teks ── */
-.media-split {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-}
-.media-split__img {
-    flex: 0 0 25%;
-    max-width: 25%;
+/* ── Content body ── */
+/* Normalnya wrap di spasi, tapi kata/url panjang tetap dipotong agar tidak overflow */
+.content-body {
     min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
 }
-.media-split__img-wrap {
-    width: 100%;
-    aspect-ratio: 1 / 1;
-    border-radius: 12px;
-    overflow: hidden;
-    background: #f1f5f9;
-}
-.media-split__img-wrap img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
-.media-split__text {
-    flex: 1 1 0;
-    min-width: 0;
-}
-
-/* ── Gambar penuh ── */
-.media-img-only {
-    width: 100%;
-    border-radius: 14px;
-    overflow: hidden;
-    background: #f1f5f9;
-}
-.media-img-only img {
-    width: 100%;
-    height: auto;
-    display: block;
-    border-radius: 14px;
-}
-
-/* ── Responsive embed (YouTube / Google Drive / iframe) ── */
-.embed-wrap {
-    position: relative;
-    width: 100%;
-    /* 16:9 aspect ratio */
-    padding-top: 56.25%;
-    border-radius: 14px;
-    overflow: hidden;
-    background: #0f172a;
-    /* Tidak boleh melebihi lebar viewport */
+.content-body > * {
     max-width: 100%;
 }
-.embed-wrap iframe {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
+.content-body p,
+.content-body div,
+.content-body li,
+.content-body blockquote,
+.content-body h1,
+.content-body h2,
+.content-body h3,
+.content-body h4,
+.content-body h5,
+.content-body h6 {
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
 }
-
-/* ── Video upload (tag <video>) ── */
-.video-upload-wrap {
-    width: 100%;
-    border-radius: 14px;
-    overflow: hidden;
-    background: #0f172a;
-    /* Batasi tinggi agar tidak memenuhi layar di mobile */
-    max-height: 55vw;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.content-body a,
+.content-body span,
+.content-body strong,
+.content-body em,
+.content-body code {
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
-.video-upload-wrap video {
-    width: 100%;
-    height: 100%;
-    max-height: 55vw;
-    border-radius: 14px;
-    display: block;
-    object-fit: contain;
-}
-
-/* ── Slide panel: pastikan tidak overflow horizontal ── */
-.slide-panel {
-    box-sizing: border-box;
-    overflow-x: hidden;
-    min-width: 0;
-}
-
-/* ── Content body ── */
 .content-body img {
     max-width: 100%;
     height: auto;
@@ -111,6 +50,34 @@
 }
 .content-body iframe {
     max-width: 100%;
+}
+.content-body video,
+.content-body audio,
+.content-body embed,
+.content-body object {
+    max-width: 100%;
+}
+.content-body table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.content-body pre {
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+.content-body code {
+    white-space: pre-wrap;
+}
+@media (max-width: 640px) {
+    .content-body {
+        font-size: 14px;
+        line-height: 1.7;
+    }
 }
 </style>
 
@@ -158,10 +125,6 @@
             $hasImage = $images->isNotEmpty();
             $hasBody  = !empty(trim(strip_tags($content->body ?? '')));
 
-            /**
-             * Konversi URL YouTube biasa → embed URL.
-             * Mendukung: watch?v=, youtu.be/, /shorts/
-             */
             $embedVideo = function(string $url): string {
                 if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([\w-]+)/', $url, $m)) {
                     return 'https://www.youtube.com/embed/' . $m[1] . '?rel=0&playsinline=1';
@@ -169,29 +132,17 @@
                 return $url;
             };
 
-            /**
-             * Konversi Google Drive share URL → embed/preview URL.
-             * Format: https://drive.google.com/file/d/{ID}/view  →  .../preview
-             * Format: https://drive.google.com/open?id={ID}      →  .../preview
-             */
             $embedDrive = function(string $url): string {
-                // Sudah preview
                 if (str_contains($url, '/preview')) return $url;
-                // Format /file/d/{id}/view atau /file/d/{id}/edit
                 if (preg_match('#drive\.google\.com/file/d/([\w-]+)#', $url, $m)) {
                     return 'https://drive.google.com/file/d/' . $m[1] . '/preview';
                 }
-                // Format ?id={id}
                 if (preg_match('#[?&]id=([\w-]+)#', $url, $m)) {
                     return 'https://drive.google.com/file/d/' . $m[1] . '/preview';
                 }
                 return $url;
             };
 
-            /**
-             * Deteksi apakah URL adalah file video yang di-upload
-             * (bukan YouTube / Google Drive).
-             */
             $isUploadedVideo = function(string $url): bool {
                 $ext = strtolower(pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION));
                 return in_array($ext, ['mp4', 'webm', 'ogg', 'mov', 'm4v']);
@@ -209,10 +160,7 @@
                 </div>
             </div>
 
-            {{-- ═══════════════════════════════════════════
-                 VIDEO (dari content->url atau media video)
-                 Deteksi: YouTube embed vs uploaded file
-                 ═══════════════════════════════════════════ --}}
+            {{-- VIDEO --}}
             @php
                 $vRaw = '';
                 if ($content->isVideo() && $content->url) {
@@ -227,7 +175,6 @@
             @if($vRaw)
                 @php $vEmbed = $embedVideo($vRaw); @endphp
                 @if($vEmbed !== $vRaw)
-                    {{-- YouTube embed --}}
                     <div class="mb-4 embed-wrap">
                         <iframe src="{{ $vEmbed }}"
                                 frameborder="0"
@@ -235,7 +182,6 @@
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>
                     </div>
                 @elseif($isUploadedVideo($vRaw))
-                    {{-- Video upload lokal — gunakan <video> bukan iframe --}}
                     <div class="mb-4 video-upload-wrap">
                         <video controls playsinline preload="metadata">
                             <source src="{{ $vRaw }}">
@@ -243,7 +189,6 @@
                         </video>
                     </div>
                 @else
-                    {{-- Fallback iframe (misal embed lain) --}}
                     <div class="mb-4 embed-wrap">
                         <iframe src="{{ $vRaw }}"
                                 frameborder="0"
@@ -253,16 +198,12 @@
                 @endif
             @endif
 
-            {{-- ═══════════════════════════════════════════
-                 MEDIA VIDEO (dari relasi media)
-                 Uploaded video files via media relation
-                 ═══════════════════════════════════════════ --}}
+            {{-- MEDIA VIDEO --}}
             @foreach($videos as $vid)
             @php $vidSrc = $vid->getDisplayUrl() ?? ''; @endphp
             @if($vidSrc && $vidSrc !== $vRaw)
                 @php $vEmbedMedia = $embedVideo($vidSrc); @endphp
                 @if($vEmbedMedia !== $vidSrc)
-                    {{-- YouTube via media relation --}}
                     <div class="mb-4 embed-wrap">
                         <iframe src="{{ $vEmbedMedia }}"
                                 frameborder="0"
@@ -270,7 +211,6 @@
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>
                     </div>
                 @elseif($isUploadedVideo($vidSrc))
-                    {{-- Uploaded video via media relation --}}
                     <div class="mb-4 video-upload-wrap">
                         @if($vid->title)
                         <p class="mb-1.5 text-xs font-semibold text-slate-600">🎬 {{ $vid->title }}</p>
@@ -287,15 +227,12 @@
             @endif
             @endforeach
 
-            {{-- ═══════════════════════════════════════════
-                 YOUTUBE MEDIA (dari relasi media isYouTube)
-                 ═══════════════════════════════════════════ --}}
+            {{-- YOUTUBE MEDIA --}}
             @foreach($youtubes as $yt)
             @php
                 $ytEmbed = method_exists($yt, 'getYouTubeEmbedUrl')
                     ? $yt->getYouTubeEmbedUrl()
                     : $embedVideo($yt->url ?? '');
-                // Tambahkan parameter mobile-friendly
                 if ($ytEmbed && !str_contains($ytEmbed, 'playsinline')) {
                     $ytEmbed .= (str_contains($ytEmbed, '?') ? '&' : '?') . 'rel=0&playsinline=1';
                 }
@@ -324,10 +261,7 @@
             @endif
             @endforeach
 
-            {{-- ═══════════════════════════════════════════
-                 GOOGLE DRIVE MEDIA
-                 Konversi ke /preview agar bisa di-embed
-                 ═══════════════════════════════════════════ --}}
+            {{-- GOOGLE DRIVE MEDIA --}}
             @foreach($drives as $drive)
             @php
                 $driveRaw   = method_exists($drive, 'getGoogleDriveEmbedUrl')
@@ -338,14 +272,13 @@
             @if($driveEmbed)
             <div class="mb-4">
                 @if($drive->title)
-                <p class="mb-1.5 text-xs font-semibold text-slate-600 flex items-center gap-1">
+                <p class="mb-1.5 text-xs font-semibold text-slate-600 flex itemscenter gap-1">
                     <svg class="h-3.5 w-3.5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M4.433 22.396l4-6.929H24l-4 6.929H4.433zm3.566-6.929L2.566 6.536l4-6.929 5.434 9.403-4.001 6.857zM13.567 8.01L18.992.107 24 9.01H13.567z"/>
                     </svg>
                     {{ $drive->title }}
                 </p>
                 @endif
-                {{-- Google Drive preview — tinggi sedikit lebih besar untuk dokumen --}}
                 <div class="embed-wrap" style="padding-top:75%">
                     <iframe src="{{ $driveEmbed }}"
                             frameborder="0"
@@ -360,9 +293,7 @@
             @endif
             @endforeach
 
-            {{-- ═══════════════════════════════════════════
-                 GAMBAR + TEKS  /  GAMBAR SAJA  /  TEKS SAJA
-                 ═══════════════════════════════════════════ --}}
+            {{-- GAMBAR + TEKS / GAMBAR SAJA / TEKS SAJA --}}
             @if($hasImage && $hasBody)
             <div class="mb-4 media-split">
                 <div class="media-split__img">
@@ -426,7 +357,7 @@
             @if($content->isFile())
             <a href="{{ $content->url }}" target="_blank" rel="noopener noreferrer"
                class="mb-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+                <div class="flex h-10 w-10 shrink-0 items-center justifycenter rounded-full bg-white shadow-sm">
                     <svg class="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                               d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
@@ -472,7 +403,7 @@
         @if($hasQuiz)
         <div class="slide-panel px-4 py-5" style="width:{{ round(100/$totalSlides,4) }}%; flex-shrink:0">
             <div class="flex flex-col items-center text-center pt-8 pb-4">
-                <div class="mb-5 flex h-20 w-20 items-center justify-center rounded-full"
+                <div class="mb-5 flex h-20 w-20 items-center justifycenter rounded-full"
                      style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
                     <svg class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -495,7 +426,7 @@
                     </div>
                 </div>
                 <a href="{{ route('user.quizzes.index', $section) }}"
-                   class="mt-6 w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold text-white shadow-lg"
+                   class="mt-6 w-full flex items-center justifycenter gap-2 rounded-2xl py-4 text-sm font-bold text-white shadow-lg"
                    style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
@@ -525,14 +456,14 @@
      style="padding-bottom:max(12px, env(safe-area-inset-bottom))">
     <div class="flex items-center gap-3">
         <button id="btn-prev"
-                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-400 transition active:bg-slate-50"
+                class="flex h-11 w-11 shrink-0 items-center justifycenter rounded-full border border-slate-200 text-slate-400 transition active:bg-slate-50"
                 style="opacity:0.3; pointer-events:none">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
             </svg>
         </button>
 
-        <div id="dots" class="flex flex-1 items-center justify-center gap-1.5 overflow-hidden">
+        <div id="dots" class="flex flex-1 items-center justifycenter gap-1.5 overflow-hidden">
             @for($d = 0; $d < $totalSlides; $d++)
             <div class="dot rounded-full transition-all duration-300
                         {{ $d===0 ? 'h-2 w-5 bg-indigo-500' : 'h-2 w-2 bg-slate-200' }}"></div>
@@ -540,7 +471,7 @@
         </div>
 
         <button id="btn-next"
-                class="flex h-11 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold text-white transition active:opacity-80"
+                class="flex h-11 items-center justifycenter gap-1.5 rounded-full px-5 text-sm font-semibold text-white transition active:opacity-80"
                 style="background:linear-gradient(135deg,#6366f1,#8b5cf6); min-width:90px">
             Lanjut
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
