@@ -15,27 +15,34 @@ class QuizController extends Controller
 
     public function index(Request $request, Section $section)
     {
+        $perPage = (int) $request->input('per_page', 25);
+
+        if (! in_array($perPage, [10, 15, 25, 50, 100])) {
+            $perPage = 25;
+        }
+
         $quizzes = $section->quizzes()
+            ->with('media')
             ->withCount('media')
             ->when($request->filled('search'), function ($q) use ($request) {
                 $search = '%' . $request->search . '%';
                 $q->where(function ($q2) use ($search) {
                     $q2->where('question', 'ilike', $search)
-                       ->orWhere('explanation', 'ilike', $search)
-                       ->orWhere('option_a', 'ilike', $search)
-                       ->orWhere('option_b', 'ilike', $search)
-                       ->orWhere('option_c', 'ilike', $search)
-                       ->orWhere('option_d', 'ilike', $search);
+                    ->orWhere('explanation', 'ilike', $search)
+                    ->orWhere('option_a', 'ilike', $search)
+                    ->orWhere('option_b', 'ilike', $search)
+                    ->orWhere('option_c', 'ilike', $search)
+                    ->orWhere('option_d', 'ilike', $search);
                 });
             })
-            ->when($request->filled('status'), fn ($q) =>
-                $q->where('is_active', $request->status === 'active')
-            )
+            ->when($request->filled('status'), function ($q) use ($request) {
+                $q->where('is_active', $request->status === 'active');
+            })
             ->orderBy('quiz_order')
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
-        return view('admin.quizzes.index', compact('section', 'quizzes'));
+        return view('admin.quizzes.index', compact('section', 'quizzes', 'perPage'));
     }
 
     public function create(Section $section)
