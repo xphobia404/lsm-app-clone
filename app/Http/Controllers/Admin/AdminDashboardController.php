@@ -27,40 +27,56 @@ class AdminDashboardController extends Controller
         $totalAttempts = QuizAttempt::count();
 
         // ── Progress Donut Chart Data ───────────────────────────
-        $progressStats   = UserProgress::select('status', DB::raw('count(*) as total'))
+        $progressStats = UserProgress::select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $donutCompleted  = $progressStats['completed']   ?? 0;
+        $donutCompleted  = $progressStats['completed'] ?? 0;
         $donutInProgress = $progressStats['in_progress'] ?? 0;
         $donutNotStarted = $progressStats['not_started'] ?? 0;
 
-        // ── Completed Users (selesai SEMUA section aktif) ────────────
-        $totalActiveSections = Section::where('is_active', true)->count();
+        // ── Completed Users:
+        // user menyelesaikan seluruh section aktif dari schema yang terhubung ke user
+        $completedUsers = User::users()
+            ->with([
+                'learningSchemas' => function ($q) {
+                    $q->with([
+                        'sections' => fn ($sq) => $sq->where('sections.is_active', true)->select('sections.id')
+                    ])->select('learning_schemas.id', 'title');
+                },
+                'progresses' => fn ($q) => $q->where('status', 'completed')->select('id', 'user_id', 'section_id', 'status'),
+            ])
+            ->get(['id', 'name', 'username'])
+            ->filter(function ($user) {
+                $schemaSectionIds = $user->learningSchemas
+                    ->flatMap(fn ($schema) => $schema->sections->pluck('id'))
+                    ->unique()
+                    ->values();
 
-        $completedUsers = $totalActiveSections > 0
-            ? User::users()
-                ->whereHas('progresses', fn ($q) =>
-                    $q->where('status', 'completed'),
-                    '>=',
-                    $totalActiveSections
-                )
-                ->get(['id', 'name', 'username'])
-            : collect();
+                if ($schemaSectionIds->isEmpty()) {
+                    return false;
+                }
+
+                $completedSectionIds = $user->progresses
+                    ->pluck('section_id')
+                    ->unique()
+                    ->values();
+
+                return $schemaSectionIds->diff($completedSectionIds)->isEmpty();
+            })
+            ->values();
 
         // ── Recent Progress Activity ────────────────────────────
         $recentProgress = UserProgress::with([
-            'user:id,name,username',
-            'section:id,title',
-        ])
-        ->whereHas('user', fn ($q) => $q->where('role', 'user'))
-        ->latest('updated_at')
-        ->limit(8)
-        ->get();
+                'user:id,name,username',
+                'section:id,title',
+            ])
+            ->whereHas('user', fn ($q) => $q->where('role', 'user'))
+            ->latest('updated_at')
+            ->limit(8)
+            ->get();
 
         // ── Schema Stats (section count per schema via pivot) ─────────
-        // withCount tidak bisa dipakai langsung untuk BelongsToMany,
-        // kita pakai subquery manual via DB::raw
         $schemaStats = LearningSchema::select('id', 'title')
             ->selectSub(
                 DB::table('learning_schema_section')
@@ -73,12 +89,14 @@ class AdminDashboardController extends Controller
             ->get();
 
         // ── Bar Chart: completed per schema ──────────────────────
-        $schemaCompletion = LearningSchema::with(['sections:id'])
+        $schemaCompletion = LearningSchema::with([
+                'sections' => fn ($q) => $q->where('sections.is_active', true)->select('sections.id')
+            ])
             ->active()
             ->limit(6)
             ->get(['id', 'title'])
             ->map(function ($schema) {
-                $sectionIds   = $schema->sections->pluck('id');
+                $sectionIds   = $schema->sections->pluck('id')->unique()->values();
                 $sectionCount = $sectionIds->count();
 
                 if ($sectionCount === 0) {
@@ -86,12 +104,20 @@ class AdminDashboardController extends Controller
                 }
 
                 $count = User::users()
-                    ->whereHas('progresses', fn ($q) =>
-                        $q->whereIn('section_id', $sectionIds)
-                          ->where('status', 'completed'),
-                        '>=',
-                        $sectionCount
-                    )
+                    ->with(['progresses' => fn ($q) =>
+                        $q->where('status', 'completed')
+                          ->whereIn('section_id', $sectionIds)
+                          ->select('id', 'user_id', 'section_id', 'status')
+                    ])
+                    ->get(['id'])
+                    ->filter(function ($user) use ($sectionIds) {
+                        $completedSectionIds = $user->progresses
+                            ->pluck('section_id')
+                            ->unique()
+                            ->values();
+
+                        return $sectionIds->diff($completedSectionIds)->isEmpty();
+                    })
                     ->count();
 
                 return ['title' => $schema->title, 'count' => $count];

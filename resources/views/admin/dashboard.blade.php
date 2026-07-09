@@ -86,7 +86,7 @@
                 </span>
                 <div>
                     <p class="text-sm font-semibold text-emerald-800">User Lulus Semua Section</p>
-                    <p class="text-xs text-emerald-600">Sudah menyelesaikan seluruh kurikulum</p>
+                    <p class="text-xs text-emerald-600">Sudah menyelesaikan semua section dari materi yang terhubung ke user</p>
                 </div>
             </div>
             <p class="text-3xl font-extrabold text-emerald-700">{{ $completedUsers->count() }}</p>
