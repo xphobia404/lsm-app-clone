@@ -111,13 +111,25 @@
         @endif
     </div>
 
-    {{-- DONUT CHART --}}
-    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="flex items-center gap-2 mb-3">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
-            <h3 class="text-sm font-semibold text-slate-700">Status Progress Keseluruhan</h3>
+    {{-- DONUT CHARTS --}}
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {{-- DONUT CHART --}}
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center gap-2 mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
+                <h3 class="text-sm font-semibold text-slate-700">Status Progress Keseluruhan</h3>
+            </div>
+            <div id="donutChart"></div>
         </div>
-        <div id="donutChart"></div>
+
+        {{-- DONUT CHART STATUS LEARNING SCHEMA USER --}}
+        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center gap-2 mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
+                <h3 class="text-sm font-semibold text-slate-700">Status Learning Schema User</h3>
+            </div>
+            <div id="schemaUserDonutChart"></div>
+        </div>
     </div>
 
     {{-- BAR CHART: Penyelesaian per Schema --}}
@@ -245,6 +257,38 @@
         legend: { position: 'bottom', fontSize: '11px', markers: { size: 8, shape: 'circle' }, itemMargin: { horizontal: 10, vertical: 4 } },
         stroke: { width: 2, colors: ['#fff'] },
         tooltip: { enabled: total > 0 }
+    }).render();
+
+    var schemaUserActive = {{ (int) ($schemaUserActive ?? 0) }};
+    var schemaUserDropped = {{ (int) ($schemaUserDropped ?? 0) }};
+    var schemaUserCompleted = {{ (int) ($schemaUserCompleted ?? 0) }};
+    var schemaUserTotal = schemaUserActive + schemaUserDropped + schemaUserCompleted;
+
+    new ApexCharts(document.getElementById('schemaUserDonutChart'), {
+        chart: { type: 'donut', height: 230, toolbar: { show: false }, animations: { speed: 600 } },
+        series: schemaUserTotal > 0 ? [schemaUserActive, schemaUserDropped, schemaUserCompleted] : [1],
+        labels: schemaUserTotal > 0 ? ['Active', 'Dropped', 'Completed'] : ['Belum Ada Data'],
+        colors: schemaUserTotal > 0 ? ['#3b82f6', '#ef4444', '#10b981'] : ['#f1f5f9'],
+        plotOptions: {
+            pie: {
+                donut: {
+                    size: '68%',
+                    labels: {
+                        show: true,
+                        total: {
+                            show: true, label: 'Total Enrollment',
+                            fontSize: '11px', fontWeight: 600, color: '#94a3b8',
+                            formatter: () => schemaUserTotal > 0 ? schemaUserTotal : '0'
+                        },
+                        value: { fontSize: '20px', fontWeight: 800, color: '#1e293b' }
+                    }
+                }
+            }
+        },
+        dataLabels: { enabled: false },
+        legend: { position: 'bottom', fontSize: '11px', markers: { size: 8, shape: 'circle' }, itemMargin: { horizontal: 10, vertical: 4 } },
+        stroke: { width: 2, colors: ['#fff'] },
+        tooltip: { enabled: schemaUserTotal > 0 }
     }).render();
 
     var barEl = document.getElementById('barChart');

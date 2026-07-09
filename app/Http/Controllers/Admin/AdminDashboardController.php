@@ -35,16 +35,31 @@ class AdminDashboardController extends Controller
         $donutInProgress = $progressStats['in_progress'] ?? 0;
         $donutNotStarted = $progressStats['not_started'] ?? 0;
 
+        // ── Learning Schema User Status Donut Chart Data ─────────
+        $schemaUserStats = DB::table('learning_schema_user')
+            ->select('status', DB::raw('count(*) as total'))
+            ->whereIn('status', ['active', 'dropped', 'completed'])
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $schemaUserActive    = $schemaUserStats['active'] ?? 0;
+        $schemaUserDropped   = $schemaUserStats['dropped'] ?? 0;
+        $schemaUserCompleted = $schemaUserStats['completed'] ?? 0;
+
         // ── Completed Users:
         // user menyelesaikan seluruh section aktif dari schema yang terhubung ke user
         $completedUsers = User::users()
             ->with([
                 'learningSchemas' => function ($q) {
                     $q->with([
-                        'sections' => fn ($sq) => $sq->where('sections.is_active', true)->select('sections.id')
+                        'sections' => fn ($sq) => $sq
+                            ->where('sections.is_active', true)
+                            ->select('sections.id')
                     ])->select('learning_schemas.id', 'title');
                 },
-                'progresses' => fn ($q) => $q->where('status', 'completed')->select('id', 'user_id', 'section_id', 'status'),
+                'progresses' => fn ($q) => $q
+                    ->where('status', 'completed')
+                    ->select('id', 'user_id', 'section_id', 'status'),
             ])
             ->get(['id', 'name', 'username'])
             ->filter(function ($user) {
@@ -90,7 +105,9 @@ class AdminDashboardController extends Controller
 
         // ── Bar Chart: completed per schema ──────────────────────
         $schemaCompletion = LearningSchema::with([
-                'sections' => fn ($q) => $q->where('sections.is_active', true)->select('sections.id')
+                'sections' => fn ($q) => $q
+                    ->where('sections.is_active', true)
+                    ->select('sections.id')
             ])
             ->active()
             ->limit(6)
@@ -104,10 +121,11 @@ class AdminDashboardController extends Controller
                 }
 
                 $count = User::users()
-                    ->with(['progresses' => fn ($q) =>
-                        $q->where('status', 'completed')
-                          ->whereIn('section_id', $sectionIds)
-                          ->select('id', 'user_id', 'section_id', 'status')
+                    ->with([
+                        'progresses' => fn ($q) => $q
+                            ->where('status', 'completed')
+                            ->whereIn('section_id', $sectionIds)
+                            ->select('id', 'user_id', 'section_id', 'status')
                     ])
                     ->get(['id'])
                     ->filter(function ($user) use ($sectionIds) {
@@ -127,13 +145,24 @@ class AdminDashboardController extends Controller
         $chartData   = $schemaCompletion->pluck('count');
 
         return view('admin.dashboard', compact(
-            'totalUsers', 'activeUsers', 'inactiveUsers',
-            'totalSchemas', 'totalSections', 'totalQuizzes', 'totalAttempts',
-            'donutCompleted', 'donutInProgress', 'donutNotStarted',
+            'totalUsers',
+            'activeUsers',
+            'inactiveUsers',
+            'totalSchemas',
+            'totalSections',
+            'totalQuizzes',
+            'totalAttempts',
+            'donutCompleted',
+            'donutInProgress',
+            'donutNotStarted',
+            'schemaUserActive',
+            'schemaUserDropped',
+            'schemaUserCompleted',
             'completedUsers',
             'recentProgress',
             'schemaStats',
-            'chartLabels', 'chartData',
+            'chartLabels',
+            'chartData',
         ));
     }
 }
