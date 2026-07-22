@@ -60,17 +60,40 @@
         @forelse($sections as $i => $section)
         @php
             $status = $progressMap->get($section->id);
+
+            // Sequential lock: section pertama selalu unlock,
+            // section berikutnya hanya bisa dibuka jika section sebelumnya 'completed'
+            if ($i === 0) {
+                $isLocked = false;
+            } else {
+                $prevSection = $sections[$i - 1];
+                $isLocked = $progressMap->get($prevSection->id) !== 'completed';
+            }
         @endphp
+
+        @if($isLocked)
+        <div class="flex items-center gap-3 rounded-2xl bg-slate-50 border border-slate-100
+                    px-4 py-3 opacity-60 cursor-not-allowed select-none">
+        @else
         <a href="{{ route('user.sections.show', [$learningSchema, $section]) }}"
            class="flex items-center gap-3 rounded-2xl bg-white border border-slate-100
                   px-4 py-3 shadow-sm active:bg-slate-50 transition">
+        @endif
 
             {{-- Nomor / status icon --}}
             <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
-                        {{ $status === 'completed'
-                            ? 'bg-emerald-100'
-                            : ($status === 'in_progress' ? 'bg-amber-100' : 'bg-slate-100') }}">
-                @if($status === 'completed')
+                        {{ $isLocked
+                            ? 'bg-slate-200'
+                            : ($status === 'completed'
+                                ? 'bg-emerald-100'
+                                : ($status === 'in_progress' ? 'bg-amber-100' : 'bg-slate-100')) }}">
+                @if($isLocked)
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400"
+                         fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                @elseif($status === 'completed')
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-600"
                          fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
@@ -90,26 +113,36 @@
 
             {{-- Info --}}
             <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-slate-800 truncate">{{ $section->title }}</p>
+                <p class="text-sm font-semibold {{ $isLocked ? 'text-slate-400' : 'text-slate-800' }} truncate">
+                    {{ $section->title }}
+                </p>
                 <div class="flex items-center gap-2 mt-0.5">
-                    @if($section->contents_count ?? 0)
-                    <span class="text-[10px] text-slate-400">
-                        {{ $section->contents_count }} konten
-                    </span>
-                    @endif
-                    @if($section->quizzes_count ?? 0)
-                    <span class="text-[10px] text-amber-500">
-                        {{ $section->quizzes_count }} quiz
-                    </span>
-                    @endif
-                    @if(!($section->contents_count ?? 0) && !($section->quizzes_count ?? 0))
-                    <span class="text-[10px] text-slate-300">Belum ada konten</span>
+                    @if($isLocked)
+                    <span class="text-[10px] text-slate-400">Selesaikan section sebelumnya</span>
+                    @else
+                        @if($section->contents_count ?? 0)
+                        <span class="text-[10px] text-slate-400">
+                            {{ $section->contents_count }} konten
+                        </span>
+                        @endif
+                        @if($section->quizzes_count ?? 0)
+                        <span class="text-[10px] text-amber-500">
+                            {{ $section->quizzes_count }} quiz
+                        </span>
+                        @endif
+                        @if(!($section->contents_count ?? 0) && !($section->quizzes_count ?? 0))
+                        <span class="text-[10px] text-slate-300">Belum ada konten</span>
+                        @endif
                     @endif
                 </div>
             </div>
 
             {{-- Status badge --}}
-            @if($status === 'completed')
+            @if($isLocked)
+            <span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
+                Terkunci
+            </span>
+            @elseif($status === 'completed')
             <span class="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
                 Selesai
             </span>
@@ -125,7 +158,12 @@
             </svg>
             @endif
 
+        @if($isLocked)
+        </div>
+        @else
         </a>
+        @endif
+
         @empty
         <div class="rounded-2xl bg-slate-50 p-10 text-center">
             <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto mb-3 h-10 w-10 text-slate-300"
