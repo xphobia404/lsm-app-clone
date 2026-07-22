@@ -10,74 +10,55 @@
     $contentIdsJs = $contents->pluck('id')->toJson();
 @endphp
 
+{{-- Quill CSS (load sekali) --}}
+<link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
+
 <style>
-/* ── Content body ── */
-/* Normalnya wrap di spasi, tapi kata/url panjang tetap dipotong agar tidak overflow */
+/* ── Quill read-only reset (user view) ── */
+.ql-body-viewer .ql-container.ql-snow { border: none !important; }
+.ql-body-viewer .ql-editor             { padding: 0 !important; font-size: 0.875rem; color: #334155; cursor: default; line-height: 1.7; }
+.ql-body-viewer .ql-editor:focus       { outline: none; }
+
+/* ── Content body fallback (jika body dirender raw) ── */
 .content-body {
     min-width: 0;
     max-width: 100%;
     overflow-x: hidden;
 }
-.content-body > * {
-    max-width: 100%;
-}
+.content-body > * { max-width: 100%; }
 .content-body p,
 .content-body div,
 .content-body li,
 .content-body blockquote,
-.content-body h1,
-.content-body h2,
-.content-body h3,
-.content-body h4,
-.content-body h5,
-.content-body h6 {
+.content-body h1,.content-body h2,.content-body h3,
+.content-body h4,.content-body h5,.content-body h6 {
     white-space: normal;
     word-break: normal;
     overflow-wrap: break-word;
 }
-.content-body a,
-.content-body span,
-.content-body strong,
-.content-body em,
-.content-body code {
+.content-body a,.content-body span,.content-body strong,
+.content-body em,.content-body code {
     word-break: break-word;
     overflow-wrap: break-word;
 }
-.content-body img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 8px;
-}
-.content-body iframe {
-    max-width: 100%;
-}
-.content-body video,
-.content-body audio,
-.content-body embed,
-.content-body object {
-    max-width: 100%;
-}
-.content-body table {
-    display: block;
-    max-width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-.content-body pre {
-    max-width: 100%;
-    overflow-x: auto;
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-wrap: break-word;
-}
-.content-body code {
-    white-space: pre-wrap;
-}
+.content-body img   { max-width: 100%; height: auto; border-radius: 8px; }
+.content-body iframe { max-width: 100%; }
+.content-body video,.content-body audio,.content-body embed,.content-body object { max-width: 100%; }
+.content-body table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.content-body pre   { max-width: 100%; overflow-x: auto; white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word; }
+.content-body code  { white-space: pre-wrap; }
 @media (max-width: 640px) {
-    .content-body {
-        font-size: 14px;
-        line-height: 1.7;
-    }
+    .content-body { font-size: 14px; line-height: 1.7; }
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+.ql-skeleton-bar {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 0.375rem;
+    height: 0.875rem;
 }
 </style>
 
@@ -124,6 +105,8 @@
             $drives   = $media->filter(fn($m) => $m->isGoogleDrive());
             $hasImage = $images->isNotEmpty();
             $hasBody  = !empty(trim(strip_tags($content->body ?? '')));
+            $bodyId   = 'ql-viewer-' . $content->id;
+            $skelId   = 'ql-skel-'   . $content->id;
 
             $embedVideo = function(string $url): string {
                 if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([\w-]+)/', $url, $m)) {
@@ -176,9 +159,7 @@
                 @php $vEmbed = $embedVideo($vRaw); @endphp
                 @if($vEmbed !== $vRaw)
                     <div class="mb-4 embed-wrap">
-                        <iframe src="{{ $vEmbed }}"
-                                frameborder="0"
-                                allowfullscreen
+                        <iframe src="{{ $vEmbed }}" frameborder="0" allowfullscreen
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>
                     </div>
                 @elseif($isUploadedVideo($vRaw))
@@ -190,9 +171,7 @@
                     </div>
                 @else
                     <div class="mb-4 embed-wrap">
-                        <iframe src="{{ $vRaw }}"
-                                frameborder="0"
-                                allowfullscreen
+                        <iframe src="{{ $vRaw }}" frameborder="0" allowfullscreen
                                 allow="autoplay; encrypted-media"></iframe>
                     </div>
                 @endif
@@ -205,9 +184,7 @@
                 @php $vEmbedMedia = $embedVideo($vidSrc); @endphp
                 @if($vEmbedMedia !== $vidSrc)
                     <div class="mb-4 embed-wrap">
-                        <iframe src="{{ $vEmbedMedia }}"
-                                frameborder="0"
-                                allowfullscreen
+                        <iframe src="{{ $vEmbedMedia }}" frameborder="0" allowfullscreen
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>
                     </div>
                 @elseif($isUploadedVideo($vidSrc))
@@ -248,9 +225,7 @@
                 </p>
                 @endif
                 <div class="embed-wrap">
-                    <iframe src="{{ $ytEmbed }}"
-                            frameborder="0"
-                            allowfullscreen
+                    <iframe src="{{ $ytEmbed }}" frameborder="0" allowfullscreen
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                             referrerpolicy="strict-origin-when-cross-origin"></iframe>
                 </div>
@@ -272,7 +247,7 @@
             @if($driveEmbed)
             <div class="mb-4">
                 @if($drive->title)
-                <p class="mb-1.5 text-xs font-semibold text-slate-600 flex itemscenter gap-1">
+                <p class="mb-1.5 text-xs font-semibold text-slate-600 flex items-center gap-1">
                     <svg class="h-3.5 w-3.5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M4.433 22.396l4-6.929H24l-4 6.929H4.433zm3.566-6.929L2.566 6.536l4-6.929 5.434 9.403-4.001 6.857zM13.567 8.01L18.992.107 24 9.01H13.567z"/>
                     </svg>
@@ -280,9 +255,7 @@
                 </p>
                 @endif
                 <div class="embed-wrap" style="padding-top:75%">
-                    <iframe src="{{ $driveEmbed }}"
-                            frameborder="0"
-                            allowfullscreen
+                    <iframe src="{{ $driveEmbed }}" frameborder="0" allowfullscreen
                             allow="autoplay"
                             sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
                 </div>
@@ -293,23 +266,28 @@
             @endif
             @endforeach
 
-            {{-- GAMBAR + TEKS / GAMBAR SAJA / TEKS SAJA --}}
+            {{-- ── GAMBAR + BODY QUILL / GAMBAR SAJA / BODY SAJA ── --}}
             @if($hasImage && $hasBody)
             <div class="mb-4 media-split">
                 <div class="media-split__img">
                     @foreach($images as $img)
                     <div class="media-split__img-wrap" style="{{ !$loop->first ? 'margin-top:8px' : '' }}">
-                        <img src="{{ $img->getDisplayUrl() }}"
-                             alt="{{ $img->title ?? $content->title }}"
-                             loading="lazy">
+                        <img src="{{ $img->getDisplayUrl() }}" alt="{{ $img->title ?? $content->title }}" loading="lazy">
                     </div>
                     @if($img->description)
                     <p class="mt-1 text-[10px] text-slate-400 text-center leading-tight">{{ $img->description }}</p>
                     @endif
                     @endforeach
                 </div>
-                <div class="media-split__text content-body text-sm text-slate-700 leading-relaxed">
-                    {!! $content->body !!}
+                {{-- Quill viewer: gambar + teks --}}
+                <div class="media-split__text">
+                    <div id="{{ $skelId }}-img" class="space-y-1.5 mb-1">
+                        <div class="ql-skeleton-bar w-full"></div>
+                        <div class="ql-skeleton-bar w-5/6"></div>
+                        <div class="ql-skeleton-bar w-4/6"></div>
+                    </div>
+                    <div id="{{ $bodyId }}-img" class="ql-body-viewer hidden"></div>
+                    <script type="application/json" id="body-data-{{ $content->id }}-img">{!! json_encode($content->body) !!}</script>
                 </div>
             </div>
 
@@ -317,9 +295,7 @@
             <div class="mb-4 space-y-2">
                 @foreach($images as $img)
                 <div class="media-img-only">
-                    <img src="{{ $img->getDisplayUrl() }}"
-                         alt="{{ $img->title ?? $content->title }}"
-                         loading="lazy">
+                    <img src="{{ $img->getDisplayUrl() }}" alt="{{ $img->title ?? $content->title }}" loading="lazy">
                 </div>
                 @if($img->description)
                 <p class="text-[10px] text-slate-400 text-center leading-tight">{{ $img->description }}</p>
@@ -328,8 +304,15 @@
             </div>
 
             @elseif(!$hasImage && $hasBody && !$content->isUrl() && !$content->isFile())
-            <div class="mb-4 content-body text-sm text-slate-700 leading-relaxed">
-                {!! $content->body !!}
+            {{-- Quill viewer: teks saja --}}
+            <div class="mb-4">
+                <div id="{{ $skelId }}" class="space-y-1.5 mb-1">
+                    <div class="ql-skeleton-bar w-full"></div>
+                    <div class="ql-skeleton-bar w-5/6"></div>
+                    <div class="ql-skeleton-bar w-4/6"></div>
+                </div>
+                <div id="{{ $bodyId }}" class="ql-body-viewer hidden"></div>
+                <script type="application/json" id="body-data-{{ $content->id }}">{{ json_encode($content->body) }}</script>
             </div>
             @endif
 
@@ -349,7 +332,15 @@
                 </div>
             </a>
             @if($hasBody)
-            <div class="mb-3 content-body text-xs text-slate-500">{!! $content->body !!}</div>
+            {{-- Quill viewer: deskripsi URL --}}
+            <div class="mb-3">
+                <div id="{{ $skelId }}-url" class="space-y-1 mb-1">
+                    <div class="ql-skeleton-bar w-full"></div>
+                    <div class="ql-skeleton-bar w-4/6"></div>
+                </div>
+                <div id="{{ $bodyId }}-url" class="ql-body-viewer hidden"></div>
+                <script type="application/json" id="body-data-{{ $content->id }}-url">{{ json_encode($content->body) }}</script>
+            </div>
             @endif
             @endif
 
@@ -357,7 +348,7 @@
             @if($content->isFile())
             <a href="{{ $content->url }}" target="_blank" rel="noopener noreferrer"
                class="mb-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justifycenter rounded-full bg-white shadow-sm">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
                     <svg class="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
                               d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
@@ -369,7 +360,15 @@
                 </div>
             </a>
             @if($hasBody)
-            <div class="mb-3 content-body text-xs text-slate-500">{!! $content->body !!}</div>
+            {{-- Quill viewer: deskripsi file --}}
+            <div class="mb-3">
+                <div id="{{ $skelId }}-file" class="space-y-1 mb-1">
+                    <div class="ql-skeleton-bar w-full"></div>
+                    <div class="ql-skeleton-bar w-4/6"></div>
+                </div>
+                <div id="{{ $bodyId }}-file" class="ql-body-viewer hidden"></div>
+                <script type="application/json" id="body-data-{{ $content->id }}-file">{{ json_encode($content->body) }}</script>
+            </div>
             @endif
             @endif
 
@@ -403,7 +402,7 @@
         @if($hasQuiz)
         <div class="slide-panel px-4 py-5" style="width:{{ round(100/$totalSlides,4) }}%; flex-shrink:0">
             <div class="flex flex-col items-center text-center pt-8 pb-4">
-                <div class="mb-5 flex h-20 w-20 items-center justifycenter rounded-full"
+                <div class="mb-5 flex h-20 w-20 items-center justify-center rounded-full"
                      style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
                     <svg class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -426,7 +425,7 @@
                     </div>
                 </div>
                 <a href="{{ route('user.quizzes.index', $section) }}"
-                   class="mt-6 w-full flex items-center justifycenter gap-2 rounded-2xl py-4 text-sm font-bold text-white shadow-lg"
+                   class="mt-6 w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold text-white shadow-lg"
                    style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
@@ -456,14 +455,14 @@
      style="padding-bottom:max(12px, env(safe-area-inset-bottom))">
     <div class="flex items-center gap-3">
         <button id="btn-prev"
-                class="flex h-11 w-11 shrink-0 items-center justifycenter rounded-full border border-slate-200 text-slate-400 transition active:bg-slate-50"
+                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-400 transition active:bg-slate-50"
                 style="opacity:0.3; pointer-events:none">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
             </svg>
         </button>
 
-        <div id="dots" class="flex flex-1 items-center justifycenter gap-1.5 overflow-hidden">
+        <div id="dots" class="flex flex-1 items-center justify-center gap-1.5 overflow-hidden">
             @for($d = 0; $d < $totalSlides; $d++)
             <div class="dot rounded-full transition-all duration-300
                         {{ $d===0 ? 'h-2 w-5 bg-indigo-500' : 'h-2 w-2 bg-slate-200' }}"></div>
@@ -471,7 +470,7 @@
         </div>
 
         <button id="btn-next"
-                class="flex h-11 items-center justifycenter gap-1.5 rounded-full px-5 text-sm font-semibold text-white transition active:opacity-80"
+                class="flex h-11 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold text-white transition active:opacity-80"
                 style="background:linear-gradient(135deg,#6366f1,#8b5cf6); min-width:90px">
             Lanjut
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -482,6 +481,40 @@
 </div>
 
 </div>
+
+{{-- Quill UMD (satu kali load, sama seperti admin) --}}
+<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
+<script>
+(function () {
+    // Inisialisasi semua Quill viewer yang ada di halaman ini
+    document.querySelectorAll('.ql-body-viewer').forEach(function (viewer) {
+        var id      = viewer.id;                         // e.g. "ql-viewer-12"
+        var suffix  = id.replace('ql-viewer-', '');      // e.g. "12" atau "12-img"
+        var skelId  = 'ql-skel-' + suffix;
+        var dataId  = 'body-data-' + suffix;
+
+        var dataEl = document.getElementById(dataId);
+        if (!dataEl) return;
+
+        var htmlBody = JSON.parse(dataEl.textContent || 'null');
+        if (!htmlBody) return;
+
+        var quill = new Quill(viewer, {
+            theme    : 'snow',
+            readOnly : true,
+            modules  : { toolbar: false },
+        });
+
+        var delta = quill.clipboard.convert({ html: htmlBody });
+        quill.setContents(delta, 'silent');
+
+        // Sembunyikan skeleton, tampilkan viewer
+        var skel = document.getElementById(skelId);
+        if (skel) skel.style.display = 'none';
+        viewer.classList.remove('hidden');
+    });
+}());
+</script>
 
 <script>
 (function () {
