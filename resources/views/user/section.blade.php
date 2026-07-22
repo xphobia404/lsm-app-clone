@@ -287,7 +287,7 @@
                         <div class="ql-skeleton-bar w-4/6"></div>
                     </div>
                     <div id="{{ $bodyId }}-img" class="ql-body-viewer hidden"></div>
-                    <script type="application/json" id="body-data-{{ $content->id }}-img">{!! json_encode($content->body) !!}</script>
+                    <script type="application/json" id="body-data-{{ $content->id }}-img">@json($content->body)</script>
                 </div>
             </div>
 
@@ -312,7 +312,7 @@
                     <div class="ql-skeleton-bar w-4/6"></div>
                 </div>
                 <div id="{{ $bodyId }}" class="ql-body-viewer hidden"></div>
-                <script type="application/json" id="body-data-{{ $content->id }}">{{ json_encode($content->body) }}</script>
+                <script type="application/json" id="body-data-{{ $content->id }}">@json($content->body)</script>
             </div>
             @endif
 
@@ -339,7 +339,7 @@
                     <div class="ql-skeleton-bar w-4/6"></div>
                 </div>
                 <div id="{{ $bodyId }}-url" class="ql-body-viewer hidden"></div>
-                <script type="application/json" id="body-data-{{ $content->id }}-url">{{ json_encode($content->body) }}</script>
+                <script type="application/json" id="body-data-{{ $content->id }}-url">@json($content->body)</script>
             </div>
             @endif
             @endif
@@ -367,7 +367,7 @@
                     <div class="ql-skeleton-bar w-4/6"></div>
                 </div>
                 <div id="{{ $bodyId }}-file" class="ql-body-viewer hidden"></div>
-                <script type="application/json" id="body-data-{{ $content->id }}-file">{{ json_encode($content->body) }}</script>
+                <script type="application/json" id="body-data-{{ $content->id }}-file">@json($content->body)</script>
             </div>
             @endif
             @endif
@@ -486,17 +486,26 @@
 <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 <script>
 (function () {
-    // Inisialisasi semua Quill viewer yang ada di halaman ini
     document.querySelectorAll('.ql-body-viewer').forEach(function (viewer) {
-        var id      = viewer.id;                         // e.g. "ql-viewer-12"
-        var suffix  = id.replace('ql-viewer-', '');      // e.g. "12" atau "12-img"
-        var skelId  = 'ql-skel-' + suffix;
-        var dataId  = 'body-data-' + suffix;
+        var id     = viewer.id;                       // e.g. "ql-viewer-12" or "ql-viewer-12-img"
+        var suffix = id.replace('ql-viewer-', '');    // e.g. "12" or "12-img"
+        var skelId = 'ql-skel-' + suffix;
+        var dataId = 'body-data-' + suffix;
 
         var dataEl = document.getElementById(dataId);
         if (!dataEl) return;
 
-        var htmlBody = JSON.parse(dataEl.textContent || 'null');
+        // textContent sudah berupa string JSON yang valid karena @json() tidak di-escape HTML
+        var rawText = dataEl.textContent.trim();
+        if (!rawText || rawText === 'null') return;
+
+        var htmlBody;
+        try {
+            htmlBody = JSON.parse(rawText);
+        } catch (e) {
+            // fallback: pakai raw text langsung sebagai HTML
+            htmlBody = rawText;
+        }
         if (!htmlBody) return;
 
         var quill = new Quill(viewer, {
@@ -508,7 +517,6 @@
         var delta = quill.clipboard.convert({ html: htmlBody });
         quill.setContents(delta, 'silent');
 
-        // Sembunyikan skeleton, tampilkan viewer
         var skel = document.getElementById(skelId);
         if (skel) skel.style.display = 'none';
         viewer.classList.remove('hidden');
