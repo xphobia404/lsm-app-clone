@@ -15,62 +15,137 @@
             <p class="text-sm font-bold text-slate-800">Hasil Quiz</p>
         </div>
 
+        @php
+            $total      = $quizzes->count();
+            $scorePct   = $total > 0 ? round(($correctCount / $total) * 100) : 0;
+        @endphp
+
         <div class="px-4 pt-5 space-y-4 max-w-2xl mx-auto">
 
-            {{-- ===== PASSED ===== --}}
-            @if($passed)
+            {{-- ===== SCORE CARD ===== --}}
+            <div class="rounded-2xl text-center px-5 py-8 text-white"
+                 style="background:linear-gradient(135deg,{{ $passed ? '#10b981,#059669' : '#ef4444,#dc2626' }})">
 
-            {{-- Score card - lulus --}}
-            <div class="rounded-2xl text-center px-5 py-8"
-                 style="background:linear-gradient(135deg,#10b981,#059669)">
+                {{-- Icon --}}
                 <div class="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white/20 mx-auto">
+                    @if($passed)
                     <svg class="h-9 w-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                     </svg>
-                </div>
-                <p class="text-white font-extrabold text-xl">Selamat! Semua Benar 🎉</p>
-                <p class="mt-1 text-white/80 text-xs">Kamu menjawab {{ $correctCount }} dari {{ $quizzes->count() }} soal dengan benar</p>
-                <div class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 text-white px-4 py-1.5 text-xs font-bold">
-                    LULUS • 100%
-                </div>
-            </div>
-
-            {{-- Review soal - tampilkan jawaban benar jika passed --}}
-            <div class="space-y-3">
-                @foreach($quizzes as $i => $quiz)
-                <div class="rounded-2xl bg-white border border-green-200 shadow-sm px-5 py-4">
-                    <div class="flex items-start gap-2 mb-2">
-                        <span class="flex h-5 w-5 shrink-0 mt-0.5 items-center justify-center rounded-full bg-green-100 text-green-600 text-[10px] font-extrabold">✓</span>
-                        <p class="text-sm font-semibold text-slate-800">{{ $quiz->question }}</p>
-                    </div>
-
-                    <div class="space-y-1 mb-3">
-                        @foreach(['a','b','c','d'] as $opt)
-                        @php $val = $quiz->{'option_'.$opt}; @endphp
-                        @if($val)
-                        <div class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs
-                            {{ $opt === $quiz->correct_answer ? 'bg-green-50 text-green-700 font-semibold' : 'text-slate-500' }}">
-                            <span class="font-bold">{{ strtoupper($opt) }}.</span>
-                            {{ $val }}
-                            @if($opt === $quiz->correct_answer)
-                            <span class="ml-auto text-green-500 font-bold">✓</span>
-                            @endif
-                        </div>
-                        @endif
-                        @endforeach
-                    </div>
-
-                    @if($quiz->explanation)
-                    <div class="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2">
-                        <p class="text-[10px] font-bold text-amber-700 mb-0.5">Penjelasan</p>
-                        <p class="text-xs text-amber-800">{{ $quiz->explanation }}</p>
-                    </div>
+                    @else
+                    <svg class="h-9 w-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
                     @endif
                 </div>
-                @endforeach
+
+                <p class="text-white font-extrabold text-xl">
+                    {{ $passed ? 'Selamat! Semua Benar 🎉' : 'Belum Lulus' }}
+                </p>
+                <p class="mt-1 text-white/80 text-xs">
+                    {{ $passed
+                        ? 'Kamu menjawab semua soal dengan benar'
+                        : 'Pelajari kembali materi dan coba lagi' }}
+                </p>
+
+                {{-- Score besar --}}
+                <div class="mt-5 mb-2">
+                    <span class="text-5xl font-black tabular-nums">{{ $scorePct }}%</span>
+                </div>
+                <p class="text-white/70 text-xs mb-4">{{ $correctCount }} dari {{ $total }} soal benar</p>
+
+                {{-- Progress bar score --}}
+                <div class="mx-auto max-w-xs">
+                    <div class="h-3 w-full rounded-full bg-white/20 overflow-hidden">
+                        <div id="score-bar"
+                             class="h-3 rounded-full bg-white transition-all duration-1000 ease-out"
+                             style="width: 0%"
+                             data-target="{{ $scorePct }}"></div>
+                    </div>
+                </div>
+
+                {{-- Badge lulus/gagal --}}
+                <div class="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white/20 text-white px-4 py-1.5 text-xs font-bold">
+                    {{ $passed ? 'LULUS ✓' : $correctCount . '/' . $total . ' Benar' }}
+                    &nbsp;•&nbsp; Nilai Lulus: 100%
+                </div>
             </div>
 
-            {{-- Tombol kembali ke materi --}}
+            {{-- ===== REVIEW SOAL ===== --}}
+            <div>
+                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 px-1">
+                    Review Jawaban
+                </p>
+                <div class="space-y-3">
+                    @foreach($quizzes as $i => $quiz)
+                    @php $r = $results[$quiz->id]; @endphp
+                    <div class="rounded-2xl bg-white border shadow-sm overflow-hidden
+                                {{ $r['is_correct'] ? 'border-green-200' : 'border-red-200' }}">
+
+                        {{-- Header soal --}}
+                        <div class="flex items-center gap-2 px-4 py-2.5 border-b
+                                    {{ $r['is_correct'] ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100' }}">
+                            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold
+                                         {{ $r['is_correct'] ? 'bg-green-200 text-green-700' : 'bg-red-200 text-red-700' }}">
+                                {{ $r['is_correct'] ? '✓' : '✗' }}
+                            </span>
+                            <p class="text-xs font-semibold {{ $r['is_correct'] ? 'text-green-700' : 'text-red-700' }}">
+                                Soal {{ $i + 1 }}
+                                <span class="font-normal opacity-70">— {{ $r['is_correct'] ? 'Benar' : 'Salah' }}</span>
+                            </p>
+                        </div>
+
+                        <div class="px-4 py-3 space-y-3">
+                            {{-- Pertanyaan --}}
+                            <p class="text-sm font-semibold text-slate-800 leading-relaxed">{{ $quiz->question }}</p>
+
+                            {{-- Pilihan jawaban --}}
+                            <div class="space-y-1.5">
+                                @foreach(['a','b','c','d'] as $opt)
+                                @php $val = $quiz->{'option_'.$opt}; @endphp
+                                @if($val)
+                                @php
+                                    $isCorrectOpt = $opt === $quiz->correct_answer;
+                                    $isUserPick   = $opt === $r['user_answer'];
+                                    $bgClass      = match(true) {
+                                        $isCorrectOpt                      => 'bg-green-50 border-green-300 text-green-800',
+                                        $isUserPick && !$isCorrectOpt      => 'bg-red-50 border-red-300 text-red-700',
+                                        default                            => 'bg-slate-50 border-slate-200 text-slate-500',
+                                    };
+                                @endphp
+                                <div class="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs {{ $bgClass }}">
+                                    <span class="font-bold w-4 shrink-0">{{ strtoupper($opt) }}.</span>
+                                    <span class="flex-1">{{ $val }}</span>
+                                    @if($isCorrectOpt)
+                                        <span class="shrink-0 text-green-600 font-bold">✓ Benar</span>
+                                    @elseif($isUserPick && !$isCorrectOpt)
+                                        <span class="shrink-0 text-red-500 font-bold">✗ Pilihanmu</span>
+                                    @endif
+                                </div>
+                                @endif
+                                @endforeach
+                            </div>
+
+                            {{-- Jawaban tidak dipilih --}}
+                            @if(! $r['user_answer'])
+                            <p class="text-[11px] text-slate-400 italic">⚠ Soal ini tidak dijawab</p>
+                            @endif
+
+                            {{-- Penjelasan --}}
+                            @if($quiz->explanation)
+                            <div class="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2">
+                                <p class="text-[10px] font-bold text-amber-700 mb-0.5">💡 Penjelasan</p>
+                                <p class="text-xs text-amber-800">{{ $quiz->explanation }}</p>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- ===== ACTION BUTTONS ===== --}}
+            @if($passed)
             @if($learningSchema)
             <a href="{{ route('user.schemas.show', $learningSchema) }}"
                class="w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold text-white transition active:opacity-80"
@@ -81,54 +156,7 @@
                 </svg>
             </a>
             @endif
-
-            {{-- ===== FAILED ===== --}}
             @else
-
-            {{-- Score card - gagal --}}
-            <div class="rounded-2xl text-center px-5 py-8"
-                 style="background:linear-gradient(135deg,#ef4444,#dc2626)">
-                <div class="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white/20 mx-auto">
-                    <svg class="h-9 w-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </div>
-                <p class="text-white font-extrabold text-xl">Belum Lulus</p>
-                <p class="mt-1 text-white/80 text-xs">
-                    Kamu menjawab {{ $correctCount }} dari {{ $quizzes->count() }} soal dengan benar.
-                    Harus 100% benar untuk lulus.
-                </p>
-                <div class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 text-white px-4 py-1.5 text-xs font-bold">
-                    {{ $correctCount }}/{{ $quizzes->count() }} Benar
-                </div>
-            </div>
-
-            {{-- Daftar soal - TANPA kisi-kisi jawaban --}}
-            <div class="rounded-2xl bg-white border border-slate-100 shadow-sm px-5 py-4">
-                <p class="text-sm font-bold text-slate-700 mb-1">Soal yang perlu diperbaiki</p>
-                <p class="text-xs text-slate-400 mb-3">Pelajari kembali materi dan coba lagi. Jawaban yang benar tidak ditampilkan.</p>
-                <div class="space-y-2">
-                    @foreach($quizzes as $i => $quiz)
-                    @php $r = $results[$quiz->id]; @endphp
-                    <div class="flex items-start gap-2 rounded-xl px-3 py-2.5
-                                {{ $r['is_correct'] ? 'bg-green-50' : 'bg-red-50' }}">
-                        <span class="flex h-5 w-5 shrink-0 mt-0.5 items-center justify-center rounded-full
-                                     {{ $r['is_correct'] ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500' }}
-                                     text-[10px] font-extrabold">
-                            {{ $r['is_correct'] ? '✓' : '✗' }}
-                        </span>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-xs font-semibold {{ $r['is_correct'] ? 'text-green-700' : 'text-red-700' }}">
-                                Soal {{ $i + 1 }}
-                            </p>
-                            <p class="text-[11px] text-slate-500 truncate">{{ $quiz->question }}</p>
-                        </div>
-                    </div>
-                    @endforeach
-                </div>
-            </div>
-
-            {{-- Tombol coba lagi --}}
             <a href="{{ route('user.quizzes.index', $section) }}"
                class="w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold text-white transition active:opacity-80"
                style="background:linear-gradient(135deg,#ef4444,#dc2626)">
@@ -137,9 +165,20 @@
                 </svg>
                 Coba Lagi
             </a>
-
             @endif
 
         </div>
     </div>
+
+    {{-- Animate progress bar on load --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const bar = document.getElementById('score-bar');
+            if (bar) {
+                setTimeout(function () {
+                    bar.style.width = bar.dataset.target + '%';
+                }, 300);
+            }
+        });
+    </script>
 </x-app-layout>
