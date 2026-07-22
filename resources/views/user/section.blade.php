@@ -6,59 +6,26 @@
     $totalSlides = $contents->count() + ($quizzes->isNotEmpty() ? 1 : 0);
     $hasQuiz     = $quizzes->isNotEmpty();
     if ($totalSlides === 0) $totalSlides = 1;
-
     $contentIdsJs = $contents->pluck('id')->toJson();
 @endphp
 
-{{-- Quill CSS (load sekali) --}}
-<link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
-
 <style>
-/* ── Quill read-only reset (user view) ── */
-.ql-body-viewer .ql-container.ql-snow { border: none !important; }
-.ql-body-viewer .ql-editor             { padding: 0 !important; font-size: 0.875rem; color: #334155; cursor: default; line-height: 1.7; }
-.ql-body-viewer .ql-editor:focus       { outline: none; }
-
-/* ── Content body fallback (jika body dirender raw) ── */
-.content-body {
-    min-width: 0;
-    max-width: 100%;
-    overflow-x: hidden;
-}
-.content-body > * { max-width: 100%; }
-.content-body p,
-.content-body div,
-.content-body li,
-.content-body blockquote,
-.content-body h1,.content-body h2,.content-body h3,
-.content-body h4,.content-body h5,.content-body h6 {
-    white-space: normal;
-    word-break: normal;
-    overflow-wrap: break-word;
-}
-.content-body a,.content-body span,.content-body strong,
-.content-body em,.content-body code {
-    word-break: break-word;
-    overflow-wrap: break-word;
-}
-.content-body img   { max-width: 100%; height: auto; border-radius: 8px; }
-.content-body iframe { max-width: 100%; }
-.content-body video,.content-body audio,.content-body embed,.content-body object { max-width: 100%; }
-.content-body table { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.content-body pre   { max-width: 100%; overflow-x: auto; white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word; }
-.content-body code  { white-space: pre-wrap; }
-@media (max-width: 640px) {
-    .content-body { font-size: 14px; line-height: 1.7; }
-}
-
-/* Skeleton shimmer */
-@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-.ql-skeleton-bar {
-    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
-    border-radius: 0.375rem;
-    height: 0.875rem;
+/* embed responsive */
+.embed-wrap { position:relative; padding-top:56.25%; border-radius:14px; overflow:hidden; margin-bottom:1rem; }
+.embed-wrap iframe { position:absolute; inset:0; width:100%; height:100%; }
+/* image only */
+.media-img-only img { width:100%; border-radius:14px; object-fit:cover; }
+/* split layout */
+.media-split { display:grid; grid-template-columns:1fr; gap:12px; }
+@media(min-width:480px){ .media-split { grid-template-columns:1fr 1fr; } }
+.media-split__img-wrap img { width:100%; border-radius:12px; object-fit:cover; }
+/* skeleton shimmer (shared dgn component) */
+@keyframes cdv-shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+.cdv-skel {
+    background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);
+    background-size:200% 100%;
+    animation:cdv-shimmer 1.5s ease-in-out infinite;
+    border-radius:.375rem; height:.875rem;
 }
 </style>
 
@@ -96,45 +63,9 @@
          style="width:{{ $totalSlides * 100 }}%">
 
         @foreach($contents as $i => $content)
-        @php
-            $media    = $content->media ?? collect();
-            $images   = $media->filter(fn($m) => $m->isImage());
-            $videos   = $media->filter(fn($m) => $m->isVideo());
-            $audios   = $media->filter(fn($m) => $m->isAudio());
-            $youtubes = $media->filter(fn($m) => $m->isYouTube());
-            $drives   = $media->filter(fn($m) => $m->isGoogleDrive());
-            $hasImage = $images->isNotEmpty();
-            $hasBody  = !empty(trim(strip_tags($content->body ?? '')));
-            $bodyId   = 'ql-viewer-' . $content->id;
-            $skelId   = 'ql-skel-'   . $content->id;
-
-            $embedVideo = function(string $url): string {
-                if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([\w-]+)/', $url, $m)) {
-                    return 'https://www.youtube.com/embed/' . $m[1] . '?rel=0&playsinline=1';
-                }
-                return $url;
-            };
-
-            $embedDrive = function(string $url): string {
-                if (str_contains($url, '/preview')) return $url;
-                if (preg_match('#drive\.google\.com/file/d/([\w-]+)#', $url, $m)) {
-                    return 'https://drive.google.com/file/d/' . $m[1] . '/preview';
-                }
-                if (preg_match('#[?&]id=([\w-]+)#', $url, $m)) {
-                    return 'https://drive.google.com/file/d/' . $m[1] . '/preview';
-                }
-                return $url;
-            };
-
-            $isUploadedVideo = function(string $url): bool {
-                $ext = strtolower(pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION));
-                return in_array($ext, ['mp4', 'webm', 'ogg', 'mov', 'm4v']);
-            };
-        @endphp
-
         <div class="slide-panel px-4 py-5" style="width:{{ round(100/$totalSlides,4) }}%; flex-shrink:0">
 
-            {{-- Header --}}
+            {{-- Slide header --}}
             <div class="mb-4 flex items-center gap-2">
                 <span class="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-xs font-extrabold text-indigo-600">{{ $i+1 }}</span>
                 <div>
@@ -143,259 +74,10 @@
                 </div>
             </div>
 
-            {{-- VIDEO --}}
-            @php
-                $vRaw = '';
-                if ($content->isVideo() && $content->url) {
-                    $vRaw = $content->url;
-                } elseif ($videos->isNotEmpty()) {
-                    $vRaw = $videos->first()->getDisplayUrl() ?? '';
-                } elseif ($content->isVideo() && $content->body) {
-                    $vRaw = $content->body;
-                }
-            @endphp
+            {{-- ✅ Gunakan component, mode user --}}
+            <x-content-detail-viewer :content="$content" mode="user" />
 
-            @if($vRaw)
-                @php $vEmbed = $embedVideo($vRaw); @endphp
-                @if($vEmbed !== $vRaw)
-                    <div class="mb-4 embed-wrap">
-                        <iframe src="{{ $vEmbed }}" frameborder="0" allowfullscreen
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>
-                    </div>
-                @elseif($isUploadedVideo($vRaw))
-                    <div class="mb-4 video-upload-wrap">
-                        <video controls playsinline preload="metadata">
-                            <source src="{{ $vRaw }}">
-                            Browser tidak mendukung video.
-                        </video>
-                    </div>
-                @else
-                    <div class="mb-4 embed-wrap">
-                        <iframe src="{{ $vRaw }}" frameborder="0" allowfullscreen
-                                allow="autoplay; encrypted-media"></iframe>
-                    </div>
-                @endif
-            @endif
-
-            {{-- MEDIA VIDEO --}}
-            @foreach($videos as $vid)
-            @php $vidSrc = $vid->getDisplayUrl() ?? ''; @endphp
-            @if($vidSrc && $vidSrc !== $vRaw)
-                @php $vEmbedMedia = $embedVideo($vidSrc); @endphp
-                @if($vEmbedMedia !== $vidSrc)
-                    <div class="mb-4 embed-wrap">
-                        <iframe src="{{ $vEmbedMedia }}" frameborder="0" allowfullscreen
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>
-                    </div>
-                @elseif($isUploadedVideo($vidSrc))
-                    <div class="mb-4 video-upload-wrap">
-                        @if($vid->title)
-                        <p class="mb-1.5 text-xs font-semibold text-slate-600">🎬 {{ $vid->title }}</p>
-                        @endif
-                        <video controls playsinline preload="metadata" class="w-full" style="border-radius:14px; max-height:55vw; object-fit:contain">
-                            <source src="{{ $vidSrc }}">
-                            Browser tidak mendukung video.
-                        </video>
-                        @if($vid->description)
-                        <p class="mt-1 text-[10px] text-slate-400">{{ $vid->description }}</p>
-                        @endif
-                    </div>
-                @endif
-            @endif
-            @endforeach
-
-            {{-- YOUTUBE MEDIA --}}
-            @foreach($youtubes as $yt)
-            @php
-                $ytEmbed = method_exists($yt, 'getYouTubeEmbedUrl')
-                    ? $yt->getYouTubeEmbedUrl()
-                    : $embedVideo($yt->url ?? '');
-                if ($ytEmbed && !str_contains($ytEmbed, 'playsinline')) {
-                    $ytEmbed .= (str_contains($ytEmbed, '?') ? '&' : '?') . 'rel=0&playsinline=1';
-                }
-            @endphp
-            @if($ytEmbed)
-            <div class="mb-4">
-                @if($yt->title)
-                <p class="mb-1.5 text-xs font-semibold text-slate-600 flex items-center gap-1">
-                    <svg class="h-3.5 w-3.5 text-red-500" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                    </svg>
-                    {{ $yt->title }}
-                </p>
-                @endif
-                <div class="embed-wrap">
-                    <iframe src="{{ $ytEmbed }}" frameborder="0" allowfullscreen
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                            referrerpolicy="strict-origin-when-cross-origin"></iframe>
-                </div>
-                @if($yt->description)
-                <p class="mt-1.5 text-[10px] text-slate-400 leading-relaxed">{{ $yt->description }}</p>
-                @endif
-            </div>
-            @endif
-            @endforeach
-
-            {{-- GOOGLE DRIVE MEDIA --}}
-            @foreach($drives as $drive)
-            @php
-                $driveRaw   = method_exists($drive, 'getGoogleDriveEmbedUrl')
-                    ? $drive->getGoogleDriveEmbedUrl()
-                    : ($drive->url ?? '');
-                $driveEmbed = $driveRaw ? $embedDrive($driveRaw) : '';
-            @endphp
-            @if($driveEmbed)
-            <div class="mb-4">
-                @if($drive->title)
-                <p class="mb-1.5 text-xs font-semibold text-slate-600 flex items-center gap-1">
-                    <svg class="h-3.5 w-3.5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M4.433 22.396l4-6.929H24l-4 6.929H4.433zm3.566-6.929L2.566 6.536l4-6.929 5.434 9.403-4.001 6.857zM13.567 8.01L18.992.107 24 9.01H13.567z"/>
-                    </svg>
-                    {{ $drive->title }}
-                </p>
-                @endif
-                <div class="embed-wrap" style="padding-top:75%">
-                    <iframe src="{{ $driveEmbed }}" frameborder="0" allowfullscreen
-                            allow="autoplay"
-                            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
-                </div>
-                @if($drive->description)
-                <p class="mt-1.5 text-[10px] text-slate-400 leading-relaxed">{{ $drive->description }}</p>
-                @endif
-            </div>
-            @endif
-            @endforeach
-
-            {{-- ── GAMBAR + BODY QUILL / GAMBAR SAJA / BODY SAJA ── --}}
-            @if($hasImage && $hasBody)
-            <div class="mb-4 media-split">
-                <div class="media-split__img">
-                    @foreach($images as $img)
-                    <div class="media-split__img-wrap" style="{{ !$loop->first ? 'margin-top:8px' : '' }}">
-                        <img src="{{ $img->getDisplayUrl() }}" alt="{{ $img->title ?? $content->title }}" loading="lazy">
-                    </div>
-                    @if($img->description)
-                    <p class="mt-1 text-[10px] text-slate-400 text-center leading-tight">{{ $img->description }}</p>
-                    @endif
-                    @endforeach
-                </div>
-                {{-- Quill viewer: gambar + teks --}}
-                <div class="media-split__text">
-                    <div id="{{ $skelId }}-img" class="space-y-1.5 mb-1">
-                        <div class="ql-skeleton-bar w-full"></div>
-                        <div class="ql-skeleton-bar w-5/6"></div>
-                        <div class="ql-skeleton-bar w-4/6"></div>
-                    </div>
-                    <div id="{{ $bodyId }}-img" class="ql-body-viewer hidden"></div>
-                    <script type="application/json" id="body-data-{{ $content->id }}-img">@json($content->body)</script>
-                </div>
-            </div>
-
-            @elseif($hasImage && !$hasBody)
-            <div class="mb-4 space-y-2">
-                @foreach($images as $img)
-                <div class="media-img-only">
-                    <img src="{{ $img->getDisplayUrl() }}" alt="{{ $img->title ?? $content->title }}" loading="lazy">
-                </div>
-                @if($img->description)
-                <p class="text-[10px] text-slate-400 text-center leading-tight">{{ $img->description }}</p>
-                @endif
-                @endforeach
-            </div>
-
-            @elseif(!$hasImage && $hasBody && !$content->isUrl() && !$content->isFile())
-            {{-- Quill viewer: teks saja --}}
-            <div class="mb-4">
-                <div id="{{ $skelId }}" class="space-y-1.5 mb-1">
-                    <div class="ql-skeleton-bar w-full"></div>
-                    <div class="ql-skeleton-bar w-5/6"></div>
-                    <div class="ql-skeleton-bar w-4/6"></div>
-                </div>
-                <div id="{{ $bodyId }}" class="ql-body-viewer hidden"></div>
-                <script type="application/json" id="body-data-{{ $content->id }}">@json($content->body)</script>
-            </div>
-            @endif
-
-            {{-- URL --}}
-            @if($content->isUrl())
-            <a href="{{ $content->url }}" target="_blank" rel="noopener noreferrer"
-               class="mb-3 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100">
-                    <svg class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                    </svg>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-indigo-700">Buka Tautan</p>
-                    <p class="truncate text-[10px] text-indigo-400">{{ $content->url }}</p>
-                </div>
-            </a>
-            @if($hasBody)
-            {{-- Quill viewer: deskripsi URL --}}
-            <div class="mb-3">
-                <div id="{{ $skelId }}-url" class="space-y-1 mb-1">
-                    <div class="ql-skeleton-bar w-full"></div>
-                    <div class="ql-skeleton-bar w-4/6"></div>
-                </div>
-                <div id="{{ $bodyId }}-url" class="ql-body-viewer hidden"></div>
-                <script type="application/json" id="body-data-{{ $content->id }}-url">@json($content->body)</script>
-            </div>
-            @endif
-            @endif
-
-            {{-- File --}}
-            @if($content->isFile())
-            <a href="{{ $content->url }}" target="_blank" rel="noopener noreferrer"
-               class="mb-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
-                    <svg class="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                    </svg>
-                </div>
-                <div>
-                    <p class="text-sm font-semibold text-slate-700">Unduh File</p>
-                    <p class="text-[10px] text-slate-400">Tap untuk membuka</p>
-                </div>
-            </a>
-            @if($hasBody)
-            {{-- Quill viewer: deskripsi file --}}
-            <div class="mb-3">
-                <div id="{{ $skelId }}-file" class="space-y-1 mb-1">
-                    <div class="ql-skeleton-bar w-full"></div>
-                    <div class="ql-skeleton-bar w-4/6"></div>
-                </div>
-                <div id="{{ $bodyId }}-file" class="ql-body-viewer hidden"></div>
-                <script type="application/json" id="body-data-{{ $content->id }}-file">@json($content->body)</script>
-            </div>
-            @endif
-            @endif
-
-            {{-- Audio --}}
-            @if($audios->isNotEmpty())
-            <div class="mt-3 space-y-3">
-                @foreach($audios as $audio)
-                @php $audioSrc = $audio->getDisplayUrl(); @endphp
-                @if($audioSrc)
-                <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    @if($audio->title)
-                    <p class="mb-2 text-xs font-semibold text-slate-600">🎵 {{ $audio->title }}</p>
-                    @endif
-                    <audio controls class="w-full" style="height:40px; border-radius:8px">
-                        <source src="{{ $audioSrc }}">
-                        Browser tidak mendukung audio.
-                    </audio>
-                    @if($audio->description)
-                    <p class="mt-1 text-[10px] text-slate-400">{{ $audio->description }}</p>
-                    @endif
-                </div>
-                @endif
-                @endforeach
-            </div>
-            @endif
-
-        </div>{{-- /slide --}}
+        </div>
         @endforeach
 
         {{-- QUIZ SLIDE --}}
@@ -433,8 +115,7 @@
                     </svg>
                     Mulai Quiz
                 </a>
-                <a href="{{ route('user.schemas.show', $learningSchema) }}"
-                   class="mt-3 text-xs text-slate-400 underline">Kembali ke Materi</a>
+                <a href="{{ route('user.schemas.show', $learningSchema) }}" class="mt-3 text-xs text-slate-400 underline">Kembali ke Materi</a>
             </div>
         </div>
         @endif
@@ -482,48 +163,6 @@
 
 </div>
 
-{{-- Quill UMD (satu kali load, sama seperti admin) --}}
-<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
-<script>
-(function () {
-    document.querySelectorAll('.ql-body-viewer').forEach(function (viewer) {
-        var id     = viewer.id;                       // e.g. "ql-viewer-12" or "ql-viewer-12-img"
-        var suffix = id.replace('ql-viewer-', '');    // e.g. "12" or "12-img"
-        var skelId = 'ql-skel-' + suffix;
-        var dataId = 'body-data-' + suffix;
-
-        var dataEl = document.getElementById(dataId);
-        if (!dataEl) return;
-
-        // textContent sudah berupa string JSON yang valid karena @json() tidak di-escape HTML
-        var rawText = dataEl.textContent.trim();
-        if (!rawText || rawText === 'null') return;
-
-        var htmlBody;
-        try {
-            htmlBody = JSON.parse(rawText);
-        } catch (e) {
-            // fallback: pakai raw text langsung sebagai HTML
-            htmlBody = rawText;
-        }
-        if (!htmlBody) return;
-
-        var quill = new Quill(viewer, {
-            theme    : 'snow',
-            readOnly : true,
-            modules  : { toolbar: false },
-        });
-
-        var delta = quill.clipboard.convert({ html: htmlBody });
-        quill.setContents(delta, 'silent');
-
-        var skel = document.getElementById(skelId);
-        if (skel) skel.style.display = 'none';
-        viewer.classList.remove('hidden');
-    });
-}());
-</script>
-
 <script>
 (function () {
     const total       = {{ $totalSlides }};
@@ -548,26 +187,16 @@
         const readContentIds = Array.from(readSlides)
             .filter(i => i < contentIds.length)
             .map(i => contentIds[i]);
-
         fetch(progressUrl, {
             method : 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-                'Accept'      : 'application/json',
-            },
-            body: JSON.stringify({
-                slide_index  : Math.max(...readSlides),
-                total_slides : total,
-                content_ids  : readContentIds,
-                completed    : forceComplete,
-            }),
+            headers: { 'Content-Type':'application/json', 'X-CSRF-TOKEN':csrfToken, 'Accept':'application/json' },
+            body: JSON.stringify({ slide_index: Math.max(...readSlides), total_slides: total, content_ids: readContentIds, completed: forceComplete }),
         }).catch(() => {});
     }
 
     function setPrev(on) {
-        btnPrev.style.opacity       = on ? '1'    : '0.3';
-        btnPrev.style.pointerEvents = on ? 'auto' : 'none';
+        btnPrev.style.opacity       = on ? '1'       : '0.3';
+        btnPrev.style.pointerEvents = on ? 'auto'    : 'none';
         btnPrev.style.cursor        = on ? 'pointer' : 'default';
     }
 
@@ -577,16 +206,12 @@
         track.style.transform = `translateX(-${(100 / total) * cur}%)`;
         counter.textContent   = cur + 1;
         bar.style.width       = ((cur + 1) / total * 100) + '%';
-
         dots.forEach((d, i) => {
             d.style.width      = i === cur ? '20px' : '8px';
             d.style.background = i === cur ? '#6366f1' : '#e2e8f0';
         });
-
         setPrev(cur > 0);
-
         const isLast = cur === total - 1;
-
         if (isLast && hasQuiz) {
             btnNext.style.display = 'none';
         } else if (isLast && !hasQuiz) {
@@ -598,7 +223,6 @@
             btnNext.innerHTML = 'Lanjut&nbsp;<svg style="display:inline;vertical-align:middle" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>';
             btnNext.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)';
         }
-
         saveProgress(cur, false);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
