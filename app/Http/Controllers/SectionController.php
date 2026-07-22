@@ -4,12 +4,34 @@ namespace App\Http\Controllers;
 
 use App\Models\LearningSchema;
 use App\Models\Section;
+use App\Models\UserProgress;
 use Illuminate\Http\Request;
 
 class SectionController extends Controller
 {
     public function userShow(LearningSchema $learningSchema, Section $section)
     {
+        $allSections = $learningSchema->sections()
+            ->where('is_active', true)
+            ->orderBy('learning_schema_section.section_order')
+            ->get(['sections.id', 'sections.title']);
+
+        $currentIndex = $allSections->search(fn ($s) => $s->id === $section->id);
+
+        // Guard: jika bukan section pertama, pastikan section sebelumnya sudah completed
+        if ($currentIndex > 0) {
+            $prevSection = $allSections[$currentIndex - 1];
+            $prevProgress = UserProgress::where('user_id', auth()->id())
+                ->where('section_id', $prevSection->id)
+                ->first();
+
+            abort_if(
+                ! $prevProgress || $prevProgress->status !== 'completed',
+                403,
+                'Selesaikan section sebelumnya terlebih dahulu.'
+            );
+        }
+
         $section->load([
             'contents' => function ($q) {
                 $q->active()->ordered()
@@ -18,12 +40,6 @@ class SectionController extends Controller
             'quizzes' => fn ($q) => $q->where('is_active', true),
         ]);
 
-        $allSections = $learningSchema->sections()
-            ->where('is_active', true)
-            ->orderBy('learning_schema_section.section_order')
-            ->get(['sections.id', 'sections.title']);
-
-        $currentIndex = $allSections->search(fn ($s) => $s->id === $section->id);
         $prevSection  = $currentIndex > 0 ? $allSections[$currentIndex - 1] : null;
         $nextSection  = $currentIndex < $allSections->count() - 1 ? $allSections[$currentIndex + 1] : null;
 
