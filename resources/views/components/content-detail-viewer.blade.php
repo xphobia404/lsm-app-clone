@@ -3,16 +3,6 @@
     'section',
 ])
 
-{{-- ─────────────────────────────────────────────────────────────────────────
-     x-content-detail-viewer
-     Usage:
-       <x-content-detail-viewer :content="$content" :section="$section" />
-
-     Read-only Quill viewer — menggunakan CDN UMD (quill.js) yang sama
-     dengan create.blade.php dan edit.blade.php.
-     Toolbar disembunyikan, border & padding di-reset.
-───────────────────────────────────────────────────────────────────────────── --}}
-
 <link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
 
 <style>
@@ -89,24 +79,22 @@
 
     {{-- ─── Isi Konten (Quill Read-Only) ─────────────────────────────────── --}}
     @if($content->body)
-        <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
+        <div class="rounded-2xl bg-white shadow-sm p-5">
             <h3 class="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wide">Isi Konten</h3>
 
-            {{-- Skeleton: tampil saat Quill belum siap --}}
             <div id="content-body-skeleton" class="space-y-2">
                 <div class="skeleton-bar w-full"></div>
                 <div class="skeleton-bar w-5/6"></div>
                 <div class="skeleton-bar w-4/6"></div>
             </div>
 
-            {{-- Container yang diisi Quill --}}
             <div id="content-body-viewer" class="hidden"></div>
         </div>
     @endif
 
-    {{-- ─── URL Konten ─────────────────────────────────────────────────── --}}
+    {{-- ─── URL Konten ──────────────────────────────────────────────────── --}}
     @if($content->url)
-        <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
+        <div class="rounded-2xl bg-white shadow-sm p-5">
             <h3 class="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">URL</h3>
             <a href="{{ $content->url }}" target="_blank" rel="noopener noreferrer"
                class="text-sm text-indigo-600 break-all hover:underline">{{ $content->url }}</a>
@@ -114,7 +102,7 @@
     @endif
 
     {{-- ─── Media Lampiran ─────────────────────────────────────────────── --}}
-    <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
+    <div class="rounded-2xl bg-white shadow-sm p-5">
         <h3 class="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wide">
             Media Lampiran
             <span class="ml-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-600">
@@ -135,7 +123,7 @@
                             default => ['bg' => 'bg-indigo-50', 'text' => 'text-indigo-600', 'badge' => 'bg-indigo-100 text-indigo-600'],
                         };
                     @endphp
-                    <div class="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                    <div class="flex items-start gap-3 rounded-2xl bg-slate-50 px-4 py-3">
 
                         {{-- Icon --}}
                         <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl {{ $mColor['bg'] }}">
@@ -197,7 +185,7 @@
     </div>
 
     {{-- ─── Meta ──────────────────────────────────────────────────────────── --}}
-    <div class="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-xs text-slate-400 space-y-1">
+    <div class="rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-400 space-y-1">
         <p>Dibuat: {{ $content->created_at->translatedFormat('d F Y, H:i') }}</p>
         <p>Diperbarui: {{ $content->updated_at->translatedFormat('d F Y, H:i') }}</p>
     </div>
@@ -224,7 +212,6 @@
         var delta    = quill.clipboard.convert({ html: htmlBody });
         quill.setContents(delta, 'silent');
 
-        // Tampilkan viewer, sembunyikan skeleton
         if (skeleton) skeleton.style.display = 'none';
         viewer.classList.remove('hidden');
     })();
