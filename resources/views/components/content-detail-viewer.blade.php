@@ -8,9 +8,10 @@
      Usage:
        <x-content-detail-viewer :content="$content" :section="$section" />
 
-     Read-only Quill viewer untuk field body. Toolbar disembunyikan,
-     border dan padding di-reset via inline style.
-────────────────────────────────────────────────────────────────────────── --}}
+     Read-only Quill viewer — menggunakan CDN UMD (quill.js) yang sama
+     dengan create.blade.php dan edit.blade.php.
+     Toolbar disembunyikan, border & padding di-reset.
+───────────────────────────────────────────────────────────────────────────── --}}
 
 <link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
 
@@ -86,12 +87,12 @@
         </a>
     </div>
 
-    {{-- ─── Isi Konten (Quill Read-Only) ─────────────────────────────── --}}
+    {{-- ─── Isi Konten (Quill Read-Only) ─────────────────────────────────── --}}
     @if($content->body)
         <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
             <h3 class="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wide">Isi Konten</h3>
 
-            {{-- Skeleton: tampil saat JS belum jalan (progressive enhancement) --}}
+            {{-- Skeleton: tampil saat Quill belum siap --}}
             <div id="content-body-skeleton" class="space-y-2">
                 <div class="skeleton-bar w-full"></div>
                 <div class="skeleton-bar w-5/6"></div>
@@ -100,13 +101,10 @@
 
             {{-- Container yang diisi Quill --}}
             <div id="content-body-viewer" class="hidden"></div>
-
-            {{-- Raw HTML disimpan di data attribute, aman dari XSS karena hanya dibaca JS --}}
-            <script id="content-body-data" type="application/json">{!! json_encode($content->body) !!}</script>
         </div>
     @endif
 
-    {{-- ─── URL Konten ─────────────────────────────────────────────── --}}
+    {{-- ─── URL Konten ─────────────────────────────────────────────────── --}}
     @if($content->url)
         <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
             <h3 class="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">URL</h3>
@@ -115,7 +113,7 @@
         </div>
     @endif
 
-    {{-- ─── Media Lampiran ─────────────────────────────────────────── --}}
+    {{-- ─── Media Lampiran ─────────────────────────────────────────────── --}}
     <div class="rounded-2xl bg-white border border-slate-100 shadow-sm p-5">
         <h3 class="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wide">
             Media Lampiran
@@ -198,7 +196,7 @@
         @endif
     </div>
 
-    {{-- ─── Meta ──────────────────────────────────────────────────── --}}
+    {{-- ─── Meta ──────────────────────────────────────────────────────────── --}}
     <div class="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-xs text-slate-400 space-y-1">
         <p>Dibuat: {{ $content->created_at->translatedFormat('d F Y, H:i') }}</p>
         <p>Diperbarui: {{ $content->updated_at->translatedFormat('d F Y, H:i') }}</p>
@@ -206,30 +204,29 @@
 
 </div>
 
-{{-- ─── Quill Read-Only Init Script ──────────────────────────────────────── --}}
+{{-- ─── Quill Read-Only Init (UMD global, sama seperti create/edit) ────── --}}
 @if($content->body)
-<script type="module">
-    import Quill from 'https://cdn.jsdelivr.net/npm/quill@2/dist/quill.mjs';
+<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
+<script>
+    (function () {
+        var skeleton = document.getElementById('content-body-skeleton');
+        var viewer   = document.getElementById('content-body-viewer');
 
-    const skeleton = document.getElementById('content-body-skeleton');
-    const viewer   = document.getElementById('content-body-viewer');
-    const rawData  = document.getElementById('content-body-data');
+        if (!viewer) return;
 
-    if (viewer && rawData) {
-        const htmlBody = JSON.parse(rawData.textContent);
-
-        const quill = new Quill(viewer, {
+        var quill = new Quill(viewer, {
             theme:    'snow',
             readOnly: true,
             modules:  { toolbar: false },
         });
 
-        const delta = quill.clipboard.convert({ html: htmlBody });
+        var htmlBody = @json($content->body);
+        var delta    = quill.clipboard.convert({ html: htmlBody });
         quill.setContents(delta, 'silent');
 
         // Tampilkan viewer, sembunyikan skeleton
-        skeleton.style.display = 'none';
+        if (skeleton) skeleton.style.display = 'none';
         viewer.classList.remove('hidden');
-    }
+    })();
 </script>
 @endif
