@@ -6,6 +6,7 @@ use App\Models\LearningSchema;
 use App\Models\Section;
 use App\Models\UserProgress;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SectionController extends Controller
 {
@@ -35,7 +36,7 @@ class SectionController extends Controller
         $section->load([
             'contents' => function ($q) {
                 $q->active()->ordered()
-                  ->with(['media' => fn ($m) => $m->where('is_active', true)->orderBy('media_order')]);
+                    ->with(['media' => fn ($m) => $m->where('is_active', true)->orderBy('media_order')]);
             },
             'quizzes' => fn ($q) => $q->where('is_active', true),
         ]);
@@ -96,6 +97,42 @@ class SectionController extends Controller
         ]);
     }
 
+    public function reorder(Request $request, LearningSchema $learningSchema)
+    {
+        $validated = $request->validate([
+            'section_ids' => ['required', 'array', 'min:1'],
+            'section_ids.*' => ['integer', 'distinct'],
+        ]);
+
+        $sectionIds = array_map('intval', $validated['section_ids']);
+        $attachedIds = $learningSchema->sections()
+            ->pluck('sections.id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
+
+        $submittedIds = collect($sectionIds)->sort()->values()->all();
+
+        abort_unless(
+            $submittedIds === $attachedIds,
+            422,
+            'Daftar section tidak sesuai dengan materi ini.'
+        );
+
+        DB::transaction(function () use ($learningSchema, $sectionIds) {
+            foreach ($sectionIds as $index => $sectionId) {
+                $learningSchema->sections()->updateExistingPivot($sectionId, [
+                    'section_order' => $index + 1,
+                ]);
+            }
+        });
+
+        return response()->json([
+            'message' => 'Urutan section berhasil disimpan.',
+        ]);
+    }
+
     public function create()
     {
         $learningSchemas = LearningSchema::where('is_active', true)
@@ -107,11 +144,11 @@ class SectionController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title'                => 'required|string|max:255',
-            'description'          => 'nullable|string|max:2000',
-            'is_active'            => 'sometimes|boolean',
-            'learning_schema_ids'  => 'nullable|array',
-            'learning_schema_ids.*'=> 'exists:learning_schemas,id',
+            'title'                 => 'required|string|max:255',
+            'description'           => 'nullable|string|max:2000',
+            'is_active'             => 'sometimes|boolean',
+            'learning_schema_ids'   => 'nullable|array',
+            'learning_schema_ids.*' => 'exists:learning_schemas,id',
         ]);
 
         $section = Section::create([
@@ -146,11 +183,11 @@ class SectionController extends Controller
     public function update(Request $request, Section $section)
     {
         $validated = $request->validate([
-            'title'                => 'required|string|max:255',
-            'description'          => 'nullable|string|max:2000',
-            'is_active'            => 'sometimes|boolean',
-            'learning_schema_ids'  => 'nullable|array',
-            'learning_schema_ids.*'=> 'exists:learning_schemas,id',
+            'title'                 => 'required|string|max:255',
+            'description'           => 'nullable|string|max:2000',
+            'is_active'             => 'sometimes|boolean',
+            'learning_schema_ids'   => 'nullable|array',
+            'learning_schema_ids.*' => 'exists:learning_schemas,id',
         ]);
 
         $section->update([
