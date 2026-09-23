@@ -60,8 +60,57 @@
 
 <style>
 .ql-ro-viewer .ql-container.ql-snow { border: none !important; }
-.ql-ro-viewer .ql-editor             { padding: 0 !important; font-size: 0.875rem; color: #334155; cursor: default; line-height: 1.7; }
+.ql-ro-viewer .ql-editor             { padding: 0 !important; font-size: 0.875rem; color: #334155; cursor: default; line-height: 1.7; overflow-x: auto; }
 .ql-ro-viewer .ql-editor:focus       { outline: none; }
+
+/* Table responsive container & styling */
+.ql-ro-viewer .table-responsive,
+.ql-editor .table-responsive {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 1rem 0;
+    border-radius: 0.75rem;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.ql-ro-viewer .ql-editor table,
+.ql-editor table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: #334155;
+    margin: 0;
+}
+
+.ql-ro-viewer .ql-editor table th,
+.ql-ro-viewer .ql-editor table td,
+.ql-editor table th,
+.ql-editor table td {
+    padding: 0.625rem 0.875rem;
+    border: 1px solid #e2e8f0;
+    min-width: 120px;
+    vertical-align: top;
+    word-break: normal;
+}
+
+.ql-ro-viewer .ql-editor table th,
+.ql-editor table th {
+    background-color: #f8fafc;
+    font-weight: 600;
+    color: #1e293b;
+    text-align: left;
+}
+
+.ql-ro-viewer .ql-editor table tr:nth-child(even),
+.ql-editor table tr:nth-child(even) {
+    background-color: rgba(248, 250, 252, 0.6);
+}
+
 @keyframes cdv-shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
 .cdv-skel {
     background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);
@@ -377,6 +426,17 @@
         if (!html) { if(skel) skel.style.display='none'; return; }
         var q = new Quill(viewer, { theme:'snow', readOnly:true, modules:{toolbar:false} });
         q.setContents(q.clipboard.convert({html:html}), 'silent');
+
+        // Auto wrap any table inside a responsive scrollable container
+        viewer.querySelectorAll('table').forEach(function(tbl) {
+            if (!tbl.parentElement || !tbl.parentElement.classList.contains('table-responsive')) {
+                var wrapper = document.createElement('div');
+                wrapper.className = 'table-responsive';
+                tbl.parentNode.insertBefore(wrapper, tbl);
+                wrapper.appendChild(tbl);
+            }
+        });
+
         if (skel) skel.style.display = 'none';
         viewer.classList.remove('hidden');
     }

@@ -90,13 +90,14 @@
         theme: 'snow',
         placeholder: 'Tulis isi konten di sini...',
         modules: {
+            table: true,
             toolbar: [
                 [{ header: [1, 2, 3, false] }],
                 ['bold', 'italic', 'underline', 'strike'],
                 [{ color: [] }, { background: [] }],
                 [{ list: 'ordered' }, { list: 'bullet' }],
                 [{ align: [] }],
-                ['link', 'image', 'blockquote', 'code-block'],
+                ['link', 'image', 'blockquote', 'code-block', 'table'],
                 ['clean']
             ]
         }
