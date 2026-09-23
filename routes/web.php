@@ -87,6 +87,8 @@ Route::middleware(['auth', 'role:admin'])
         Route::get('/dashboard', [AdminDashboardController::class, 'dashboard'])->name('dashboard');
 
         // ── Users ────────────────────────────────────────────────────────
+        Route::get('users/template', [UserController::class, 'downloadTemplate'])->name('users.template');
+        Route::post('users/import', [UserController::class, 'importCsv'])->name('users.import');
         Route::resource('users', UserController::class);
         Route::post('users/{user}/toggle-active',
             [UserController::class, 'toggleActive'])->name('users.toggle-active');

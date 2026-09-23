@@ -1,16 +1,78 @@
 <x-admin-layout title="Kelola Users">
 <div class="px-4 pt-5 pb-10 space-y-4">
 
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
             <h2 class="text-base font-bold text-slate-800">Kelola Users</h2>
         </div>
-        <a href="{{ route('admin.users.create') }}"
-           class="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm active:bg-indigo-700 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            Tambah
-        </a>
+        <div class="flex items-center gap-2">
+            <button type="button"
+                    onclick="document.getElementById('import-csv-container').classList.toggle('hidden')"
+                    class="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-600 shadow-sm active:bg-indigo-100 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                Import CSV
+            </button>
+            <a href="{{ route('admin.users.create') }}"
+               class="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm active:bg-indigo-700 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                Tambah
+            </a>
+        </div>
+    </div>
+
+    {{-- CSV Import Box --}}
+    <div id="import-csv-container" class="{{ $errors->has('csv_file') || session('import_errors') ? '' : 'hidden' }} rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <div>
+                <h3 class="text-xs font-bold text-slate-800">Import Multi User via CSV</h3>
+                <p class="text-[11px] text-slate-500">Unggah file CSV untuk membuat banyak akun sekaligus.</p>
+            </div>
+            <a href="{{ route('admin.users.template') }}"
+               class="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Download Template CSV
+            </a>
+        </div>
+
+        <form action="{{ route('admin.users.import') }}" method="POST" enctype="multipart/form-data" class="space-y-3">
+            @csrf
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih File CSV <span class="text-red-500">*</span></label>
+                <input type="file" name="csv_file" accept=".csv,.txt"
+                       class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                       required>
+                <p class="mt-1 text-[11px] text-slate-400">Format kolom CSV: <code class="rounded bg-slate-100 px-1 text-slate-600">name,username,email,password,role,is_active</code></p>
+                @error('csv_file')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+            </div>
+
+            @if(isset($allSchemas) && $allSchemas->count() > 0)
+            <div class="space-y-1.5">
+                <label class="block text-xs font-semibold text-slate-700">Enrollment Materi Otomatis (Opsional)</label>
+                <p class="text-[11px] text-slate-400">Seluruh user yang diimpor akan langsung didaftarkan ke materi berikut:</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto p-1">
+                    @foreach($allSchemas as $schema)
+                    <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 cursor-pointer hover:bg-indigo-50 hover:border-indigo-200 transition">
+                        <input type="checkbox" name="schema_ids[]" value="{{ $schema->id }}" class="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-300">
+                        <span class="truncate font-medium">{{ $schema->title }}</span>
+                    </label>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
+            <div class="flex justify-end gap-2 pt-1">
+                <button type="button"
+                        onclick="document.getElementById('import-csv-container').classList.add('hidden')"
+                        class="rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-medium text-slate-600 active:bg-slate-100 transition">
+                    Batal
+                </button>
+                <button type="submit"
+                        class="rounded-full bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm active:bg-indigo-700 transition">
+                    Unggah & Import User
+                </button>
+            </div>
+        </form>
     </div>
 
     {{-- Filter bar --}}
@@ -38,6 +100,24 @@
 
     @if(session('success'))
         <x-alert type="success">{{ session('success') }}</x-alert>
+    @endif
+
+    @if(session('error'))
+        <x-alert type="error">{{ session('error') }}</x-alert>
+    @endif
+
+    @if(session('import_errors'))
+    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-800 space-y-1.5">
+        <p class="font-bold flex items-center gap-1.5 text-amber-900">
+            <svg class="h-4 w-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            Peringatan Import CSV:
+        </p>
+        <ul class="list-disc list-inside space-y-0.5 text-slate-700 max-h-40 overflow-y-auto">
+            @foreach(session('import_errors') as $err)
+                <li>{{ $err }}</li>
+            @endforeach
+        </ul>
+    </div>
     @endif
 
     {{-- Info jumlah --}}

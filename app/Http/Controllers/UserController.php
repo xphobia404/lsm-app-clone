@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\LearningSchema;
 use App\Models\User;
+use App\Services\UserCsvImportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -32,8 +33,9 @@ class UserController extends Controller
         }
 
         $users = $query->latest()->paginate(15)->withQueryString();
+        $allSchemas = LearningSchema::active()->orderBy('title')->get();
 
-        return view('admin.users.index', compact('users'));
+        return view('admin.users.index', compact('users', 'allSchemas'));
     }
 
     public function create()
@@ -196,5 +198,51 @@ class UserController extends Controller
         $label = $user->is_active ? 'diaktifkan' : 'dinonaktifkan';
 
         return back()->with('success', "User berhasil {$label}.");
+    }
+
+    public function downloadTemplate(UserCsvImportService $importService)
+    {
+        return response()->streamDownload(function () use ($importService) {
+            echo $importService->generateTemplateContent();
+        }, 'template_import_user.csv', [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    public function importCsv(Request $request, UserCsvImportService $importService)
+    {
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:2048',
+            'schema_ids' => 'nullable|array',
+            'schema_ids.*' => 'integer|exists:learning_schemas,id',
+        ], [
+            'csv_file.required' => 'File CSV wajib diunggah.',
+            'csv_file.mimes' => 'File harus berformat CSV atau TXT.',
+            'csv_file.max' => 'Ukuran file maksimal 2MB.',
+        ]);
+
+        $result = $importService->import(
+            $request->file('csv_file'),
+            $request->input('schema_ids', [])
+        );
+
+        $successCount = $result['success_count'];
+        $errors = $result['errors'];
+
+        $redirect = redirect()->route('admin.users.index');
+
+        if ($successCount > 0 && empty($errors)) {
+            return $redirect->with('success', "Berhasil mengimpor {$successCount} user.");
+        }
+
+        if ($successCount > 0 && ! empty($errors)) {
+            return $redirect
+                ->with('success', "Berhasil mengimpor {$successCount} user.")
+                ->with('import_errors', $errors);
+        }
+
+        return $redirect
+            ->with('error', 'Gagal mengimpor user. Silakan periksa kembali file CSV Anda.')
+            ->with('import_errors', $errors);
     }
 }
