@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\LearningSchema;
 use App\Models\Section;
+use App\Support\MateriPreviewContext;
 use Illuminate\Http\Request;
 
 class LearningSchemaController extends Controller
@@ -15,10 +16,10 @@ class LearningSchemaController extends Controller
         $query = LearningSchema::withCount('sections');
 
         if ($request->filled('search')) {
-            $search = '%' . $request->search . '%';
+            $search = '%'.$request->search.'%';
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', $search)
-                  ->orWhere('description', 'like', $search);
+                    ->orWhere('description', 'like', $search);
             });
         }
 
@@ -39,9 +40,9 @@ class LearningSchemaController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title'       => 'required|string|max:255',
+            'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'is_active'   => 'sometimes|boolean',
+            'is_active' => 'sometimes|boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
@@ -61,8 +62,7 @@ class LearningSchemaController extends Controller
                 ->orderBy('learning_schema_section.section_order'),
         ]);
 
-        $availableSections = Section::whereDoesntHave('learningSchemas', fn ($q) =>
-            $q->where('learning_schemas.id', $learningSchema->id)
+        $availableSections = Section::whereDoesntHave('learningSchemas', fn ($q) => $q->where('learning_schemas.id', $learningSchema->id)
         )->where('is_active', true)->orderBy('title')->get(['id', 'title', 'is_active']);
 
         return view('admin.learning-schemas.show', compact('learningSchema', 'availableSections'));
@@ -76,9 +76,9 @@ class LearningSchemaController extends Controller
     public function update(Request $request, LearningSchema $learningSchema)
     {
         $validated = $request->validate([
-            'title'       => 'required|string|max:255',
+            'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'is_active'   => 'sometimes|boolean',
+            'is_active' => 'sometimes|boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
@@ -140,14 +140,13 @@ class LearningSchemaController extends Controller
 
         $schemas = $user->learningSchemas()
             ->with(['sections' => fn ($q) => $q->where('is_active', true)])
-            ->when($request->filled('search'), fn ($q) =>
-                $q->where('title', 'like', '%' . $request->search . '%')
+            ->when($request->filled('search'), fn ($q) => $q->where('title', 'like', '%'.$request->search.'%')
             )
             ->paginate(12)
             ->withQueryString();
 
         $allSectionIds = $schemas->flatMap(fn ($s) => $s->sections->pluck('id'));
-        $progressMap   = $user->progresses()
+        $progressMap = $user->progresses()
             ->whereIn('section_id', $allSectionIds)
             ->pluck('status', 'section_id');
 
@@ -167,11 +166,14 @@ class LearningSchemaController extends Controller
                 ->withCount(['contents', 'quizzes']),
         ]);
 
-        $user        = auth()->user();
+        $user = auth()->user();
         $progressMap = $user->progresses()
             ->whereIn('section_id', $learningSchema->sections->pluck('id'))
             ->pluck('status', 'section_id');
 
-        return view('user.schemas.show', compact('learningSchema', 'progressMap'));
+        return view('user.schemas.show', array_merge(
+            compact('learningSchema', 'progressMap'),
+            MateriPreviewContext::variables($learningSchema, false),
+        ));
     }
 }

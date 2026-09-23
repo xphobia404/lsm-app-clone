@@ -1,6 +1,7 @@
 {{-- resources/views/user/section.blade.php --}}
 <x-reader-layout :title="$section->title">
 @php
+    $adminPreview = $adminPreview ?? false;
     $contents    = $section->contents;
     $quizzes     = $section->quizzes;
     $totalSlides = $contents->count() + ($quizzes->isNotEmpty() ? 1 : 0);
@@ -31,10 +32,17 @@
 
 <div class="flex flex-col" style="min-height:100dvh">
 
+@if($adminPreview)
+<div class="fixed top-0 left-0 right-0 z-[60] flex items-center justify-between gap-2 bg-amber-500 px-3 py-2 text-[11px] font-semibold text-white">
+    <span>Preview admin — progress tidak disimpan</span>
+    <a href="{{ $previewExitUrl }}" class="shrink-0 rounded-full bg-white/20 px-2.5 py-0.5">Keluar</a>
+</div>
+@endif
+
 {{-- TOP BAR --}}
-<div class="fixed top-0 left-0 right-0 z-50 flex items-center gap-3 border-b border-slate-100 bg-white px-4 py-3"
-     style="backdrop-filter:blur(8px)">
-    <a href="{{ route('user.schemas.show', $learningSchema) }}"
+<div class="fixed left-0 right-0 z-50 flex items-center gap-3 border-b border-slate-100 bg-white px-4 py-3"
+     style="backdrop-filter:blur(8px); top: {{ $adminPreview ? '36px' : '0' }}">
+    <a href="{{ $schemaShowUrl }}"
        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
@@ -52,13 +60,13 @@
 </div>
 
 {{-- Progress bar --}}
-<div class="fixed z-40 h-0.5 w-full bg-slate-100" style="top:53px">
+<div class="fixed z-40 h-0.5 w-full bg-slate-100" style="top:{{ $adminPreview ? '89px' : '53px' }}">
     <div id="progress-bar" class="h-0.5 bg-indigo-500 transition-all duration-300"
          style="width:{{ round(1/$totalSlides*100) }}%"></div>
 </div>
 
 {{-- SLIDER AREA --}}
-<div class="overflow-hidden flex-1" style="padding-top:57px; padding-bottom:80px">
+<div class="overflow-hidden flex-1" style="padding-top:{{ $adminPreview ? '93px' : '57px' }}; padding-bottom:80px">
     <div id="slides-track" class="flex transition-transform duration-300 ease-in-out"
          style="width:{{ $totalSlides * 100 }}%">
 
@@ -106,7 +114,7 @@
                         <p class="text-[10px] text-slate-400">Soal</p>
                     </div>
                 </div>
-                <a href="{{ route('user.quizzes.index', $section) }}"
+                <a href="{{ $quizIndexUrl($section) }}"
                    class="mt-6 w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold text-white shadow-lg"
                    style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -115,7 +123,7 @@
                     </svg>
                     Mulai Quiz
                 </a>
-                <a href="{{ route('user.schemas.show', $learningSchema) }}" class="mt-3 text-xs text-slate-400 underline">Kembali ke Materi</a>
+                <a href="{{ $schemaShowUrl }}" class="mt-3 text-xs text-slate-400 underline">Kembali ke Materi</a>
             </div>
         </div>
         @endif
@@ -124,7 +132,7 @@
         @if($contents->isEmpty() && !$hasQuiz)
         <div class="slide-panel px-4 py-16 text-center" style="width:100%; flex-shrink:0">
             <p class="text-sm text-slate-400">Belum ada konten di section ini.</p>
-            <a href="{{ route('user.schemas.show', $learningSchema) }}" class="mt-4 inline-block text-xs text-indigo-500 underline">Kembali</a>
+            <a href="{{ $schemaShowUrl }}" class="mt-4 inline-block text-xs text-indigo-500 underline">Kembali</a>
         </div>
         @endif
 
@@ -168,9 +176,10 @@
     const total       = {{ $totalSlides }};
     const hasQuiz     = {{ $hasQuiz ? 'true' : 'false' }};
     const contentIds  = {!! $contentIdsJs !!};
-    const progressUrl = '{{ route('user.sections.progress.update', $section) }}';
+    const adminPreview = {{ $adminPreview ? 'true' : 'false' }};
+    const progressUrl = adminPreview ? null : '{{ route('user.sections.progress.update', $section) }}';
     const csrfToken   = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
-    const backUrl     = '{{ route('user.schemas.show', $learningSchema) }}';
+    const backUrl     = @json($schemaShowUrl);
 
     const track   = document.getElementById('slides-track');
     const btnPrev = document.getElementById('btn-prev');
@@ -183,6 +192,9 @@
     let cur = 0;
 
     function saveProgress(slideIndex, forceComplete = false) {
+        if (adminPreview || ! progressUrl) {
+            return;
+        }
         readSlides.add(slideIndex);
         const readContentIds = Array.from(readSlides)
             .filter(i => i < contentIds.length)

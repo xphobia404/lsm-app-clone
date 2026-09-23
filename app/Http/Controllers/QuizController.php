@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Media;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\Section;
+use App\Support\MateriPreviewContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -25,14 +25,14 @@ class QuizController extends Controller
             ->with('media')
             ->withCount('media')
             ->when($request->filled('search'), function ($q) use ($request) {
-                $search = '%' . $request->search . '%';
+                $search = '%'.$request->search.'%';
                 $q->where(function ($q2) use ($search) {
                     $q2->where('question', 'like', $search)
-                    ->orWhere('explanation', 'like', $search)
-                    ->orWhere('option_a', 'like', $search)
-                    ->orWhere('option_b', 'like', $search)
-                    ->orWhere('option_c', 'like', $search)
-                    ->orWhere('option_d', 'like', $search);
+                        ->orWhere('explanation', 'like', $search)
+                        ->orWhere('option_a', 'like', $search)
+                        ->orWhere('option_b', 'like', $search)
+                        ->orWhere('option_c', 'like', $search)
+                        ->orWhere('option_d', 'like', $search);
                 });
             })
             ->when($request->filled('status'), function ($q) use ($request) {
@@ -53,21 +53,21 @@ class QuizController extends Controller
     public function store(Request $request, Section $section)
     {
         $validated = $request->validate([
-            'question'          => 'required|string|max:1000',
-            'option_a'          => 'required|string|max:255',
-            'option_b'          => 'required|string|max:255',
-            'option_c'          => 'nullable|string|max:255',
-            'option_d'          => 'nullable|string|max:255',
-            'correct_answer'    => 'required|in:a,b,c,d',
-            'explanation'       => 'nullable|string|max:2000',
-            'quiz_order'        => 'nullable|integer|min:0',
-            'is_active'         => 'sometimes|boolean',
-            'media'             => 'nullable|array|max:5',
-            'media.*.media_type'  => 'required_with:media|in:image,video,audio,url',
-            'media.*.title'       => 'nullable|string|max:255',
+            'question' => 'required|string|max:1000',
+            'option_a' => 'required|string|max:255',
+            'option_b' => 'required|string|max:255',
+            'option_c' => 'nullable|string|max:255',
+            'option_d' => 'nullable|string|max:255',
+            'correct_answer' => 'required|in:a,b,c,d',
+            'explanation' => 'nullable|string|max:2000',
+            'quiz_order' => 'nullable|integer|min:0',
+            'is_active' => 'sometimes|boolean',
+            'media' => 'nullable|array|max:5',
+            'media.*.media_type' => 'required_with:media|in:image,video,audio,url',
+            'media.*.title' => 'nullable|string|max:255',
             'media.*.description' => 'nullable|string|max:500',
-            'media.*.url'         => 'nullable|string|max:2000',
-            'media.*.file'        => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mp3,wav|max:20480',
+            'media.*.url' => 'nullable|string|max:2000',
+            'media.*.file' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mp3,wav|max:20480',
             'media.*.media_order' => 'nullable|integer|min:0',
         ]);
 
@@ -90,6 +90,7 @@ class QuizController extends Controller
     {
         $this->authorizeQuiz($section, $quiz);
         $quiz->load('media');
+
         return view('admin.quizzes.show', compact('section', 'quiz'));
     }
 
@@ -97,6 +98,7 @@ class QuizController extends Controller
     {
         $this->authorizeQuiz($section, $quiz);
         $quiz->load('media');
+
         return view('admin.quizzes.edit', compact('section', 'quiz'));
     }
 
@@ -105,24 +107,24 @@ class QuizController extends Controller
         $this->authorizeQuiz($section, $quiz);
 
         $validated = $request->validate([
-            'question'          => 'required|string|max:1000',
-            'option_a'          => 'required|string|max:255',
-            'option_b'          => 'required|string|max:255',
-            'option_c'          => 'nullable|string|max:255',
-            'option_d'          => 'nullable|string|max:255',
-            'correct_answer'    => 'required|in:a,b,c,d',
-            'explanation'       => 'nullable|string|max:2000',
-            'quiz_order'        => 'nullable|integer|min:0',
-            'is_active'         => 'sometimes|boolean',
-            'media'             => 'nullable|array|max:5',
-            'media.*.media_type'  => 'required_with:media|in:image,video,audio,url',
-            'media.*.title'       => 'nullable|string|max:255',
+            'question' => 'required|string|max:1000',
+            'option_a' => 'required|string|max:255',
+            'option_b' => 'required|string|max:255',
+            'option_c' => 'nullable|string|max:255',
+            'option_d' => 'nullable|string|max:255',
+            'correct_answer' => 'required|in:a,b,c,d',
+            'explanation' => 'nullable|string|max:2000',
+            'quiz_order' => 'nullable|integer|min:0',
+            'is_active' => 'sometimes|boolean',
+            'media' => 'nullable|array|max:5',
+            'media.*.media_type' => 'required_with:media|in:image,video,audio,url',
+            'media.*.title' => 'nullable|string|max:255',
             'media.*.description' => 'nullable|string|max:500',
-            'media.*.url'         => 'nullable|string|max:2000',
-            'media.*.file'        => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mp3,wav|max:20480',
+            'media.*.url' => 'nullable|string|max:2000',
+            'media.*.file' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mp3,wav|max:20480',
             'media.*.media_order' => 'nullable|integer|min:0',
-            'delete_media'      => 'nullable|array',
-            'delete_media.*'    => 'integer|exists:media,id',
+            'delete_media' => 'nullable|array',
+            'delete_media.*' => 'integer|exists:media,id',
         ]);
 
         $this->ensureAnswerOptionFilled($validated);
@@ -130,10 +132,12 @@ class QuizController extends Controller
 
         $quiz->update($validated);
 
-        if (!empty($validated['delete_media'])) {
+        if (! empty($validated['delete_media'])) {
             $toDelete = $quiz->media()->whereIn('id', $validated['delete_media'])->get();
             foreach ($toDelete as $m) {
-                if ($m->file_path) Storage::delete($m->file_path);
+                if ($m->file_path) {
+                    Storage::delete($m->file_path);
+                }
                 $m->delete();
             }
         }
@@ -150,7 +154,9 @@ class QuizController extends Controller
         $this->authorizeQuiz($section, $quiz);
 
         foreach ($quiz->media as $m) {
-            if ($m->file_path) Storage::delete($m->file_path);
+            if ($m->file_path) {
+                Storage::delete($m->file_path);
+            }
         }
         $quiz->media()->delete();
         $quiz->delete();
@@ -190,7 +196,10 @@ class QuizController extends Controller
 
         $learningSchema = $section->learningSchemas()->first();
 
-        return view('user.quizzes.index', compact('section', 'quizzes', 'lastAttempt', 'learningSchema'));
+        return view('user.quizzes.index', array_merge(
+            compact('section', 'quizzes', 'lastAttempt', 'learningSchema'),
+            MateriPreviewContext::variables($learningSchema, false),
+        ));
     }
 
     public function userShow(Section $section, Quiz $quiz)
@@ -200,10 +209,10 @@ class QuizController extends Controller
 
         $quiz->load('activeMedia');
 
-        $allQuizzes   = $section->quizzes()->active()->orderBy('quiz_order')->get(['id', 'quiz_order']);
+        $allQuizzes = $section->quizzes()->active()->orderBy('quiz_order')->get(['id', 'quiz_order']);
         $currentIndex = $allQuizzes->search(fn ($q) => $q->id === $quiz->id);
-        $prev  = $currentIndex > 0 ? $allQuizzes[$currentIndex - 1] : null;
-        $next  = $currentIndex < $allQuizzes->count() - 1 ? $allQuizzes[$currentIndex + 1] : null;
+        $prev = $currentIndex > 0 ? $allQuizzes[$currentIndex - 1] : null;
+        $next = $currentIndex < $allQuizzes->count() - 1 ? $allQuizzes[$currentIndex + 1] : null;
         $total = $allQuizzes->count();
 
         $learningSchema = $section->learningSchemas()->first();
@@ -222,22 +231,24 @@ class QuizController extends Controller
         $results = [];
         foreach ($quizzes as $quiz) {
             $userAnswer = $answers[$quiz->id] ?? null;
-            $isCorrect  = $userAnswer === $quiz->correct_answer;
-            if ($isCorrect) $correctCount++;
+            $isCorrect = $userAnswer === $quiz->correct_answer;
+            if ($isCorrect) {
+                $correctCount++;
+            }
             $results[$quiz->id] = [
                 'user_answer' => $userAnswer,
-                'is_correct'  => $isCorrect,
+                'is_correct' => $isCorrect,
             ];
         }
 
         $passed = $correctCount === $quizzes->count();
 
         QuizAttempt::create([
-            'user_id'         => auth()->id(),
-            'section_id'      => $section->id,
+            'user_id' => auth()->id(),
+            'section_id' => $section->id,
             'total_questions' => $quizzes->count(),
             'correct_answers' => $correctCount,
-            'attempted_at'    => now(),
+            'attempted_at' => now(),
         ]);
 
         if ($passed) {
@@ -248,8 +259,9 @@ class QuizController extends Controller
 
         $learningSchema = $section->learningSchemas()->first();
 
-        return view('user.quizzes.result', compact(
-            'section', 'quizzes', 'results', 'correctCount', 'passed', 'learningSchema'
+        return view('user.quizzes.result', array_merge(
+            compact('section', 'quizzes', 'results', 'correctCount', 'passed', 'learningSchema'),
+            MateriPreviewContext::variables($learningSchema, false),
         ));
     }
 
@@ -258,11 +270,13 @@ class QuizController extends Controller
     private function syncMedia(Request $request, Quiz $quiz): void
     {
         $mediaInputs = $request->input('media', []);
-        $files       = $request->file('media', []);
+        $files = $request->file('media', []);
 
         foreach ($mediaInputs as $i => $item) {
             $mediaType = $item['media_type'] ?? null;
-            if (! $mediaType) continue;
+            if (! $mediaType) {
+                continue;
+            }
 
             $filePath = null;
             if (isset($files[$i]['file'])) {
@@ -270,13 +284,13 @@ class QuizController extends Controller
             }
 
             $quiz->media()->create([
-                'media_type'  => $mediaType,
-                'title'       => $item['title']       ?? null,
+                'media_type' => $mediaType,
+                'title' => $item['title'] ?? null,
                 'description' => $item['description'] ?? null,
-                'url'         => $item['url']         ?? null,
-                'file_path'   => $filePath,
+                'url' => $item['url'] ?? null,
+                'file_path' => $filePath,
                 'media_order' => $item['media_order'] ?? ($i + 1),
-                'is_active'   => true,
+                'is_active' => true,
             ]);
         }
     }
@@ -288,8 +302,8 @@ class QuizController extends Controller
 
     private function ensureAnswerOptionFilled(array $data): void
     {
-        $answer    = $data['correct_answer'] ?? null;
-        $optionKey = 'option_' . $answer;
+        $answer = $data['correct_answer'] ?? null;
+        $optionKey = 'option_'.$answer;
 
         if (in_array($answer, ['c', 'd']) && empty($data[$optionKey])) {
             abort(422, "Jawaban benar '{$answer}' membutuhkan opsi '{$optionKey}' diisi.");

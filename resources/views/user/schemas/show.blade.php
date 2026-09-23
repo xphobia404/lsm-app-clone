@@ -1,10 +1,12 @@
 {{-- resources/views/user/schemas/show.blade.php --}}
-<x-app-layout :title="$learningSchema->title">
+<x-app-layout :title="$learningSchema->title" :adminPreview="$adminPreview ?? false">
 <div class="px-4 pt-5 pb-10">
+
+    @include('user.partials.admin-preview-notice')
 
     {{-- Back --}}
     <div class="mb-4">
-        <a href="{{ route('user.schemas.index') }}"
+        <a href="{{ $adminPreview ? $previewExitUrl : route('user.schemas.index') }}"
            class="inline-flex items-center gap-1 text-xs text-indigo-600 font-medium">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
                  viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -61,9 +63,9 @@
         @php
             $status = $progressMap->get($section->id);
 
-            // Sequential lock: section pertama selalu unlock,
-            // section berikutnya hanya bisa dibuka jika section sebelumnya 'completed'
-            if ($i === 0) {
+            if ($adminPreview ?? false) {
+                $isLocked = false;
+            } elseif ($i === 0) {
                 $isLocked = false;
             } else {
                 $prevSection = $sections[$i - 1];
@@ -75,7 +77,7 @@
         <div class="flex items-center gap-3 rounded-2xl bg-slate-50 border border-slate-100
                     px-4 py-3 opacity-60 cursor-not-allowed select-none">
         @else
-        <a href="{{ route('user.sections.show', [$learningSchema, $section]) }}"
+        <a href="{{ $sectionShowUrl($section) }}"
            class="flex items-center gap-3 rounded-2xl bg-white border border-slate-100
                   px-4 py-3 shadow-sm active:bg-slate-50 transition">
         @endif

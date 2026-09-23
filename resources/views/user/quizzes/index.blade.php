@@ -1,11 +1,15 @@
 {{-- resources/views/user/quizzes/index.blade.php --}}
-<x-app-layout>
+<x-app-layout :adminPreview="$adminPreview ?? false">
     <div class="min-h-screen bg-slate-50 pb-16">
+
+        <div class="px-4 pt-4 max-w-2xl mx-auto">
+            @include('user.partials.admin-preview-notice')
+        </div>
 
         {{-- Header --}}
         <div class="sticky top-0 z-40 bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-3">
             @if($learningSchema)
-            <a href="{{ route('user.schemas.show', $learningSchema) }}"
+            <a href="{{ $schemaShowUrl }}"
                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
@@ -70,7 +74,7 @@
                 <p class="text-sm text-slate-400">Belum ada soal quiz untuk section ini.</p>
             </div>
             @else
-            <form action="{{ route('user.quizzes.submit', $section) }}" method="POST" id="quiz-form">
+            <form action="{{ $quizSubmitUrl($section) }}" method="POST" id="quiz-form">
                 @csrf
                 <div class="space-y-4">
                     @foreach($quizzes as $i => $quiz)

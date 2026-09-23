@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\LearningSchema;
 use App\Models\Section;
 use App\Models\UserProgress;
+use App\Support\MateriPreviewContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -44,8 +45,9 @@ class SectionController extends Controller
         $prevSection = $currentIndex > 0 ? $allSections[$currentIndex - 1] : null;
         $nextSection = $currentIndex < $allSections->count() - 1 ? $allSections[$currentIndex + 1] : null;
 
-        return view('user.section', compact(
-            'learningSchema', 'section', 'prevSection', 'nextSection'
+        return view('user.section', array_merge(
+            compact('learningSchema', 'section', 'prevSection', 'nextSection'),
+            MateriPreviewContext::variables($learningSchema, false),
         ));
     }
 

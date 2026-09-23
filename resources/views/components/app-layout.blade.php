@@ -1,4 +1,4 @@
-@props(['title' => 'LSM App'])
+@props(['title' => 'LSM App', 'adminPreview' => false])
 
 <!DOCTYPE html>
 <html lang="id" class="h-full">
@@ -50,20 +50,30 @@
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <span class="text-xs text-slate-500">{{ auth()->user()->name ?: auth()->user()->username }}</span>
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit" class="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 active:bg-slate-200 transition">Keluar</button>
-            </form>
+            @if($adminPreview)
+                <a href="{{ route('admin.learning-schemas.index') }}"
+                   class="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800 active:bg-amber-200 transition">
+                    Keluar preview
+                </a>
+            @else
+                <span class="text-xs text-slate-500">{{ auth()->user()->name ?: auth()->user()->username }}</span>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 active:bg-slate-200 transition">Keluar</button>
+                </form>
+            @endif
         </div>
     </header>
 
     {{-- Main Content --}}
     <main>
         {{ $slot }}
-        <div style="height: calc(72px + env(safe-area-inset-bottom, 0px))"></div>
+        @if(! $adminPreview)
+            <div style="height: calc(72px + env(safe-area-inset-bottom, 0px))"></div>
+        @endif
     </main>
 
+    @if(! $adminPreview)
     {{-- Bottom Navigation --}}
     <nav class="bottom-nav fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-lg">
         <div class="flex items-center justify-around px-2 pt-2">
@@ -88,6 +98,7 @@
 
         </div>
     </nav>
+    @endif
 
 </body>
 

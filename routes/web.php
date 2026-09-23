@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\MateriPreviewController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\EnrollmentController;
@@ -111,6 +112,15 @@ Route::middleware(['auth', 'role:admin'])
 
         Route::get('learning-schemas/{learningSchema}/sections',
             [SectionController::class, 'schemaIndex'])->name('learning-schemas.sections.index');
+
+        Route::prefix('learning-schemas/{learningSchema}/preview')
+            ->name('learning-schemas.preview.')
+            ->group(function () {
+                Route::get('/', [MateriPreviewController::class, 'show'])->name('show');
+                Route::get('/sections/{section}', [MateriPreviewController::class, 'section'])->name('section');
+                Route::get('/sections/{section}/quizzes', [MateriPreviewController::class, 'quizzes'])->name('quizzes');
+                Route::post('/sections/{section}/quizzes/submit', [MateriPreviewController::class, 'submitQuiz'])->name('quizzes.submit');
+            });
 
         // ── Sections (standalone) ──────────────────────────────────────────
         Route::get('sections', [SectionController::class, 'allIndex'])->name('sections.index');
