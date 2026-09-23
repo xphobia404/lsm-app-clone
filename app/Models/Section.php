@@ -12,6 +12,7 @@ class Section extends Model
     protected $fillable = [
         'title',
         'description',
+        'section_order',
         'is_active',
     ];
 

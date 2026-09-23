@@ -7,29 +7,33 @@ use App\Models\Media;
 use App\Models\Section;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class ContentController extends Controller
 {
     public function index(Request $request, Section $section)
     {
-        $contents = $section->contents()
+        $query = $section->contents()
             ->when($request->filled('search'), function ($q) use ($request) {
-                $search = '%' . $request->search . '%';
+                $search = '%'.$request->search.'%';
                 $q->where(function ($q2) use ($search) {
                     $q2->where('title', 'like', $search)
-                       ->orWhere('body', 'like', $search);
+                        ->orWhere('body', 'like', $search);
                 });
             })
-            ->when($request->filled('status'), fn ($q) =>
-                $q->where('is_active', $request->status === 'active')
+            ->when($request->filled('status'), fn ($q) => $q->where('is_active', $request->status === 'active')
             )
             ->withCount('media')
-            ->orderBy('content_order')
-            ->paginate(15)
-            ->withQueryString();
+            ->orderBy('content_order');
 
-        return view('admin.contents.index', compact('section', 'contents'));
+        $canReorder = ! $request->filled('search') && ! $request->filled('status');
+
+        $contents = $canReorder
+            ? $query->get()
+            : $query->paginate(15)->withQueryString();
+
+        return view('admin.contents.index', compact('section', 'contents', 'canReorder'));
     }
 
     public function create(Section $section)
@@ -40,27 +44,27 @@ class ContentController extends Controller
     public function store(Request $request, Section $section)
     {
         $request->validate([
-            'title'               => 'required|string|max:255',
-            'body'                => 'nullable|string',
-            'content_order'       => 'nullable|integer|min:0',
-            'is_active'           => 'sometimes|boolean',
-            'media'               => 'nullable|array',
-            'media.*.media_type'  => 'required_with:media|in:image,video,audio,youtube,google_drive',
-            'media.*.title'       => 'nullable|string|max:255',
+            'title' => 'required|string|max:255',
+            'body' => 'nullable|string',
+            'content_order' => 'nullable|integer|min:0',
+            'is_active' => 'sometimes|boolean',
+            'media' => 'nullable|array',
+            'media.*.media_type' => 'required_with:media|in:image,video,audio,youtube,google_drive',
+            'media.*.title' => 'nullable|string|max:255',
             'media.*.description' => 'nullable|string',
-            'media.*.url'         => 'nullable|string|max:2000',
+            'media.*.url' => 'nullable|string|max:2000',
             'media.*.media_order' => 'nullable|integer|min:0',
-            'media.*.is_active'   => 'sometimes|boolean',
+            'media.*.is_active' => 'sometimes|boolean',
         ]);
 
         $order = $request->input('content_order')
             ?? ($section->contents()->max('content_order') + 1);
 
         $content = $section->contents()->create([
-            'title'         => $request->input('title'),
-            'body'          => $this->cleanBody($request->input('body')),
+            'title' => $request->input('title'),
+            'body' => $this->cleanBody($request->input('body')),
             'content_order' => $order,
-            'is_active'     => $request->boolean('is_active'),
+            'is_active' => $request->boolean('is_active'),
         ]);
 
         $this->syncMedia($request, $content);
@@ -74,6 +78,7 @@ class ContentController extends Controller
     {
         $this->authorizeContent($section, $content);
         $content->load(['media' => fn ($q) => $q->orderBy('media_order')]);
+
         return view('admin.contents.show', compact('section', 'content'));
     }
 
@@ -81,6 +86,7 @@ class ContentController extends Controller
     {
         $this->authorizeContent($section, $content);
         $content->load(['media' => fn ($q) => $q->orderBy('media_order')]);
+
         return view('admin.contents.edit', compact('section', 'content'));
     }
 
@@ -89,33 +95,35 @@ class ContentController extends Controller
         $this->authorizeContent($section, $content);
 
         $request->validate([
-            'title'               => 'required|string|max:255',
-            'body'                => 'nullable|string',
-            'content_order'       => 'nullable|integer|min:0',
-            'is_active'           => 'sometimes|boolean',
-            'media'               => 'nullable|array',
-            'media.*.id'          => 'nullable|integer|exists:media,id',
-            'media.*.media_type'  => 'required_with:media|in:image,video,audio,youtube,google_drive',
-            'media.*.title'       => 'nullable|string|max:255',
+            'title' => 'required|string|max:255',
+            'body' => 'nullable|string',
+            'content_order' => 'nullable|integer|min:0',
+            'is_active' => 'sometimes|boolean',
+            'media' => 'nullable|array',
+            'media.*.id' => 'nullable|integer|exists:media,id',
+            'media.*.media_type' => 'required_with:media|in:image,video,audio,youtube,google_drive',
+            'media.*.title' => 'nullable|string|max:255',
             'media.*.description' => 'nullable|string',
-            'media.*.url'         => 'nullable|string|max:2000',
+            'media.*.url' => 'nullable|string|max:2000',
             'media.*.media_order' => 'nullable|integer|min:0',
-            'media.*.is_active'   => 'sometimes|boolean',
-            'deleted_media'       => 'nullable|string',
+            'media.*.is_active' => 'sometimes|boolean',
+            'deleted_media' => 'nullable|string',
         ]);
 
         $content->update([
-            'title'         => $request->input('title'),
-            'body'          => $this->cleanBody($request->input('body')),
+            'title' => $request->input('title'),
+            'body' => $this->cleanBody($request->input('body')),
             'content_order' => $request->input('content_order', $content->content_order),
-            'is_active'     => $request->boolean('is_active'),
+            'is_active' => $request->boolean('is_active'),
         ]);
 
         if ($request->filled('deleted_media')) {
             foreach (array_filter(explode(',', $request->input('deleted_media'))) as $id) {
                 $m = Media::find((int) $id);
                 if ($m) {
-                    if ($m->file_path) Storage::disk('public')->delete($m->file_path);
+                    if ($m->file_path) {
+                        Storage::disk('public')->delete($m->file_path);
+                    }
                     $m->delete();
                 }
             }
@@ -132,9 +140,12 @@ class ContentController extends Controller
     {
         $this->authorizeContent($section, $content);
         foreach ($content->media as $m) {
-            if ($m->file_path) Storage::disk('public')->delete($m->file_path);
+            if ($m->file_path) {
+                Storage::disk('public')->delete($m->file_path);
+            }
         }
         $content->delete();
+
         return redirect()
             ->route('admin.sections.contents.index', $section)
             ->with('success', 'Konten berhasil dihapus.');
@@ -144,6 +155,7 @@ class ContentController extends Controller
     {
         $this->authorizeContent($section, $content);
         $content->update(['is_active' => ! $content->is_active]);
+
         return back()->with('success', 'Status konten diperbarui.');
     }
 
@@ -160,37 +172,42 @@ class ContentController extends Controller
      */
     private function cleanBody(?string $body): ?string
     {
-        if (is_null($body)) return null;
+        if (is_null($body)) {
+            return null;
+        }
+
         return html_entity_decode($body, ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
     private function syncMedia(Request $request, Content $content): void
     {
         $mediaInputs = $request->input('media', []);
-        if (empty($mediaInputs)) return;
+        if (empty($mediaInputs)) {
+            return;
+        }
 
         $allFiles = $request->allFiles();
         $urlTypes = ['youtube', 'google_drive'];
 
         foreach ($mediaInputs as $idx => $data) {
-            $type  = $data['media_type'] ?? 'image';
+            $type = $data['media_type'] ?? 'image';
             $isUrl = in_array($type, $urlTypes);
 
             $payload = [
-                'media_type'  => $type,
-                'title'       => $data['title']       ?? null,
+                'media_type' => $type,
+                'title' => $data['title'] ?? null,
                 'description' => $data['description'] ?? null,
-                'url'         => $isUrl ? ($data['url'] ?? null) : null,
+                'url' => $isUrl ? ($data['url'] ?? null) : null,
                 'media_order' => isset($data['media_order']) ? (int) $data['media_order'] : (int) $idx,
-                'is_active'   => isset($data['is_active']) ? (bool) $data['is_active'] : true,
+                'is_active' => isset($data['is_active']) ? (bool) $data['is_active'] : true,
             ];
 
             if (! $isUrl) {
                 /** @var UploadedFile|null $uploadedFile */
                 $uploadedFile = $allFiles['media'][$idx]['file'] ?? null;
                 if ($uploadedFile instanceof UploadedFile && $uploadedFile->getError() === UPLOAD_ERR_OK) {
-                    $ext  = $uploadedFile->getClientOriginalExtension();
-                    $name = uniqid('media_', true) . ($ext ? '.' . $ext : '');
+                    $ext = $uploadedFile->getClientOriginalExtension();
+                    $name = uniqid('media_', true).($ext ? '.'.$ext : '');
                     $path = $uploadedFile->storeAs('media', $name, 'public');
                     $payload['file_path'] = $path;
                 }
@@ -203,11 +220,52 @@ class ContentController extends Controller
                         Storage::disk('public')->delete($existing->file_path);
                     }
                     $existing->update($payload);
+
                     continue;
                 }
             }
 
             $content->media()->create($payload);
         }
+    }
+
+    public function reorder(Request $request, Section $section)
+    {
+        $validated = $request->validate([
+            'contents' => ['required', 'array', 'min:1'],
+            'contents.*' => ['required', 'integer', 'distinct', 'exists:contents,id'],
+        ]);
+
+        $contentIds = array_map('intval', $validated['contents']);
+
+        $attachedIds = $section->contents()
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
+
+        $submittedIds = collect($contentIds)->sort()->values()->all();
+
+        abort_unless(
+            $submittedIds === $attachedIds,
+            422,
+            'Daftar konten tidak sesuai dengan section ini.'
+        );
+
+        DB::transaction(function () use ($contentIds, $section) {
+            foreach ($contentIds as $index => $contentId) {
+                Content::query()
+                    ->where('id', $contentId)
+                    ->where('section_id', $section->id)
+                    ->update([
+                        'content_order' => $index + 1,
+                    ]);
+            }
+        });
+
+        return response()->json([
+            'message' => 'Urutan konten berhasil diperbarui.',
+        ]);
     }
 }

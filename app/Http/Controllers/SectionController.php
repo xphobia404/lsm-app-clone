@@ -41,8 +41,8 @@ class SectionController extends Controller
             'quizzes' => fn ($q) => $q->where('is_active', true),
         ]);
 
-        $prevSection  = $currentIndex > 0 ? $allSections[$currentIndex - 1] : null;
-        $nextSection  = $currentIndex < $allSections->count() - 1 ? $allSections[$currentIndex + 1] : null;
+        $prevSection = $currentIndex > 0 ? $allSections[$currentIndex - 1] : null;
+        $nextSection = $currentIndex < $allSections->count() - 1 ? $allSections[$currentIndex + 1] : null;
 
         return view('user.section', compact(
             'learningSchema', 'section', 'prevSection', 'nextSection'
@@ -57,10 +57,10 @@ class SectionController extends Controller
             ->with('learningSchemas:id,title');
 
         if ($request->filled('search')) {
-            $search = '%' . $request->search . '%';
+            $search = '%'.$request->search.'%';
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', $search)
-                  ->orWhere('description', 'like', $search);
+                    ->orWhere('description', 'like', $search);
             });
         }
 
@@ -69,6 +69,7 @@ class SectionController extends Controller
         }
 
         $sections = $query->orderBy('title')->paginate(15)->withQueryString();
+
         return view('admin.sections.index', compact('sections'));
     }
 
@@ -79,10 +80,10 @@ class SectionController extends Controller
             ->orderBy('learning_schema_section.section_order');
 
         if ($request->filled('search')) {
-            $search = '%' . $request->search . '%';
+            $search = '%'.$request->search.'%';
             $query->where(function ($q) use ($search) {
                 $q->where('sections.title', 'like', $search)
-                  ->orWhere('sections.description', 'like', $search);
+                    ->orWhere('sections.description', 'like', $search);
             });
         }
 
@@ -90,10 +91,16 @@ class SectionController extends Controller
             $query->where('sections.is_active', $request->status === 'active');
         }
 
-        $sections = $query->paginate(15)->withQueryString();
+        $canReorder = ! $request->filled('search') && ! $request->filled('status');
+
+        $sections = $canReorder
+            ? $query->get()
+            : $query->paginate(15)->withQueryString();
+
         return view('admin.sections.index', [
-            'sections'       => $sections,
+            'sections' => $sections,
             'learningSchema' => $learningSchema,
+            'canReorder' => $canReorder,
         ]);
     }
 
@@ -138,23 +145,24 @@ class SectionController extends Controller
         $learningSchemas = LearningSchema::where('is_active', true)
             ->orderBy('title')
             ->get(['id', 'title', 'is_active']);
+
         return view('admin.sections.create', compact('learningSchemas'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title'                 => 'required|string|max:255',
-            'description'           => 'nullable|string|max:2000',
-            'is_active'             => 'sometimes|boolean',
-            'learning_schema_ids'   => 'nullable|array',
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string|max:2000',
+            'is_active' => 'sometimes|boolean',
+            'learning_schema_ids' => 'nullable|array',
             'learning_schema_ids.*' => 'exists:learning_schemas,id',
         ]);
 
         $section = Section::create([
-            'title'       => $validated['title'],
+            'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
-            'is_active'   => $request->boolean('is_active'),
+            'is_active' => $request->boolean('is_active'),
         ]);
 
         if (! empty($validated['learning_schema_ids'])) {
@@ -173,34 +181,35 @@ class SectionController extends Controller
 
     public function edit(Section $section)
     {
-        $learningSchemas   = LearningSchema::where('is_active', true)
+        $learningSchemas = LearningSchema::where('is_active', true)
             ->orderBy('title')
             ->get(['id', 'title', 'is_active']);
         $attachedSchemaIds = $section->learningSchemas->pluck('id')->toArray();
+
         return view('admin.sections.edit', compact('section', 'learningSchemas', 'attachedSchemaIds'));
     }
 
     public function update(Request $request, Section $section)
     {
         $validated = $request->validate([
-            'title'                 => 'required|string|max:255',
-            'description'           => 'nullable|string|max:2000',
-            'is_active'             => 'sometimes|boolean',
-            'learning_schema_ids'   => 'nullable|array',
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string|max:2000',
+            'is_active' => 'sometimes|boolean',
+            'learning_schema_ids' => 'nullable|array',
             'learning_schema_ids.*' => 'exists:learning_schemas,id',
         ]);
 
         $section->update([
-            'title'       => $validated['title'],
+            'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
-            'is_active'   => $request->boolean('is_active'),
+            'is_active' => $request->boolean('is_active'),
         ]);
 
         $schemaIds = $validated['learning_schema_ids'] ?? [];
-        $syncData  = [];
+        $syncData = [];
         foreach ($schemaIds as $schemaId) {
             $existing = $section->learningSchemas()->where('learning_schemas.id', $schemaId)->first();
-            $order    = $existing
+            $order = $existing
                 ? $existing->pivot->section_order
                 : (LearningSchema::find($schemaId)->sections()->max('learning_schema_section.section_order') + 1);
             $syncData[$schemaId] = ['section_order' => $order];
@@ -214,6 +223,7 @@ class SectionController extends Controller
     public function destroy(Section $section)
     {
         $section->delete();
+
         return redirect()->route('admin.sections.index')
             ->with('success', 'Section berhasil dihapus.');
     }
@@ -222,6 +232,7 @@ class SectionController extends Controller
     {
         $section->update(['is_active' => ! $section->is_active]);
         $status = $section->is_active ? 'diaktifkan' : 'dinonaktifkan';
+
         return back()->with('success', "Section berhasil {$status}.");
     }
 }

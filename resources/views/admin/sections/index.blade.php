@@ -5,13 +5,29 @@
         $indexRoute = isset($learningSchema)
             ? route('admin.learning-schemas.sections.index', $learningSchema)
             : route('admin.sections.index');
+        $isPaginator = $sections instanceof \Illuminate\Pagination\AbstractPaginator;
+        $sortableEnabled = isset($learningSchema) && ($canReorder ?? false) && $sections->count() > 1;
     @endphp
+
+    @if(isset($learningSchema))
+        <div class="flex items-center gap-1.5 text-xs text-slate-400">
+            <a href="{{ route('admin.learning-schemas.index') }}" class="hover:text-indigo-600 transition">Materi</a>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            <span class="text-slate-800 font-semibold truncate">{{ $learningSchema->title }}</span>
+        </div>
+    @endif
 
     {{-- Header --}}
     <div class="flex items-center justify-between">
         <div>
             <h2 class="text-base font-bold text-slate-800">Kelola Section</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Section bisa digunakan di banyak materi</p>
+            <p class="text-xs text-slate-400 mt-0.5">
+                @if(isset($learningSchema))
+                    Section dalam materi <span class="font-medium text-indigo-600">{{ $learningSchema->title }}</span>
+                @else
+                    Section bisa digunakan di banyak materi
+                @endif
+            </p>
         </div>
         <a href="{{ route('admin.sections.create') }}"
            class="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 transition">
@@ -55,24 +71,53 @@
         @endif
     </form>
 
+    @if($sortableEnabled)
+        <p class="text-xs text-indigo-600 font-medium">Tarik ikon grip di kiri kartu untuk mengubah urutan section.</p>
+    @elseif(isset($learningSchema) && ! ($canReorder ?? false))
+        <p class="text-xs text-amber-600">Reset filter pencarian/status untuk mengatur urutan dengan drag &amp; drop.</p>
+    @endif
+
     {{-- Count --}}
-    @if($sections->total())
+    @php $sectionTotal = $isPaginator ? $sections->total() : $sections->count(); @endphp
+    @if($sectionTotal)
         <p class="text-xs text-slate-400">
-            Menampilkan {{ $sections->firstItem() }}–{{ $sections->lastItem() }} dari {{ $sections->total() }} section
+            @if($isPaginator)
+                Menampilkan {{ $sections->firstItem() }}–{{ $sections->lastItem() }} dari {{ $sections->total() }} section
+            @else
+                {{ $sectionTotal }} section
+            @endif
         </p>
     @endif
 
     {{-- List --}}
-    <div class="space-y-3">
+    <div class="space-y-3" @if($sortableEnabled) id="sortable-sections-list" @endif>
         @forelse($sections as $section)
-        <div class="rounded-2xl bg-white border border-slate-100 shadow-sm">
+        @php
+            $sectionOrder = isset($learningSchema) && $section->pivot
+                ? (int) $section->pivot->section_order
+                : null;
+        @endphp
+        <div class="rounded-2xl bg-white border border-slate-100 shadow-sm"
+             @if($sortableEnabled) data-sortable-item data-id="{{ $section->id }}" @endif>
 
             {{-- Row 1: icon + info --}}
             <div class="flex items-start gap-3 px-4 pt-3.5 pb-3">
 
+                @if($sortableEnabled)
+                    <button type="button" data-drag-handle
+                            class="mt-1 flex h-8 w-8 shrink-0 cursor-grab items-center justify-center rounded-lg text-slate-400 active:cursor-grabbing hover:bg-slate-100 hover:text-slate-600 touch-none"
+                            aria-label="Tarik untuk mengubah urutan">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="7" r="1.5"/><circle cx="15" cy="7" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="17" r="1.5"/><circle cx="15" cy="17" r="1.5"/></svg>
+                    </button>
+                @endif
+
                 {{-- Icon --}}
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-sm font-bold text-indigo-600">
+                    @if($sectionOrder)
+                        <span data-order-badge>{{ $sectionOrder }}</span>
+                    @else
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    @endif
                 </div>
 
                 {{-- Info --}}
@@ -88,7 +133,7 @@
                         <p class="text-xs text-slate-400 line-clamp-1">{{ $section->description }}</p>
                     @endif
 
-                    @if($section->learningSchemas->isNotEmpty())
+                    @if(! isset($learningSchema) && $section->relationLoaded('learningSchemas') && $section->learningSchemas->isNotEmpty())
                         <div class="mt-1.5 flex flex-wrap gap-1">
                             @foreach($section->learningSchemas as $ls)
                                 <span class="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600">
@@ -96,7 +141,7 @@
                                 </span>
                             @endforeach
                         </div>
-                    @else
+                    @elseif(! isset($learningSchema))
                         <p class="mt-1 text-[10px] text-slate-300 italic">Belum terhubung ke materi apapun</p>
                     @endif
 
@@ -172,10 +217,22 @@
         @endforelse
     </div>
 
-    @if($sections->hasPages())
+    @if($isPaginator && $sections->hasPages())
         <div>
             {{ $sections->links() }}
         </div>
+    @endif
+
+    @if($sortableEnabled)
+        <div id="sortable-toast"
+             class="hidden fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full border px-4 py-2 text-xs font-semibold shadow-lg"></div>
+
+        @include('admin.partials.sortable-reorder', [
+            'listId' => 'sortable-sections-list',
+            'reorderUrl' => route('admin.learning-schemas.sections.reorder', $learningSchema),
+            'payloadKey' => 'section_ids',
+            'enabled' => true,
+        ])
     @endif
 
 </div>

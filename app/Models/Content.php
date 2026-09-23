@@ -19,7 +19,7 @@ class Content extends Model
     ];
 
     protected $casts = [
-        'is_active'     => 'boolean',
+        'is_active' => 'boolean',
         'content_order' => 'integer',
     ];
 
@@ -28,6 +28,13 @@ class Content extends Model
     public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class);
+    }
+
+    public function contents()
+    {
+        return $this->hasMany(Content::class)
+            ->orderBy('content_order')
+            ->orderBy('id');
     }
 
     public function media(): MorphMany
@@ -49,17 +56,32 @@ class Content extends Model
 
     // ── Helpers ───────────────────────────────────────────────────────
 
-    public function isText(): bool  { return $this->content_type === 'text'; }
-    public function isVideo(): bool { return $this->content_type === 'video'; }
-    public function isFile(): bool  { return $this->content_type === 'file'; }
-    public function isUrl(): bool   { return $this->content_type === 'url'; }
+    public function isText(): bool
+    {
+        return $this->content_type === 'text';
+    }
+
+    public function isVideo(): bool
+    {
+        return $this->content_type === 'video';
+    }
+
+    public function isFile(): bool
+    {
+        return $this->content_type === 'file';
+    }
+
+    public function isUrl(): bool
+    {
+        return $this->content_type === 'url';
+    }
 
     public function getTypeIcon(): string
     {
         return match ($this->content_type) {
             'video' => '🎬',
-            'file'  => '📎',
-            'url'   => '🔗',
+            'file' => '📎',
+            'url' => '🔗',
             default => '📄',
         };
     }

@@ -8,6 +8,7 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#1e3a8a" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
     <title>{{ $title }} — {{ config('app.name', 'LSM App') }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
