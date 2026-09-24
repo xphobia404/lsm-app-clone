@@ -20,6 +20,7 @@ class MateriPreviewContext
     {
         if ($adminPreview && $learningSchema !== null) {
             return [
+                'adminPreview' => true,
                 'previewExitUrl' => route('admin.learning-schemas.index'),
                 'schemaShowUrl' => route('admin.learning-schemas.preview.show', $learningSchema),
                 'sectionShowUrl' => fn (Section $targetSection) => route('admin.learning-schemas.preview.section', [$learningSchema, $targetSection]),
@@ -33,6 +34,7 @@ class MateriPreviewContext
             : route('user.schemas.index');
 
         return [
+            'adminPreview' => false,
             'previewExitUrl' => route('user.schemas.index'),
             'schemaShowUrl' => $schemaShowUrl,
             'sectionShowUrl' => fn (Section $targetSection) => route('user.sections.show', [$learningSchema, $targetSection]),

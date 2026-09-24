@@ -1,5 +1,9 @@
 {{-- resources/views/user/schemas/show.blade.php --}}
-<x-app-layout :title="$learningSchema->title" :adminPreview="$adminPreview ?? false">
+@php
+    $adminPreview   = $adminPreview ?? false;
+    $previewExitUrl = $previewExitUrl ?? route('user.schemas.index');
+@endphp
+<x-app-layout :title="$learningSchema->title" :adminPreview="$adminPreview">
 <div class="px-4 pt-5 pb-10">
 
     @include('user.partials.admin-preview-notice')
