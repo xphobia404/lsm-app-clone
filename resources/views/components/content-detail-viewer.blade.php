@@ -78,25 +78,71 @@
 .ql-snippet-body .ql-editor,
 .ql-ro-viewer .ql-editor {
     padding: 0 !important;
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
     color: #334155;
     cursor: default;
-    line-height: 1.7;
-    word-break: break-word;
-    overflow-wrap: break-word;
+    line-height: 1.75;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
     min-width: 0 !important;
     width: 100% !important;
+}
+@media (min-width: 640px) {
+    .ql-snippet-body .ql-editor,
+    .ql-ro-viewer .ql-editor {
+        font-size: 1rem;
+    }
 }
 .ql-snippet-body .ql-editor:focus,
 .ql-ro-viewer .ql-editor:focus { outline: none; }
 
-/* Responsive Media inside Quill Editor Body */
+/* Responsive Headings & Typography inside Quill Body */
+.ql-editor p,
+.ql-editor li {
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+}
+
+.ql-editor h1 {
+    font-size: 1.25rem !important;
+    line-height: 1.35 !important;
+    font-weight: 700 !important;
+    margin-top: 1.25rem !important;
+    margin-bottom: 0.5rem !important;
+    color: #0f172a !important;
+    word-break: normal !important;
+}
+.ql-editor h2 {
+    font-size: 1.1rem !important;
+    line-height: 1.4 !important;
+    font-weight: 700 !important;
+    margin-top: 1rem !important;
+    margin-bottom: 0.5rem !important;
+    color: #1e293b !important;
+    word-break: normal !important;
+}
+.ql-editor h3 {
+    font-size: 1rem !important;
+    line-height: 1.45 !important;
+    font-weight: 600 !important;
+    margin-top: 0.875rem !important;
+    margin-bottom: 0.375rem !important;
+    color: #334155 !important;
+    word-break: normal !important;
+}
+@media (min-width: 640px) {
+    .ql-editor h1 { font-size: 1.5rem !important; }
+    .ql-editor h2 { font-size: 1.25rem !important; }
+    .ql-editor h3 { font-size: 1.125rem !important; }
+}
+
+/* Responsive Media inside Quill Editor Body - Full uncropped display */
 .ql-editor img {
     max-width: 100% !important;
     height: auto !important;
     border-radius: 0.75rem;
-    margin: 0.5rem 0;
-    object-fit: contain;
+    margin: 0.75rem 0;
+    object-fit: contain !important;
     display: block;
 }
 
@@ -127,11 +173,11 @@
     max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    margin: 0.75rem 0;
+    margin: 0.875rem 0;
     border-radius: 0.75rem;
     border: 1px solid #e2e8f0;
     background-color: #ffffff;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 }
 
 .ql-ro-viewer .ql-editor table,
@@ -145,12 +191,18 @@
     color: #334155 !important;
     margin: 0 !important;
 }
+@media (min-width: 640px) {
+    .ql-ro-viewer .ql-editor table,
+    .ql-editor table {
+        font-size: 0.875rem !important;
+    }
+}
 
 .ql-ro-viewer .ql-editor table th,
 .ql-ro-viewer .ql-editor table td,
 .ql-editor table th,
 .ql-editor table td {
-    padding: 0.5rem 0.625rem !important;
+    padding: 0.5rem 0.75rem !important;
     border: 1px solid #cbd5e1 !important;
     min-width: 70px !important;
     vertical-align: top !important;

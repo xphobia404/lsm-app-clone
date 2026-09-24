@@ -14,12 +14,12 @@
 /* embed responsive */
 .embed-wrap { position:relative; padding-top:56.25%; border-radius:14px; overflow:hidden; margin-bottom:1rem; width:100%; max-width:100%; }
 .embed-wrap iframe { position:absolute; inset:0; width:100%; height:100%; }
-/* image only */
-.media-img-only img { width:100%; border-radius:14px; object-fit:cover; max-height:350px; }
+/* image only - uncropped natural aspect ratio */
+.media-img-only img { width:100%; max-width:100%; height:auto; border-radius:14px; object-fit:contain; }
 /* split layout */
 .media-split { display:grid; grid-template-columns:1fr; gap:16px; width:100%; min-width:0; }
 @media(min-width:768px){ .media-split { grid-template-columns:1fr 1fr; } }
-.media-split__img-wrap img { width:100%; border-radius:12px; object-fit:cover; max-height:300px; }
+.media-split__img-wrap img { width:100%; max-width:100%; height:auto; border-radius:12px; object-fit:contain; }
 .media-split__text { min-width:0; width:100%; overflow-x:hidden; }
 
 /* Slide panel overflow fix for mobile */
@@ -71,27 +71,29 @@
          style="width:{{ $totalSlides * 100 }}%">
 
         @foreach($contents as $i => $content)
-        <div class="slide-panel px-4 py-5" style="width:{{ round(100/$totalSlides,4) }}%; flex-shrink:0">
+        <div class="slide-panel px-4 sm:px-6 md:px-8 py-5" style="width:{{ round(100/$totalSlides,4) }}%; flex-shrink:0">
+            <div class="max-w-4xl mx-auto min-w-0">
 
-            {{-- Slide header --}}
-            <div class="mb-4 flex items-center gap-2">
-                <span class="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-xs font-extrabold text-indigo-600">{{ $i+1 }}</span>
-                <div>
-                    <p class="text-sm font-bold text-slate-800">{{ $content->title }}</p>
-                    <p class="text-[10px] text-slate-400 capitalize">{{ $content->content_type }}</p>
+                {{-- Slide header --}}
+                <div class="mb-4 flex items-center gap-2.5">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-xs font-extrabold text-indigo-600 shrink-0">{{ $i+1 }}</span>
+                    <div class="min-w-0">
+                        <p class="text-sm sm:text-base font-bold text-slate-800 truncate">{{ $content->title }}</p>
+                        <p class="text-[10px] sm:text-xs text-slate-400 capitalize">{{ $content->content_type }}</p>
+                    </div>
                 </div>
+
+                {{-- ✅ Component detail viewer --}}
+                <x-content-detail-viewer :content="$content" mode="user" />
+
             </div>
-
-            {{-- ✅ Gunakan component, mode user --}}
-            <x-content-detail-viewer :content="$content" mode="user" />
-
         </div>
         @endforeach
 
         {{-- QUIZ SLIDE --}}
         @if($hasQuiz)
-        <div class="slide-panel px-4 py-5" style="width:{{ round(100/$totalSlides,4) }}%; flex-shrink:0">
-            <div class="flex flex-col items-center text-center pt-8 pb-4">
+        <div class="slide-panel px-4 sm:px-6 md:px-8 py-5" style="width:{{ round(100/$totalSlides,4) }}%; flex-shrink:0">
+            <div class="max-w-md mx-auto flex flex-col items-center text-center pt-8 pb-4">
                 <div class="mb-5 flex h-20 w-20 items-center justify-center rounded-full"
                      style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
                     <svg class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
