@@ -1,5 +1,6 @@
 <x-admin-layout title="Edit Konten">
 <link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
+@include('admin.partials.quill-body-editor')
 <div class="px-4 pt-5 pb-10 space-y-5">
 
     {{-- Breadcrumb --}}
@@ -154,33 +155,9 @@
 <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 <script>
 (function () {
-    // ── Quill Editor ──────────────────────────────────────────────
-    const quill = new Quill('#bodyEditor', {
-        theme: 'snow',
-        placeholder: 'Tulis isi konten di sini...',
-        modules: {
-            table: true,
-            toolbar: [
-                [{ header: [1, 2, 3, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ color: [] }, { background: [] }],
-                [{ list: 'ordered' }, { list: 'bullet' }],
-                [{ align: [] }],
-                ['link', 'image', 'blockquote', 'code-block', 'table'],
-                ['clean']
-            ]
-        }
-    });
+    window.initQuillBodyEditor('editContentForm');
 
-    // Load existing content ke editor
-    const existing = document.getElementById('bodyInput').value.trim();
-    if (existing) quill.clipboard.dangerouslyPasteHTML(existing);
-
-    // Sync ke hidden textarea sebelum submit
     const form = document.getElementById('editContentForm');
-    form.addEventListener('submit', function () {
-        document.getElementById('bodyInput').value = quill.getSemanticHTML();
-    });
 
     // ── Media Builder ─────────────────────────────────────────────
     let idx          = {{ $content->media->count() }};

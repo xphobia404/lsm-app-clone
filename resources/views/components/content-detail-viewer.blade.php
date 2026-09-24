@@ -79,7 +79,9 @@
 
 .ql-ro-viewer .ql-editor table,
 .ql-editor table {
-    width: 100%;
+    width: auto;
+    min-width: 100%;
+    table-layout: auto;
     border-collapse: collapse;
     font-size: 0.8125rem;
     line-height: 1.5;
@@ -424,7 +426,7 @@
         var html;
         try { html = JSON.parse(raw); } catch(e) { html = raw; }
         if (!html) { if(skel) skel.style.display='none'; return; }
-        var q = new Quill(viewer, { theme:'snow', readOnly:true, modules:{toolbar:false} });
+        var q = new Quill(viewer, { theme:'snow', readOnly:true, modules:{ toolbar:false, table:true } });
         q.setContents(q.clipboard.convert({html:html}), 'silent');
 
         // Auto wrap any table inside a responsive scrollable container
