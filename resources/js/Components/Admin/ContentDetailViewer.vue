@@ -53,19 +53,16 @@ onMounted(async () => {
     document.head.appendChild(link)
   }
 
-  // Dynamically import Quill
-  const { default: Quill } = await import('quill')
-
   if (quillContainer.value) {
-    const quill = new Quill(quillContainer.value, {
-      theme: 'snow',
-      readOnly: true,
-      modules: { toolbar: false },
+    quillContainer.value.innerHTML = `<div class="ql-container ql-snow"><div class="ql-editor">${props.content.body}</div></div>`
+    quillContainer.value.querySelectorAll('table').forEach((tbl) => {
+      if (!tbl.parentElement || !tbl.parentElement.classList.contains('table-responsive')) {
+        const wrapper = document.createElement('div')
+        wrapper.className = 'table-responsive'
+        tbl.parentNode.insertBefore(wrapper, tbl)
+        wrapper.appendChild(tbl)
+      }
     })
-
-    // Set HTML content
-    const delta = quill.clipboard.convert({ html: props.content.body })
-    quill.setContents(delta, 'silent')
     quillReady.value = true
   }
 })
@@ -269,6 +266,22 @@ function basename(path: string): string {
   font-size: 0.875rem;
   color: #334155;
   cursor: default;
+}
+.quill-readonly-viewer :deep(.ql-editor table) {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 1rem 0 !important;
+}
+.quill-readonly-viewer :deep(.ql-editor table th),
+.quill-readonly-viewer :deep(.ql-editor table td) {
+  border: 1px solid #cbd5e1 !important;
+  padding: 0.5rem 0.75rem !important;
+  min-width: 80px !important;
+  vertical-align: top !important;
+}
+.quill-readonly-viewer :deep(.ql-editor table th) {
+  background-color: #f8fafc !important;
+  font-weight: 600 !important;
 }
 /* Remove Quill focus outline since it's read-only */
 .quill-readonly-viewer :deep(.ql-editor:focus) {

@@ -15,36 +15,51 @@
         overflow-x: auto;
     }
 
-    #bodyEditor .quill-table-scroll {
-        width: 100%;
-        max-width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        margin: 0.75rem 0;
-        border-radius: 0.75rem;
-        border: 1px solid #e2e8f0;
-        background-color: #ffffff;
+    /* Styling icon tombol table pada Quill Toolbar */
+    #bodyEditor .ql-toolbar button.ql-table,
+    .ql-toolbar button.ql-table {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
-    #bodyEditor .ql-editor table {
-        width: auto;
-        min-width: 100%;
-        table-layout: auto;
-        border-collapse: collapse;
-        margin: 0;
+    #bodyEditor .ql-toolbar button.ql-table::before,
+    .ql-toolbar button.ql-table::before {
+        content: "";
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: contain;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23374151' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Cpath d='M3 9h18'/%3E%3Cpath d='M3 15h18'/%3E%3Cpath d='M9 3v18'/%3E%3Cpath d='M15 3v18'/%3E%3C/svg%3E");
+    }
+
+    /* Styling Table & Cell di dalam Editor */
+    #bodyEditor .ql-editor table,
+    .ql-editor table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 0.75rem 0 !important;
+        table-layout: auto !important;
     }
 
     #bodyEditor .ql-editor table th,
-    #bodyEditor .ql-editor table td {
-        border: 1px solid #cbd5e1;
-        padding: 0.5rem 0.75rem;
-        min-width: 120px;
-        vertical-align: top;
+    #bodyEditor .ql-editor table td,
+    .ql-editor table th,
+    .ql-editor table td {
+        border: 1px solid #cbd5e1 !important;
+        padding: 0.5rem 0.75rem !important;
+        min-width: 80px !important;
+        height: 32px !important;
+        vertical-align: top !important;
+        box-sizing: border-box !important;
     }
 
-    #bodyEditor .ql-editor table th {
-        background-color: #f8fafc;
-        font-weight: 600;
+    #bodyEditor .ql-editor table th,
+    .ql-editor table th {
+        background-color: #f8fafc !important;
+        font-weight: 600 !important;
     }
 </style>
 <script>
@@ -66,17 +81,10 @@
             },
         });
 
-        function wrapQuillTables(root) {
-            root.querySelectorAll('table').forEach(function (tbl) {
-                if (tbl.parentElement && tbl.parentElement.classList.contains('quill-table-scroll')) {
-                    return;
-                }
-
-                const wrapper = document.createElement('div');
-                wrapper.className = 'quill-table-scroll table-responsive';
-                tbl.parentNode.insertBefore(wrapper, tbl);
-                wrapper.appendChild(tbl);
-            });
+        // Ensure table toolbar button has visible SVG icon
+        const tableBtn = document.querySelector('#bodyEditor .ql-toolbar button.ql-table');
+        if (tableBtn && (!tableBtn.innerHTML || !tableBtn.innerHTML.trim())) {
+            tableBtn.innerHTML = `<svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>`;
         }
 
         const tableModule = quill.getModule('table');
@@ -84,28 +92,20 @@
         if (toolbar && tableModule) {
             toolbar.addHandler('table', function () {
                 tableModule.insertTable(3, 3);
-                wrapQuillTables(quill.root);
             });
         }
 
         const existing = document.getElementById('bodyInput').value.trim();
         if (existing) {
             quill.clipboard.dangerouslyPasteHTML(existing);
-            wrapQuillTables(quill.root);
         }
 
-        let wrapTimer;
-        quill.on('text-change', function () {
-            clearTimeout(wrapTimer);
-            wrapTimer = setTimeout(function () {
-                wrapQuillTables(quill.root);
-            }, 150);
-        });
-
         const form = document.getElementById(formId);
-        form.addEventListener('submit', function () {
-            document.getElementById('bodyInput').value = quill.getSemanticHTML();
-        });
+        if (form) {
+            form.addEventListener('submit', function () {
+                document.getElementById('bodyInput').value = quill.getSemanticHTML();
+            });
+        }
 
         return quill;
     };

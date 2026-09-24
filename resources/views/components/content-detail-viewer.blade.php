@@ -16,7 +16,14 @@
     $drives   = $media->filter(fn($m) => $m->isGoogleDrive());
 
     $hasImage = $images->isNotEmpty();
-    $hasBody  = !empty(trim(strip_tags($content->body ?? '')));
+    $rawBody  = $content->body ?? '';
+    $hasBody  = !empty(trim($rawBody)) && (
+        trim(strip_tags($rawBody)) !== ''
+        || str_contains($rawBody, '<table')
+        || str_contains($rawBody, '<img')
+        || str_contains($rawBody, '<iframe')
+        || str_contains($rawBody, '<video')
+    );
 
     $embedVideo = function(string $url): string {
         if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/embed\/)+([\w-]+)/', $url, $m)) {
@@ -65,7 +72,8 @@
 
 /* Table responsive container & styling */
 .ql-ro-viewer .table-responsive,
-.ql-editor .table-responsive {
+.ql-editor .table-responsive,
+.table-responsive {
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
@@ -79,33 +87,34 @@
 
 .ql-ro-viewer .ql-editor table,
 .ql-editor table {
-    width: auto;
-    min-width: 100%;
-    table-layout: auto;
-    border-collapse: collapse;
-    font-size: 0.8125rem;
-    line-height: 1.5;
-    color: #334155;
-    margin: 0;
+    width: 100% !important;
+    min-width: 100% !important;
+    table-layout: auto !important;
+    border-collapse: collapse !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.5 !important;
+    color: #334155 !important;
+    margin: 0 !important;
 }
 
 .ql-ro-viewer .ql-editor table th,
 .ql-ro-viewer .ql-editor table td,
 .ql-editor table th,
 .ql-editor table td {
-    padding: 0.625rem 0.875rem;
-    border: 1px solid #e2e8f0;
-    min-width: 120px;
-    vertical-align: top;
-    word-break: normal;
+    padding: 0.625rem 0.875rem !important;
+    border: 1px solid #cbd5e1 !important;
+    min-width: 80px !important;
+    vertical-align: top !important;
+    word-break: normal !important;
+    box-sizing: border-box !important;
 }
 
 .ql-ro-viewer .ql-editor table th,
 .ql-editor table th {
-    background-color: #f8fafc;
-    font-weight: 600;
-    color: #1e293b;
-    text-align: left;
+    background-color: #f8fafc !important;
+    font-weight: 600 !important;
+    color: #1e293b !important;
+    text-align: left !important;
 }
 
 .ql-ro-viewer .ql-editor table tr:nth-child(even),
@@ -425,9 +434,9 @@
         if (!raw || raw === 'null') { if(skel) skel.style.display='none'; return; }
         var html;
         try { html = JSON.parse(raw); } catch(e) { html = raw; }
-        if (!html) { if(skel) skel.style.display='none'; return; }
-        var q = new Quill(viewer, { theme:'snow', readOnly:true, modules:{ toolbar:false, table:true } });
-        q.setContents(q.clipboard.convert({html:html}), 'silent');
+        if (!html || (typeof html === 'string' && !html.trim())) { if(skel) skel.style.display='none'; return; }
+
+        viewer.innerHTML = '<div class="ql-container ql-snow"><div class="ql-editor">' + html + '</div></div>';
 
         // Auto wrap any table inside a responsive scrollable container
         viewer.querySelectorAll('table').forEach(function(tbl) {
