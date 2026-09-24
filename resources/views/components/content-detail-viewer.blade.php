@@ -66,9 +66,58 @@
 <link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
 
 <style>
+.ql-snippet-body {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+.ql-snippet-body .ql-container.ql-snow,
 .ql-ro-viewer .ql-container.ql-snow { border: none !important; }
-.ql-ro-viewer .ql-editor             { padding: 0 !important; font-size: 0.875rem; color: #334155; cursor: default; line-height: 1.7; overflow-x: auto; }
-.ql-ro-viewer .ql-editor:focus       { outline: none; }
+
+.ql-snippet-body .ql-editor,
+.ql-ro-viewer .ql-editor {
+    padding: 0 !important;
+    font-size: 0.875rem;
+    color: #334155;
+    cursor: default;
+    line-height: 1.7;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    min-width: 0 !important;
+    width: 100% !important;
+}
+.ql-snippet-body .ql-editor:focus,
+.ql-ro-viewer .ql-editor:focus { outline: none; }
+
+/* Responsive Media inside Quill Editor Body */
+.ql-editor img {
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 0.75rem;
+    margin: 0.5rem 0;
+    object-fit: contain;
+    display: block;
+}
+
+.ql-editor iframe,
+.ql-editor video {
+    max-width: 100% !important;
+    border-radius: 0.75rem;
+}
+
+.ql-editor pre,
+.ql-editor pre.ql-syntax {
+    max-width: 100% !important;
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+    overflow-x: auto !important;
+    background: #0f172a;
+    color: #f8fafc;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.8125rem;
+}
 
 /* Table responsive container & styling */
 .ql-ro-viewer .table-responsive,
@@ -78,7 +127,7 @@
     max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    margin: 1rem 0;
+    margin: 0.75rem 0;
     border-radius: 0.75rem;
     border: 1px solid #e2e8f0;
     background-color: #ffffff;
@@ -101,9 +150,9 @@
 .ql-ro-viewer .ql-editor table td,
 .ql-editor table th,
 .ql-editor table td {
-    padding: 0.625rem 0.875rem !important;
+    padding: 0.5rem 0.625rem !important;
     border: 1px solid #cbd5e1 !important;
-    min-width: 80px !important;
+    min-width: 70px !important;
     vertical-align: top !important;
     word-break: normal !important;
     box-sizing: border-box !important;
@@ -120,15 +169,6 @@
 .ql-ro-viewer .ql-editor table tr:nth-child(even),
 .ql-editor table tr:nth-child(even) {
     background-color: rgba(248, 250, 252, 0.6);
-}
-
-@keyframes cdv-shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
-.cdv-skel {
-    background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);
-    background-size: 200% 100%;
-    animation: cdv-shimmer 1.5s ease-in-out infinite;
-    border-radius: .375rem;
-    height: .875rem;
 }
 </style>
 
