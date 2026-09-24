@@ -260,13 +260,11 @@
                 @endforeach
             </div>
             <div class="media-split__text">
-                <div id="{{ $skel }}-img" class="space-y-1.5">
-                    <div class="cdv-skel w-full"></div>
-                    <div class="cdv-skel w-5/6"></div>
-                    <div class="cdv-skel w-4/6"></div>
+                <div class="ql-snippet-body ql-container ql-snow border-0">
+                    <div class="ql-editor p-0">
+                        {!! $content->body !!}
+                    </div>
                 </div>
-                <div id="{{ $vid }}-img" class="ql-ro-viewer hidden"></div>
-                <script type="application/json" id="body-data-{{ $content->id }}-img">@json($content->body)</script>
             </div>
         </div>
 
@@ -281,14 +279,10 @@
         </div>
 
     @elseif(!$hasImage && $hasBody && !$content->isUrl() && !$content->isFile())
-        <div>
-            <div id="{{ $skel }}" class="space-y-1.5">
-                <div class="cdv-skel w-full"></div>
-                <div class="cdv-skel w-5/6"></div>
-                <div class="cdv-skel w-4/6"></div>
+        <div class="ql-snippet-body ql-container ql-snow border-0">
+            <div class="ql-editor p-0">
+                {!! $content->body !!}
             </div>
-            <div id="{{ $vid }}" class="ql-ro-viewer hidden"></div>
-            <script type="application/json" id="body-data-{{ $content->id }}">@json($content->body)</script>
         </div>
     @endif
 
@@ -305,13 +299,10 @@
         </div>
     </a>
     @if($hasBody)
-    <div>
-        <div id="{{ $skel }}-url" class="space-y-1">
-            <div class="cdv-skel w-full"></div>
-            <div class="cdv-skel w-4/6"></div>
+    <div class="ql-snippet-body ql-container ql-snow border-0 mt-3">
+        <div class="ql-editor p-0">
+            {!! $content->body !!}
         </div>
-        <div id="{{ $vid }}-url" class="ql-ro-viewer hidden"></div>
-        <script type="application/json" id="body-data-{{ $content->id }}-url">@json($content->body)</script>
     </div>
     @endif
     @endif
@@ -329,13 +320,10 @@
         </div>
     </a>
     @if($hasBody)
-    <div>
-        <div id="{{ $skel }}-file" class="space-y-1">
-            <div class="cdv-skel w-full"></div>
-            <div class="cdv-skel w-4/6"></div>
+    <div class="ql-snippet-body ql-container ql-snow border-0 mt-3">
+        <div class="ql-editor p-0">
+            {!! $content->body !!}
         </div>
-        <div id="{{ $vid }}-file" class="ql-ro-viewer hidden"></div>
-        <script type="application/json" id="body-data-{{ $content->id }}-file">@json($content->body)</script>
     </div>
     @endif
     @endif
@@ -420,26 +408,11 @@
 
 </div>
 
-{{-- Quill UMD — pastikan hanya di-load sekali --}}
 @once
-<script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 <script>
 (function(){
-    function initViewer(vid, skelId, dataId) {
-        var viewer = document.getElementById(vid);
-        var skel   = document.getElementById(skelId);
-        var dataEl = document.getElementById(dataId);
-        if (!viewer || !dataEl) return;
-        var raw = (dataEl.textContent || '').trim();
-        if (!raw || raw === 'null') { if(skel) skel.style.display='none'; return; }
-        var html;
-        try { html = JSON.parse(raw); } catch(e) { html = raw; }
-        if (!html || (typeof html === 'string' && !html.trim())) { if(skel) skel.style.display='none'; return; }
-
-        viewer.innerHTML = '<div class="ql-container ql-snow"><div class="ql-editor">' + html + '</div></div>';
-
-        // Auto wrap any table inside a responsive scrollable container
-        viewer.querySelectorAll('table').forEach(function(tbl) {
+    function wrapTables() {
+        document.querySelectorAll('.ql-editor table').forEach(function(tbl) {
             if (!tbl.parentElement || !tbl.parentElement.classList.contains('table-responsive')) {
                 var wrapper = document.createElement('div');
                 wrapper.className = 'table-responsive';
@@ -447,23 +420,11 @@
                 wrapper.appendChild(tbl);
             }
         });
-
-        if (skel) skel.style.display = 'none';
-        viewer.classList.remove('hidden');
     }
-
-    function initAll() {
-        document.querySelectorAll('.ql-ro-viewer').forEach(function(el){
-            var id     = el.id;                      // ql-viewer-{id} | ql-viewer-{id}-img | ...
-            var suffix = id.replace('ql-viewer-',''); // {id} | {id}-img | ...
-            initViewer(id, 'ql-skel-'+suffix, 'body-data-'+suffix);
-        });
-    }
-
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initAll);
+        document.addEventListener('DOMContentLoaded', wrapTables);
     } else {
-        initAll();
+        wrapTables();
     }
 }());
 </script>
