@@ -97,10 +97,35 @@
 .ql-ro-viewer .ql-editor:focus { outline: none; }
 
 /* Responsive Headings & Typography inside Quill Body */
-.ql-editor p,
+.ql-editor p {
+    text-align: justify;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+}
+
 .ql-editor li {
     word-break: normal !important;
     overflow-wrap: break-word !important;
+}
+
+.ql-editor p.ql-align-center,
+.ql-editor .ql-align-center {
+    text-align: center !important;
+}
+
+.ql-editor p.ql-align-right,
+.ql-editor .ql-align-right {
+    text-align: right !important;
+}
+
+.ql-editor p.ql-align-left,
+.ql-editor .ql-align-left {
+    text-align: left !important;
+}
+
+.ql-editor p.ql-align-justify,
+.ql-editor .ql-align-justify {
+    text-align: justify !important;
 }
 
 .ql-editor h1 {

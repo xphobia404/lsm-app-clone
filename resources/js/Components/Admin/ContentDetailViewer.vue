@@ -267,6 +267,21 @@ function basename(path: string): string {
   color: #334155;
   cursor: default;
 }
+.quill-readonly-viewer :deep(.ql-editor p) {
+  text-align: justify;
+}
+.quill-readonly-viewer :deep(.ql-editor .ql-align-center) {
+  text-align: center !important;
+}
+.quill-readonly-viewer :deep(.ql-editor .ql-align-right) {
+  text-align: right !important;
+}
+.quill-readonly-viewer :deep(.ql-editor .ql-align-left) {
+  text-align: left !important;
+}
+.quill-readonly-viewer :deep(.ql-editor .ql-align-justify) {
+  text-align: justify !important;
+}
 .quill-readonly-viewer :deep(.ql-editor table) {
   width: 100% !important;
   border-collapse: collapse !important;
