@@ -9,10 +9,10 @@
             <div class="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
                 {{-- Schema header --}}
                 <div class="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
-                    <div>
-                        <p class="text-xs font-bold text-slate-800">{{ $schema->title }}</p>
+                    <div class="flex-1 min-w-0 pr-2">
+                        <p class="text-xs font-bold text-slate-800 break-words text-pretty">{{ $schema->title }}</p>
                         @if($schema->description)
-                            <p class="text-xs text-slate-400 mt-0.5">{{ Str::limit($schema->description, 80) }}</p>
+                            <p class="text-xs text-slate-400 mt-0.5 break-words text-pretty">{{ Str::limit($schema->description, 80) }}</p>
                         @endif
                     </div>
                     <span class="text-xs text-slate-400">{{ $schema->sections->count() }} section</span>

@@ -29,9 +29,9 @@
     @endphp
 
     <div class="mb-5 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-5 text-white shadow-lg">
-        <h2 class="text-base font-extrabold leading-snug">{{ $learningSchema->title }}</h2>
+        <h2 class="text-base font-extrabold leading-snug break-words text-pretty">{{ $learningSchema->title }}</h2>
         @if($learningSchema->description)
-        <p class="mt-1 text-xs text-indigo-100 leading-relaxed">
+        <p class="mt-1 text-xs text-indigo-100 leading-relaxed break-words text-pretty">
             {{ $learningSchema->description }}
         </p>
         @endif

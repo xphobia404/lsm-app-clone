@@ -54,7 +54,8 @@ onMounted(async () => {
   }
 
   if (quillContainer.value) {
-    quillContainer.value.innerHTML = `<div class="ql-container ql-snow"><div class="ql-editor">${props.content.body}</div></div>`
+    const cleanBody = (props.content.body || '').replace(/(&nbsp;|\u00a0)/g, ' ')
+    quillContainer.value.innerHTML = `<div class="ql-container ql-snow"><div class="ql-editor">${cleanBody}</div></div>`
     quillContainer.value.querySelectorAll('table').forEach((tbl) => {
       if (!tbl.parentElement || !tbl.parentElement.classList.contains('table-responsive')) {
         const wrapper = document.createElement('div')
@@ -261,14 +262,20 @@ function basename(path: string): string {
 .quill-readonly-viewer :deep(.ql-container.ql-snow) {
   border: none !important;
 }
-.quill-readonly-viewer :deep(.ql-editor) {
-  padding: 0 !important;
+.quill-readonly-viewer :deep(.ql-editor),
+.quill-readonly-viewer :deep(.ql-editor *) {
+  padding-left: 0;
+  padding-right: 0;
   font-size: 0.875rem;
   color: #334155;
   cursor: default;
-}
-.quill-readonly-viewer :deep(.ql-editor p) {
-  text-align: justify;
+  text-align: left !important;
+  word-break: normal !important;
+  word-wrap: normal !important;
+  overflow-wrap: break-word !important;
+  text-wrap: pretty !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
 }
 .quill-readonly-viewer :deep(.ql-editor .ql-align-center) {
   text-align: center !important;
@@ -280,7 +287,7 @@ function basename(path: string): string {
   text-align: left !important;
 }
 .quill-readonly-viewer :deep(.ql-editor .ql-align-justify) {
-  text-align: justify !important;
+  text-align: left !important;
 }
 .quill-readonly-viewer :deep(.ql-editor table) {
   width: 100% !important;

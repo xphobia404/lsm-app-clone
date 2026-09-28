@@ -16,7 +16,7 @@
     $drives   = $media->filter(fn($m) => $m->isGoogleDrive());
 
     $hasImage = $images->isNotEmpty();
-    $rawBody  = $content->body ?? '';
+    $rawBody  = str_replace(['&nbsp;', "\xc2\xa0", "\u{00A0}"], ' ', $content->body ?? '');
     $hasBody  = !empty(trim($rawBody)) && (
         trim(strip_tags($rawBody)) !== ''
         || str_contains($rawBody, '<table')
@@ -76,20 +76,33 @@
 .ql-ro-viewer .ql-container.ql-snow { border: none !important; }
 
 .ql-snippet-body .ql-editor,
-.ql-ro-viewer .ql-editor {
-    padding: 0 !important;
+.ql-snippet-body .ql-editor *,
+.ql-ro-viewer .ql-editor,
+.ql-ro-viewer .ql-editor * {
+    padding-left: 0;
+    padding-right: 0;
     font-size: 0.9375rem;
     color: #334155;
-    cursor: default;
     line-height: 1.75;
     word-break: normal !important;
+    word-wrap: normal !important;
     overflow-wrap: break-word !important;
+    text-wrap: pretty !important;
+    hyphens: none !important;
+    -webkit-hyphens: none !important;
     min-width: 0 !important;
+}
+.ql-snippet-body .ql-editor,
+.ql-ro-viewer .ql-editor {
+    padding: 0 !important;
+    cursor: default;
     width: 100% !important;
 }
 @media (min-width: 640px) {
     .ql-snippet-body .ql-editor,
-    .ql-ro-viewer .ql-editor {
+    .ql-snippet-body .ql-editor *,
+    .ql-ro-viewer .ql-editor,
+    .ql-ro-viewer .ql-editor * {
         font-size: 1rem;
     }
 }
@@ -97,35 +110,41 @@
 .ql-ro-viewer .ql-editor:focus { outline: none; }
 
 /* Responsive Headings & Typography inside Quill Body */
-.ql-editor p {
-    text-align: justify;
-    word-break: normal !important;
-    overflow-wrap: break-word !important;
-}
-
+.ql-editor p,
+.ql-editor span,
+.ql-editor div,
 .ql-editor li {
+    text-align: left !important;
     word-break: normal !important;
+    word-wrap: normal !important;
     overflow-wrap: break-word !important;
+    text-wrap: pretty !important;
+    hyphens: none !important;
+    -webkit-hyphens: none !important;
 }
 
 .ql-editor p.ql-align-center,
-.ql-editor .ql-align-center {
+.ql-editor .ql-align-center,
+.ql-editor .ql-align-center * {
     text-align: center !important;
 }
 
 .ql-editor p.ql-align-right,
-.ql-editor .ql-align-right {
+.ql-editor .ql-align-right,
+.ql-editor .ql-align-right * {
     text-align: right !important;
 }
 
 .ql-editor p.ql-align-left,
-.ql-editor .ql-align-left {
+.ql-editor .ql-align-left,
+.ql-editor .ql-align-left * {
     text-align: left !important;
 }
 
 .ql-editor p.ql-align-justify,
-.ql-editor .ql-align-justify {
-    text-align: justify !important;
+.ql-editor .ql-align-justify,
+.ql-editor .ql-align-justify * {
+    text-align: left !important;
 }
 
 .ql-editor h1 {
@@ -136,6 +155,8 @@
     margin-bottom: 0.5rem !important;
     color: #0f172a !important;
     word-break: normal !important;
+    overflow-wrap: break-word !important;
+    text-wrap: balance !important;
 }
 .ql-editor h2 {
     font-size: 1.1rem !important;
@@ -145,6 +166,8 @@
     margin-bottom: 0.5rem !important;
     color: #1e293b !important;
     word-break: normal !important;
+    overflow-wrap: break-word !important;
+    text-wrap: balance !important;
 }
 .ql-editor h3 {
     font-size: 1rem !important;
@@ -154,6 +177,8 @@
     margin-bottom: 0.375rem !important;
     color: #334155 !important;
     word-break: normal !important;
+    overflow-wrap: break-word !important;
+    text-wrap: balance !important;
 }
 @media (min-width: 640px) {
     .ql-editor h1 { font-size: 1.5rem !important; }
@@ -181,7 +206,8 @@
 .ql-editor pre.ql-syntax {
     max-width: 100% !important;
     white-space: pre-wrap !important;
-    word-break: break-all !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
     overflow-x: auto !important;
     background: #0f172a;
     color: #f8fafc;
@@ -503,7 +529,7 @@
                             <span class="text-[10px] text-slate-400">#{{ $m->media_order }}</span>
                         </div>
                         @if($m->description)<p class="text-[11px] text-slate-400 line-clamp-1 mb-1">{{ $m->description }}</p>@endif
-                        @if($m->url)<a href="{{ $m->url }}" target="_blank" rel="noopener noreferrer" class="text-[11px] text-indigo-500 break-all hover:underline">{{ $m->url }}</a>@endif
+                        @if($m->url)<a href="{{ $m->url }}" target="_blank" rel="noopener noreferrer" class="text-[11px] text-indigo-500 break-words [overflow-wrap:anywhere] hover:underline">{{ $m->url }}</a>@endif
                         @if($m->file_path)
                         <div class="flex items-center gap-1.5 mt-1">
                             <svg class="h-3 w-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>

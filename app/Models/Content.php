@@ -23,6 +23,23 @@ class Content extends Model
         'content_order' => 'integer',
     ];
 
+    public function setBodyAttribute($value): void
+    {
+        if (is_string($value)) {
+            $value = str_replace(['&nbsp;', "\xc2\xa0", "\u{00A0}"], ' ', $value);
+        }
+        $this->attributes['body'] = $value;
+    }
+
+    public function getBodyAttribute($value): ?string
+    {
+        if (is_string($value)) {
+            return str_replace(['&nbsp;', "\xc2\xa0", "\u{00A0}"], ' ', $value);
+        }
+
+        return $value;
+    }
+
     // ── Relationships ────────────────────────────────────────────────
 
     public function section(): BelongsTo
