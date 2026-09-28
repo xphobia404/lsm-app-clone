@@ -269,7 +269,7 @@ function basename(path: string): string {
   font-size: 0.875rem;
   color: #334155;
   cursor: default;
-  text-align: left !important;
+  text-align: justify !important;
   word-break: normal !important;
   word-wrap: normal !important;
   overflow-wrap: break-word !important;
@@ -287,7 +287,7 @@ function basename(path: string): string {
   text-align: left !important;
 }
 .quill-readonly-viewer :deep(.ql-editor .ql-align-justify) {
-  text-align: left !important;
+  text-align: justify !important;
 }
 .quill-readonly-viewer :deep(.ql-editor table) {
   width: 100% !important;

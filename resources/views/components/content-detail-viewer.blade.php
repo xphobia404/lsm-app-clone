@@ -114,7 +114,7 @@
 .ql-editor span,
 .ql-editor div,
 .ql-editor li {
-    text-align: left !important;
+    text-align: justify !important;
     word-break: normal !important;
     word-wrap: normal !important;
     overflow-wrap: break-word !important;
@@ -144,7 +144,7 @@
 .ql-editor p.ql-align-justify,
 .ql-editor .ql-align-justify,
 .ql-editor .ql-align-justify * {
-    text-align: left !important;
+    text-align: justify !important;
 }
 
 .ql-editor h1 {
