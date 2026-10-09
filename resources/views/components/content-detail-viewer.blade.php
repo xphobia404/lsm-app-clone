@@ -147,6 +147,43 @@
     text-align: justify !important;
 }
 
+/* Fix Lists (Bullets & Numbering) overriding Tailwind reset & zero padding */
+.ql-editor ul,
+.ql-editor ol {
+    padding-left: 1.5rem !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+}
+.ql-editor ul {
+    list-style-type: disc !important;
+}
+.ql-editor ol {
+    list-style-type: decimal !important;
+}
+.ql-editor ul > li {
+    list-style-type: disc !important;
+}
+.ql-editor ol > li {
+    list-style-type: decimal !important;
+}
+.ql-editor ul > li,
+.ql-editor ol > li {
+    padding-left: 0.25rem !important;
+    margin-bottom: 0.25rem !important;
+    list-style-position: outside !important;
+    display: list-item !important;
+}
+.ql-editor ul > li::before,
+.ql-editor ol > li::before {
+    display: none !important;
+}
+.ql-editor ul ul {
+    list-style-type: circle !important;
+}
+.ql-editor ul ul ul {
+    list-style-type: square !important;
+}
+
 .ql-editor h1 {
     font-size: 1.25rem !important;
     line-height: 1.35 !important;

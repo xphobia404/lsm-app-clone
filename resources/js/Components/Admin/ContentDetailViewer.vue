@@ -289,6 +289,41 @@ function basename(path: string): string {
 .quill-readonly-viewer :deep(.ql-editor .ql-align-justify) {
   text-align: justify !important;
 }
+.quill-readonly-viewer :deep(.ql-editor ul),
+.quill-readonly-viewer :deep(.ql-editor ol) {
+  padding-left: 1.5rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+.quill-readonly-viewer :deep(.ql-editor ul) {
+  list-style-type: disc !important;
+}
+.quill-readonly-viewer :deep(.ql-editor ol) {
+  list-style-type: decimal !important;
+}
+.quill-readonly-viewer :deep(.ql-editor ul > li) {
+  list-style-type: disc !important;
+}
+.quill-readonly-viewer :deep(.ql-editor ol > li) {
+  list-style-type: decimal !important;
+}
+.quill-readonly-viewer :deep(.ql-editor ul > li),
+.quill-readonly-viewer :deep(.ql-editor ol > li) {
+  padding-left: 0.25rem !important;
+  margin-bottom: 0.25rem !important;
+  list-style-position: outside !important;
+  display: list-item !important;
+}
+.quill-readonly-viewer :deep(.ql-editor ul > li::before),
+.quill-readonly-viewer :deep(.ql-editor ol > li::before) {
+  display: none !important;
+}
+.quill-readonly-viewer :deep(.ql-editor ul ul) {
+  list-style-type: circle !important;
+}
+.quill-readonly-viewer :deep(.ql-editor ul ul ul) {
+  list-style-type: square !important;
+}
 .quill-readonly-viewer :deep(.ql-editor table) {
   width: 100% !important;
   border-collapse: collapse !important;
