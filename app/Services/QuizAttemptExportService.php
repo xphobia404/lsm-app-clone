@@ -17,6 +17,10 @@ class QuizAttemptExportService
      */
     public function exportCsv(?Section $section = null, array $filters = []): StreamedResponse
     {
+        if (! $section && ! empty($filters['section_id'])) {
+            $section = Section::find($filters['section_id']);
+        }
+
         $query = QuizAttempt::with([
             'user:id,name,username,email',
             'section:id,title,passing_score',
@@ -36,14 +40,19 @@ class QuizAttemptExportService
             ? 'hasil_kuis_section_'.$section->id.'_'.$dateSuffix.'.csv'
             : 'hasil_kuis_semua_'.$dateSuffix.'.csv';
 
-        return response()->streamDownload(function () use ($query) {
+        // Preload quizzes if exporting for a specific section
+        $sectionQuizzes = $section
+            ? $section->quizzes()->active()->orderBy('quiz_order')->get()
+            : collect();
+
+        return response()->streamDownload(function () use ($query, $section, $sectionQuizzes) {
             $handle = fopen('php://output', 'w');
 
             // UTF-8 BOM for Microsoft Excel
             fwrite($handle, "\xEF\xBB\xBF");
 
-            // CSV Header
-            fputcsv($handle, [
+            // Base CSV Header
+            $headers = [
                 'No',
                 'ID Percobaan',
                 'Tanggal Pengerjaan',
@@ -57,11 +66,25 @@ class QuizAttemptExportService
                 'Skor (%)',
                 'Minimal Skor (%)',
                 'Status Kelulusan',
-            ]);
+            ];
+
+            // If per-section export, add individual columns for each question
+            if ($section && $sectionQuizzes->isNotEmpty()) {
+                foreach ($sectionQuizzes as $i => $sq) {
+                    $qNum = $i + 1;
+                    $snippet = mb_strimwidth($sq->question, 0, 35, '...');
+                    $headers[] = "Soal {$qNum}: {$snippet}";
+                }
+            }
+
+            // Always add summary column
+            $headers[] = 'Rincian Jawaban (User vs Actual)';
+
+            fputcsv($handle, $headers);
 
             $counter = 0;
 
-            $query->chunk(250, function ($attempts) use ($handle, &$counter) {
+            $query->chunk(250, function ($attempts) use ($handle, &$counter, $section, $sectionQuizzes) {
                 foreach ($attempts as $attempt) {
                     $counter++;
                     $user = $attempt->user;
@@ -71,7 +94,7 @@ class QuizAttemptExportService
                     $passingScore = $attempt->passing_score ?? ($sec?->passing_score ?? 70);
                     $status = $attempt->isPassed() ? 'Lulus' : 'Belum Lulus';
 
-                    fputcsv($handle, [
+                    $row = [
                         $counter,
                         $attempt->id,
                         $attempt->attempted_at ? $attempt->attempted_at->format('Y-m-d H:i:s') : '-',
@@ -85,7 +108,31 @@ class QuizAttemptExportService
                         $scorePct.'%',
                         $passingScore.'%',
                         $status,
-                    ]);
+                    ];
+
+                    $answers = is_array($attempt->answers) ? $attempt->answers : [];
+                    $answersByQuizId = collect($answers)->keyBy('quiz_id');
+
+                    // If per-section export, fill each question's column
+                    if ($section && $sectionQuizzes->isNotEmpty()) {
+                        foreach ($sectionQuizzes as $index => $sq) {
+                            $item = $answersByQuizId->get($sq->id) ?? ($answers[$index] ?? null);
+                            if ($item) {
+                                $uAns = $item['user_answer'] ?? '-';
+                                $actAns = $item['correct_answer'] ?? '-';
+                                $isCorr = ! empty($item['is_correct']);
+                                $corrLabel = $isCorr ? 'Benar' : 'Salah';
+                                $row[] = "User jawab {$uAns}, Actual {$actAns} ({$corrLabel})";
+                            } else {
+                                $row[] = '-';
+                            }
+                        }
+                    }
+
+                    // Summary column
+                    $row[] = $attempt->formatAnswersSummary();
+
+                    fputcsv($handle, $row);
                 }
             });
 

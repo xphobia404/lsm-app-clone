@@ -299,19 +299,39 @@ class QuizController extends Controller
     {
         abort_if(! $section->is_active, 404);
 
-        $quizzes = $section->quizzes()->active()->get();
+        $quizzes = $section->quizzes()->active()->orderBy('quiz_order')->get();
         $answers = $request->input('answers', []);
 
         $correctCount = 0;
         $results = [];
-        foreach ($quizzes as $quiz) {
-            $userAnswer = $answers[$quiz->id] ?? null;
-            $isCorrect = $userAnswer === $quiz->correct_answer;
+        $detailedAnswers = [];
+
+        foreach ($quizzes as $index => $quiz) {
+            $userAnswerRaw = $answers[$quiz->id] ?? null;
+            $userAnswer = $userAnswerRaw !== null ? strtolower(trim((string) $userAnswerRaw)) : null;
+            $correctAnswer = strtolower(trim((string) $quiz->correct_answer));
+            $isCorrect = $userAnswer !== null && $userAnswer === $correctAnswer;
+
             if ($isCorrect) {
                 $correctCount++;
             }
+
             $results[$quiz->id] = [
                 'user_answer' => $userAnswer,
+                'is_correct' => $isCorrect,
+            ];
+
+            $userOptionText = $userAnswer ? ($quiz->{'option_'.$userAnswer} ?? null) : null;
+            $correctOptionText = $quiz->{'option_'.$correctAnswer} ?? null;
+
+            $detailedAnswers[] = [
+                'quiz_id' => $quiz->id,
+                'quiz_number' => $index + 1,
+                'question' => $quiz->question,
+                'user_answer' => $userAnswer ? strtoupper($userAnswer) : '-',
+                'user_answer_text' => $userOptionText,
+                'correct_answer' => strtoupper($correctAnswer),
+                'correct_answer_text' => $correctOptionText,
                 'is_correct' => $isCorrect,
             ];
         }
@@ -328,6 +348,7 @@ class QuizController extends Controller
             'correct_answers' => $correctCount,
             'passing_score' => $passingScore,
             'is_passed' => $passed,
+            'answers' => $detailedAnswers,
             'attempted_at' => now(),
         ]);
 

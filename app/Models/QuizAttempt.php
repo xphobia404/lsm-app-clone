@@ -14,6 +14,7 @@ class QuizAttempt extends Model
         'correct_answers',
         'passing_score',
         'is_passed',
+        'answers',
         'attempted_at',
     ];
 
@@ -23,6 +24,7 @@ class QuizAttempt extends Model
         'correct_answers' => 'integer',
         'passing_score' => 'integer',
         'is_passed' => 'boolean',
+        'answers' => 'array',
     ];
 
     // ── Relationships ───────────────────────────────────────────────
@@ -88,5 +90,29 @@ class QuizAttempt extends Model
         $threshold = $this->passing_score ?? ($this->section?->passing_score ?? 70);
 
         return $this->getScorePercentage() >= $threshold;
+    }
+
+    /**
+     * Format rincian jawaban user vs kunci aktual untuk tampilan atau CSV.
+     * Contoh: "Soal 1: User jawab A, Actual B (Salah) | Soal 2: User jawab B, Actual B (Benar)"
+     */
+    public function formatAnswersSummary(): string
+    {
+        if (empty($this->answers) || ! is_array($this->answers)) {
+            return '-';
+        }
+
+        $parts = [];
+        foreach ($this->answers as $idx => $ans) {
+            $num = $ans['quiz_number'] ?? ($idx + 1);
+            $userAns = $ans['user_answer'] ?? '-';
+            $actualAns = $ans['correct_answer'] ?? '-';
+            $isCorrect = ! empty($ans['is_correct']);
+            $status = $isCorrect ? 'Benar' : 'Salah';
+
+            $parts[] = "Soal {$num}: User jawab {$userAns}, Actual {$actualAns} ({$status})";
+        }
+
+        return implode(' | ', $parts);
     }
 }

@@ -170,20 +170,47 @@ test('admin can import quizzes via csv', function () {
     ]);
 });
 
-test('admin can export section quiz results to csv', function () {
+test('admin can export section quiz results to csv including user answer vs actual correct answer', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $user = User::factory()->create(['role' => 'user', 'name' => 'Budi Santoso', 'username' => 'budis']);
     $section = Section::create(['title' => 'Section Pajak', 'passing_score' => 70, 'is_active' => true]);
 
-    QuizAttempt::create([
-        'user_id' => $user->id,
+    $q1 = Quiz::create([
         'section_id' => $section->id,
-        'total_questions' => 5,
-        'correct_answers' => 4,
-        'passing_score' => 70,
-        'is_passed' => true,
-        'attempted_at' => now(),
+        'question' => 'Kuis nomor satu?',
+        'option_a' => 'Pilihan A',
+        'option_b' => 'Pilihan B',
+        'correct_answer' => 'b',
+        'quiz_order' => 1,
+        'is_active' => true,
     ]);
+
+    $q2 = Quiz::create([
+        'section_id' => $section->id,
+        'question' => 'Kuis nomor dua?',
+        'option_a' => 'Pilihan A',
+        'option_b' => 'Pilihan B',
+        'correct_answer' => 'b',
+        'quiz_order' => 2,
+        'is_active' => true,
+    ]);
+
+    // User submits: Q1 answered 'a' (actual 'b' -> wrong), Q2 answered 'b' (actual 'b' -> correct)
+    $this->actingAs($user)->post(route('user.quizzes.submit', $section), [
+        'answers' => [
+            $q1->id => 'a',
+            $q2->id => 'b',
+        ],
+    ]);
+
+    $attempt = QuizAttempt::where('user_id', $user->id)->first();
+    expect($attempt->answers)->toBeArray()->toHaveCount(2);
+    expect($attempt->answers[0]['user_answer'])->toBe('A');
+    expect($attempt->answers[0]['correct_answer'])->toBe('B');
+    expect($attempt->answers[0]['is_correct'])->toBeFalse();
+    expect($attempt->answers[1]['user_answer'])->toBe('B');
+    expect($attempt->answers[1]['correct_answer'])->toBe('B');
+    expect($attempt->answers[1]['is_correct'])->toBeTrue();
 
     $response = $this->actingAs($admin)->get(route('admin.sections.quizzes.export-attempts', $section));
 
@@ -197,8 +224,8 @@ test('admin can export section quiz results to csv', function () {
     expect($content)->toContain('Budi Santoso');
     expect($content)->toContain('budis');
     expect($content)->toContain('Section Pajak');
-    expect($content)->toContain('80%');
-    expect($content)->toContain('Lulus');
+    expect($content)->toContain('User jawab A, Actual B (Salah)');
+    expect($content)->toContain('User jawab B, Actual B (Benar)');
 });
 
 test('admin can access global quiz attempts list and export all attempts', function () {

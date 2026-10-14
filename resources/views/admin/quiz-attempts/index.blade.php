@@ -1,5 +1,16 @@
 <x-admin-layout title="Hasil Kuis User">
-<div class="px-4 pt-5 pb-10 space-y-5">
+<div x-data="{
+        showModal: false,
+        modalData: {
+            user: '',
+            email: '',
+            section: '',
+            score: '',
+            passed: false,
+            answers: []
+        }
+     }"
+     class="px-4 pt-5 pb-10 space-y-5">
 
     {{-- Breadcrumb --}}
     <div class="flex items-center gap-1.5 text-xs text-slate-400">
@@ -13,7 +24,7 @@
         <div>
             <h2 class="text-base font-bold text-slate-800">Hasil Kuis User</h2>
             <p class="text-xs text-slate-400 mt-0.5">
-                Riwayat percobaan dan nilai kuis yang dikerjakan oleh seluruh user.
+                Riwayat percobaan dan nilai kuis yang dikerjakan oleh seluruh user, lengkap dengan detail jawaban yang dipilih dan kunci aktualnya.
             </p>
         </div>
         <div class="flex items-center gap-2">
@@ -121,6 +132,7 @@
                         <th class="py-3 px-4 text-center">Skor</th>
                         <th class="py-3 px-4 text-center">Min. Skor</th>
                         <th class="py-3 px-4 text-center">Status</th>
+                        <th class="py-3 px-4 text-center">Rincian Jawaban</th>
                         <th class="py-3 px-4 text-right">Waktu</th>
                     </tr>
                 </thead>
@@ -130,6 +142,7 @@
                         $scorePct = $attempt->getScorePercentage();
                         $passingScore = $attempt->passing_score ?? ($attempt->section?->passing_score ?? 70);
                         $passed = $attempt->isPassed();
+                        $answers = is_array($attempt->answers) ? $attempt->answers : [];
                     @endphp
                     <tr class="hover:bg-slate-50/70 transition">
                         <td class="py-3 px-4">
@@ -178,13 +191,32 @@
                                 </span>
                             @endif
                         </td>
+                        <td class="py-3 px-4 text-center">
+                            @if(! empty($answers))
+                                <button type="button"
+                                        @click="modalData = {{ json_encode([
+                                            'user' => $attempt->user?->name ?? 'User dihapus',
+                                            'email' => $attempt->user?->email ?? '-',
+                                            'section' => $attempt->section?->title ?? '-',
+                                            'score' => $scorePct.'%',
+                                            'passed' => $passed,
+                                            'answers' => $answers,
+                                        ]) }}; showModal = true"
+                                        class="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    User vs Actual
+                                </button>
+                            @else
+                                <span class="text-slate-400 text-[11px] italic">Tidak tersimpan</span>
+                            @endif
+                        </td>
                         <td class="py-3 px-4 text-right text-slate-400 text-[11px] whitespace-nowrap">
                             {{ $attempt->attempted_at ? $attempt->attempted_at->format('d M Y, H:i') : '-' }}
                         </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="py-12 text-center text-slate-400">
+                        <td colspan="8" class="py-12 text-center text-slate-400">
                             <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                             <p class="mt-2 text-sm font-medium">Belum ada hasil kuis yang tercatat.</p>
                         </td>
@@ -198,6 +230,81 @@
     @if($attempts->hasPages())
         <div>{{ $attempts->links() }}</div>
     @endif
+
+    {{-- Modal Detail Jawaban User vs Actual --}}
+    <div x-show="showModal"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+         style="display: none;">
+        <div @click.away="showModal = false"
+             class="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl bg-white shadow-2xl overflow-hidden">
+            
+            {{-- Modal Header --}}
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800">Detail Jawaban Kuis User</h3>
+                    <p class="text-xs text-slate-400">
+                        <span x-text="modalData.user" class="font-semibold text-slate-700"></span> &bull; 
+                        Section: <span x-text="modalData.section" class="font-medium text-indigo-600"></span> &bull; 
+                        Skor: <span x-text="modalData.score" class="font-bold text-slate-800"></span>
+                    </p>
+                </div>
+                <button type="button" @click="showModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+
+            {{-- Modal Content List --}}
+            <div class="p-5 overflow-y-auto space-y-3.5 flex-1 divide-y divide-slate-100">
+                <template x-for="(ans, index) in modalData.answers" :key="index">
+                    <div class="pt-3.5 first:pt-0 space-y-2">
+                        <div class="flex items-start justify-between gap-2">
+                            <p class="text-xs font-bold text-slate-800">
+                                <span class="text-indigo-600" x-text="'Soal ' + (ans.quiz_number || (index + 1)) + ':'"></span>
+                                <span x-text="ans.question" class="ml-1 text-slate-700 font-medium"></span>
+                            </p>
+                            <span :class="ans.is_correct ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'"
+                                  class="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border">
+                                <span x-text="ans.is_correct ? 'BENAR ✓' : 'SALAH ✕'"></span>
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            {{-- Jawaban User --}}
+                            <div :class="ans.is_correct ? 'bg-emerald-50/60 border-emerald-100' : 'bg-rose-50/60 border-rose-100'"
+                                 class="p-2.5 rounded-xl border">
+                                <p class="text-[10px] uppercase font-bold text-slate-400">Jawaban User:</p>
+                                <p class="font-semibold mt-0.5" :class="ans.is_correct ? 'text-emerald-800' : 'text-rose-800'">
+                                    <span class="inline-block px-1.5 py-0.2 bg-white rounded border border-slate-200 uppercase font-mono mr-1" x-text="ans.user_answer || '-'"></span>
+                                    <span x-text="ans.user_answer_text || '(Tidak ada teks)'"></span>
+                                </p>
+                            </div>
+
+                            {{-- Kunci Jawaban Sebenarnya --}}
+                            <div class="bg-indigo-50/60 border border-indigo-100 p-2.5 rounded-xl">
+                                <p class="text-[10px] uppercase font-bold text-indigo-400">Kunci Jawaban Sebenarnya:</p>
+                                <p class="font-semibold text-indigo-900 mt-0.5">
+                                    <span class="inline-block px-1.5 py-0.2 bg-white rounded border border-indigo-200 uppercase font-mono mr-1 text-indigo-600" x-text="ans.correct_answer || '-'"></span>
+                                    <span x-text="ans.correct_answer_text || '(Tidak ada teks)'"></span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            {{-- Modal Footer --}}
+            <div class="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end">
+                <button type="button" @click="showModal = false" class="rounded-full bg-slate-800 px-5 py-2 text-xs font-semibold text-white hover:bg-slate-900 transition">
+                    Tutup
+                </button>
+            </div>
+
+        </div>
+    </div>
 
 </div>
 </x-admin-layout>
