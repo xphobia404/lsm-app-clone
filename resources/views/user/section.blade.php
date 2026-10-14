@@ -146,11 +146,14 @@
      style="padding-bottom:max(12px, env(safe-area-inset-bottom))">
     <div class="flex items-center gap-3">
         <button id="btn-prev"
-                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-400 transition active:bg-slate-50"
+                type="button"
+                aria-label="Slide sebelumnya"
+                class="flex h-11 items-center justify-center gap-1.5 rounded-full border border-slate-200 px-3.5 sm:px-4 text-xs sm:text-sm font-semibold text-slate-600 transition active:bg-slate-50 shrink-0"
                 style="opacity:0.3; pointer-events:none">
-            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
             </svg>
+            <span>Sebelumnya</span>
         </button>
 
         <div id="dots" class="flex flex-1 items-center justify-center gap-1.5 overflow-hidden">
@@ -161,7 +164,9 @@
         </div>
 
         <button id="btn-next"
-                class="flex h-11 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold text-white transition active:opacity-80"
+                type="button"
+                aria-label="Slide berikutnya"
+                class="flex h-11 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold text-white transition active:opacity-80 shrink-0"
                 style="background:linear-gradient(135deg,#6366f1,#8b5cf6); min-width:90px">
             Lanjut
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -251,12 +256,12 @@
         }
     });
 
-    let sx = 0;
-    const area = track.parentElement;
-    area.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
-    area.addEventListener('touchend', e => {
-        const diff = sx - e.changedTouches[0].clientX;
-        if (Math.abs(diff) > 50) diff > 0 ? goTo(cur + 1) : goTo(cur - 1);
+    // Navigasi juga dapat dilakukan dengan mengklik indikator dot
+    dots.forEach((dot, index) => {
+        dot.style.cursor = 'pointer';
+        dot.setAttribute('role', 'button');
+        dot.setAttribute('aria-label', 'Pindah ke slide ' + (index + 1));
+        dot.addEventListener('click', () => goTo(index));
     });
 
     goTo(0);

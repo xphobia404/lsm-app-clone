@@ -54,7 +54,10 @@ onMounted(async () => {
   }
 
   if (quillContainer.value) {
-    const cleanBody = (props.content.body || '').replace(/(&nbsp;|\u00a0)/g, ' ')
+    const cleanBody = (props.content.body || '')
+      .replace(/(&nbsp;|\u00a0)/g, ' ')
+      .replace(/^(?:\s*<p[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>\s*)+/gi, '')
+      .trimStart()
     quillContainer.value.innerHTML = `<div class="ql-container ql-snow"><div class="ql-editor">${cleanBody}</div></div>`
     quillContainer.value.querySelectorAll('table').forEach((tbl) => {
       if (!tbl.parentElement || !tbl.parentElement.classList.contains('table-responsive')) {
@@ -261,6 +264,34 @@ function basename(path: string): string {
 */
 .quill-readonly-viewer :deep(.ql-container.ql-snow) {
   border: none !important;
+}
+.quill-readonly-viewer :deep(.ql-editor) {
+  padding: 0 !important;
+  cursor: default;
+  width: 100% !important;
+}
+.quill-readonly-viewer :deep(.ql-editor > :first-child) {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+.quill-readonly-viewer :deep(.ql-editor > p:first-child) {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+.quill-readonly-viewer :deep(.ql-editor > ul:first-child),
+.quill-readonly-viewer :deep(.ql-editor > ol:first-child) {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+.quill-readonly-viewer :deep(.ql-editor > h1:first-child),
+.quill-readonly-viewer :deep(.ql-editor > h2:first-child),
+.quill-readonly-viewer :deep(.ql-editor > h3:first-child) {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+.quill-readonly-viewer :deep(.ql-editor > p:empty),
+.quill-readonly-viewer :deep(.ql-editor > p:first-child:empty) {
+  display: none !important;
 }
 .quill-readonly-viewer :deep(.ql-editor),
 .quill-readonly-viewer :deep(.ql-editor *) {

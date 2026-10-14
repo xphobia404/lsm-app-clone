@@ -27,6 +27,7 @@ class Content extends Model
     {
         if (is_string($value)) {
             $value = str_replace(['&nbsp;', "\xc2\xa0", "\u{00A0}"], ' ', $value);
+            $value = preg_replace('/^(?:\s*<p[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>\s*)+/i', '', $value);
         }
         $this->attributes['body'] = $value;
     }
@@ -34,7 +35,9 @@ class Content extends Model
     public function getBodyAttribute($value): ?string
     {
         if (is_string($value)) {
-            return str_replace(['&nbsp;', "\xc2\xa0", "\u{00A0}"], ' ', $value);
+            $value = str_replace(['&nbsp;', "\xc2\xa0", "\u{00A0}"], ' ', $value);
+
+            return preg_replace('/^(?:\s*<p[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>\s*)+/i', '', $value);
         }
 
         return $value;

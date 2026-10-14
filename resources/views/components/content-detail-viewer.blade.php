@@ -17,6 +17,8 @@
 
     $hasImage = $images->isNotEmpty();
     $rawBody  = str_replace(['&nbsp;', "\xc2\xa0", "\u{00A0}"], ' ', $content->body ?? '');
+    $rawBody  = preg_replace('/^(?:\s*<p[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>\s*)+/i', '', $rawBody);
+    $rawBody  = ltrim($rawBody);
     $hasBody  = !empty(trim($rawBody)) && (
         trim(strip_tags($rawBody)) !== ''
         || str_contains($rawBody, '<table')
@@ -97,6 +99,31 @@
     padding: 0 !important;
     cursor: default;
     width: 100% !important;
+}
+
+/* Ensure no extra empty space at the top of content */
+.ql-editor > :first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+.ql-editor > p:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+.ql-editor > ul:first-child,
+.ql-editor > ol:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+.ql-editor > h1:first-child,
+.ql-editor > h2:first-child,
+.ql-editor > h3:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+.ql-editor > p:empty,
+.ql-editor > p:first-child:empty {
+    display: none !important;
 }
 @media (min-width: 640px) {
     .ql-snippet-body .ql-editor,
@@ -442,7 +469,7 @@
             <div class="media-split__text">
                 <div class="ql-snippet-body ql-container ql-snow border-0">
                     <div class="ql-editor p-0">
-                        {!! $content->body !!}
+                        {!! $rawBody !!}
                     </div>
                 </div>
             </div>
@@ -461,7 +488,7 @@
     @elseif(!$hasImage && $hasBody && !$content->isUrl() && !$content->isFile())
         <div class="ql-snippet-body ql-container ql-snow border-0">
             <div class="ql-editor p-0">
-                {!! $content->body !!}
+                {!! $rawBody !!}
             </div>
         </div>
     @endif
@@ -481,7 +508,7 @@
     @if($hasBody)
     <div class="ql-snippet-body ql-container ql-snow border-0 mt-3">
         <div class="ql-editor p-0">
-            {!! $content->body !!}
+            {!! $rawBody !!}
         </div>
     </div>
     @endif
@@ -502,7 +529,7 @@
     @if($hasBody)
     <div class="ql-snippet-body ql-container ql-snow border-0 mt-3">
         <div class="ql-editor p-0">
-            {!! $content->body !!}
+            {!! $rawBody !!}
         </div>
     </div>
     @endif
