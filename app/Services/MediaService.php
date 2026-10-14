@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Media;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -22,11 +23,10 @@ class MediaService
     /**
      * Upload file dan attach sebagai media ke model.
      *
-     * @param  Model        $mediable   Model target (Section, Content, Quiz, dll)
-     * @param  UploadedFile $file       File dari request
-     * @param  string       $mediaType  'image' | 'video' | 'audio' | 'url'
-     * @param  array        $extra      Override kolom tambahan (title, description, media_order)
-     * @return Media
+     * @param  Model  $mediable  Model target (Section, Content, Quiz, dll)
+     * @param  UploadedFile  $file  File dari request
+     * @param  string  $mediaType  'image' | 'video' | 'audio' | 'url'
+     * @param  array  $extra  Override kolom tambahan (title, description, media_order)
      */
     public function attachFile(
         Model $mediable,
@@ -34,28 +34,24 @@ class MediaService
         string $mediaType = 'image',
         array $extra = []
     ): Media {
-        $folder   = $this->resolveFolder($mediable);
+        $folder = $this->resolveFolder($mediable);
         $filePath = $file->store($folder, $this->disk);
 
         return $mediable->media()->create(array_merge([
-            'media_type'  => $mediaType,
-            'title'       => $extra['title'] ?? $file->getClientOriginalName(),
+            'media_type' => $mediaType,
+            'title' => $extra['title'] ?? $file->getClientOriginalName(),
             'description' => $extra['description'] ?? null,
-            'file_path'   => $filePath,
-            'url'         => null,
+            'file_path' => $filePath,
+            'url' => null,
             'media_order' => $extra['media_order'] ?? $this->nextOrder($mediable),
-            'is_active'   => $extra['is_active'] ?? true,
+            'is_active' => $extra['is_active'] ?? true,
         ], $extra));
     }
 
     /**
      * Attach media berupa URL eksternal (YouTube, Google Drive, link gambar, dll).
      *
-     * @param  Model  $mediable
-     * @param  string $url
-     * @param  string $mediaType  'image' | 'video' | 'audio' | 'url'
-     * @param  array  $extra
-     * @return Media
+     * @param  string  $mediaType  'image' | 'video' | 'audio' | 'url'
      */
     public function attachUrl(
         Model $mediable,
@@ -64,13 +60,13 @@ class MediaService
         array $extra = []
     ): Media {
         return $mediable->media()->create(array_merge([
-            'media_type'  => $mediaType,
-            'title'       => $extra['title'] ?? null,
+            'media_type' => $mediaType,
+            'title' => $extra['title'] ?? null,
             'description' => $extra['description'] ?? null,
-            'file_path'   => null,
-            'url'         => $url,
+            'file_path' => null,
+            'url' => $url,
             'media_order' => $extra['media_order'] ?? $this->nextOrder($mediable),
-            'is_active'   => $extra['is_active'] ?? true,
+            'is_active' => $extra['is_active'] ?? true,
         ], $extra));
     }
 
@@ -80,27 +76,25 @@ class MediaService
      * Contoh pemakaian di controller:
      *   $mediaService->attachFromRequest($section, $request, 'attachment');
      *
-     * @param  Model                    $mediable
-     * @param  \Illuminate\Http\Request $request
-     * @param  string                   $fileKey    Nama input file di form
-     * @param  string                   $urlKey     Nama input URL di form
-     * @param  array                    $extra
-     * @return Media|null
+     * @param  string  $fileKey  Nama input file di form
+     * @param  string  $urlKey  Nama input URL di form
      */
     public function attachFromRequest(
         Model $mediable,
-        \Illuminate\Http\Request $request,
+        Request $request,
         string $fileKey = 'file',
-        string $urlKey  = 'url',
-        array  $extra   = []
+        string $urlKey = 'url',
+        array $extra = []
     ): ?Media {
         if ($request->hasFile($fileKey)) {
             $mediaType = $this->guessMediaTypeFromFile($request->file($fileKey));
+
             return $this->attachFile($mediable, $request->file($fileKey), $mediaType, $extra);
         }
 
         if ($request->filled($urlKey)) {
             $mediaType = $extra['media_type'] ?? 'url';
+
             return $this->attachUrl($mediable, $request->input($urlKey), $mediaType, $extra);
         }
 
@@ -146,12 +140,13 @@ class MediaService
                 Storage::disk($this->disk)->delete($media->file_path);
             }
 
-            $folder            = $this->resolveFolderFromType($media->mediable_type);
+            $folder = $this->resolveFolderFromType($media->mediable_type);
             $data['file_path'] = $newFile->store($folder, $this->disk);
             $data['media_type'] = $this->guessMediaTypeFromFile($newFile);
         }
 
         $media->update($data);
+
         return $media->fresh();
     }
 
@@ -181,15 +176,13 @@ class MediaService
      *
      * Cocok untuk form edit yang menampilkan media existing + upload baru.
      *
-     * @param  Model                    $mediable
-     * @param  \Illuminate\Http\Request $request
-     * @param  array                    $keepIds    ID media yang tetap disimpan
-     * @param  string                   $fileKey    Input name untuk file baru (bisa array)
+     * @param  array  $keepIds  ID media yang tetap disimpan
+     * @param  string  $fileKey  Input name untuk file baru (bisa array)
      */
     public function syncFromRequest(
         Model $mediable,
-        \Illuminate\Http\Request $request,
-        array $keepIds  = [],
+        Request $request,
+        array $keepIds = [],
         string $fileKey = 'new_files'
     ): void {
         // Hapus media yang tidak ada di keepIds
@@ -225,8 +218,8 @@ class MediaService
         return match (true) {
             str_ends_with($modelClass, 'Section') => 'media/sections',
             str_ends_with($modelClass, 'Content') => 'media/contents',
-            str_ends_with($modelClass, 'Quiz')    => 'media/quizzes',
-            default                               => 'media/misc',
+            str_ends_with($modelClass, 'Quiz') => 'media/quizzes',
+            default => 'media/misc',
         };
     }
 
@@ -245,9 +238,15 @@ class MediaService
     {
         $mime = $file->getMimeType() ?? '';
 
-        if (str_starts_with($mime, 'image/'))  return 'image';
-        if (str_starts_with($mime, 'video/'))  return 'video';
-        if (str_starts_with($mime, 'audio/'))  return 'audio';
+        if (str_starts_with($mime, 'image/')) {
+            return 'image';
+        }
+        if (str_starts_with($mime, 'video/')) {
+            return 'video';
+        }
+        if (str_starts_with($mime, 'audio/')) {
+            return 'audio';
+        }
 
         return 'url'; // fallback untuk file lain (PDF, dll)
     }

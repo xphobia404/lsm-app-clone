@@ -20,7 +20,7 @@ class Media extends Model
     ];
 
     protected $casts = [
-        'is_active'   => 'boolean',
+        'is_active' => 'boolean',
         'media_order' => 'integer',
     ];
 
@@ -50,12 +50,35 @@ class Media extends Model
 
     // ── Helpers ─────────────────────────────────────────────────
 
-    public function isImage(): bool        { return $this->media_type === 'image'; }
-    public function isVideo(): bool        { return $this->media_type === 'video'; }
-    public function isAudio(): bool        { return $this->media_type === 'audio'; }
-    public function isYouTube(): bool      { return $this->media_type === 'youtube'; }
-    public function isGoogleDrive(): bool  { return $this->media_type === 'google_drive'; }
-    public function isUrl(): bool          { return in_array($this->media_type, ['url', 'youtube', 'google_drive']); }
+    public function isImage(): bool
+    {
+        return $this->media_type === 'image';
+    }
+
+    public function isVideo(): bool
+    {
+        return $this->media_type === 'video';
+    }
+
+    public function isAudio(): bool
+    {
+        return $this->media_type === 'audio';
+    }
+
+    public function isYouTube(): bool
+    {
+        return $this->media_type === 'youtube';
+    }
+
+    public function isGoogleDrive(): bool
+    {
+        return $this->media_type === 'google_drive';
+    }
+
+    public function isUrl(): bool
+    {
+        return in_array($this->media_type, ['url', 'youtube', 'google_drive']);
+    }
 
     /**
      * Kembalikan URL yang bisa dirender — file_path (storage) atau url (external).
@@ -63,8 +86,9 @@ class Media extends Model
     public function getDisplayUrl(): ?string
     {
         if ($this->file_path) {
-            return asset('storage/' . $this->file_path);
+            return asset('storage/'.$this->file_path);
         }
+
         return $this->url;
     }
 
@@ -75,8 +99,9 @@ class Media extends Model
     {
         $url = $this->url ?? '';
         if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)?([\w-]{11})/', $url, $m)) {
-            return 'https://www.youtube.com/embed/' . $m[1];
+            return 'https://www.youtube.com/embed/'.$m[1];
         }
+
         return null;
     }
 
@@ -89,11 +114,12 @@ class Media extends Model
         $url = $this->url ?? '';
         // Format: /file/d/{id}/view atau /open?id={id}
         if (preg_match('/\/file\/d\/([\w-]+)/', $url, $m)) {
-            return 'https://drive.google.com/file/d/' . $m[1] . '/preview';
+            return 'https://drive.google.com/file/d/'.$m[1].'/preview';
         }
         if (preg_match('/[?&]id=([\w-]+)/', $url, $m)) {
-            return 'https://drive.google.com/file/d/' . $m[1] . '/preview';
+            return 'https://drive.google.com/file/d/'.$m[1].'/preview';
         }
+
         return null;
     }
 }

@@ -81,14 +81,29 @@ class Quiz extends Model
     /**
      * Kembalikan array opsi yang diisi (tidak null).
      * Contoh: ['a' => 'Benar', 'b' => 'Salah', 'c' => 'Mungkin']
+     *
+     * @param  bool  $shuffle  Acak urutan opsi jika true
      */
-    public function getOptions(): array
+    public function getOptions(bool $shuffle = false): array
     {
-        return array_filter([
+        $options = array_filter([
             'a' => $this->option_a,
             'b' => $this->option_b,
             'c' => $this->option_c,
             'd' => $this->option_d,
         ]);
+
+        if ($shuffle && count($options) > 1) {
+            $keys = array_keys($options);
+            shuffle($keys);
+            $shuffled = [];
+            foreach ($keys as $key) {
+                $shuffled[$key] = $options[$key];
+            }
+
+            return $shuffled;
+        }
+
+        return $options;
     }
 }

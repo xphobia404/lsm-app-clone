@@ -16,14 +16,14 @@ class AdminDashboardController extends Controller
     public function dashboard()
     {
         // ── User Stats ─────────────────────────────────────────────
-        $totalUsers    = User::users()->count();
-        $activeUsers   = User::users()->active()->count();
+        $totalUsers = User::users()->count();
+        $activeUsers = User::users()->active()->count();
         $inactiveUsers = $totalUsers - $activeUsers;
 
         // ── Schema & Section Stats ───────────────────────────────
-        $totalSchemas  = LearningSchema::count();
+        $totalSchemas = LearningSchema::count();
         $totalSections = Section::count();
-        $totalQuizzes  = Quiz::count();
+        $totalQuizzes = Quiz::count();
         $totalAttempts = QuizAttempt::count();
 
         // ── Progress Donut Chart Data ───────────────────────────
@@ -31,7 +31,7 @@ class AdminDashboardController extends Controller
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $donutCompleted  = $progressStats['completed'] ?? 0;
+        $donutCompleted = $progressStats['completed'] ?? 0;
         $donutInProgress = $progressStats['in_progress'] ?? 0;
         $donutNotStarted = $progressStats['not_started'] ?? 0;
 
@@ -42,8 +42,8 @@ class AdminDashboardController extends Controller
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $schemaUserActive    = $schemaUserStats['active'] ?? 0;
-        $schemaUserDropped   = $schemaUserStats['dropped'] ?? 0;
+        $schemaUserActive = $schemaUserStats['active'] ?? 0;
+        $schemaUserDropped = $schemaUserStats['dropped'] ?? 0;
         $schemaUserCompleted = $schemaUserStats['completed'] ?? 0;
 
         // ── Completed Users:
@@ -54,7 +54,7 @@ class AdminDashboardController extends Controller
                     $q->with([
                         'sections' => fn ($sq) => $sq
                             ->where('sections.is_active', true)
-                            ->select('sections.id')
+                            ->select('sections.id'),
                     ])->select('learning_schemas.id', 'title');
                 },
                 'progresses' => fn ($q) => $q
@@ -83,9 +83,9 @@ class AdminDashboardController extends Controller
 
         // ── Recent Progress Activity ────────────────────────────
         $recentProgress = UserProgress::with([
-                'user:id,name,username',
-                'section:id,title',
-            ])
+            'user:id,name,username',
+            'section:id,title',
+        ])
             ->whereHas('user', fn ($q) => $q->where('role', 'user'))
             ->latest('updated_at')
             ->limit(8)
@@ -105,15 +105,15 @@ class AdminDashboardController extends Controller
 
         // ── Bar Chart: completed per schema ──────────────────────
         $schemaCompletion = LearningSchema::with([
-                'sections' => fn ($q) => $q
-                    ->where('sections.is_active', true)
-                    ->select('sections.id')
-            ])
+            'sections' => fn ($q) => $q
+                ->where('sections.is_active', true)
+                ->select('sections.id'),
+        ])
             ->active()
             ->limit(6)
             ->get(['id', 'title'])
             ->map(function ($schema) {
-                $sectionIds   = $schema->sections->pluck('id')->unique()->values();
+                $sectionIds = $schema->sections->pluck('id')->unique()->values();
                 $sectionCount = $sectionIds->count();
 
                 if ($sectionCount === 0) {
@@ -125,7 +125,7 @@ class AdminDashboardController extends Controller
                         'progresses' => fn ($q) => $q
                             ->where('status', 'completed')
                             ->whereIn('section_id', $sectionIds)
-                            ->select('id', 'user_id', 'section_id', 'status')
+                            ->select('id', 'user_id', 'section_id', 'status'),
                     ])
                     ->get(['id'])
                     ->filter(function ($user) use ($sectionIds) {
@@ -142,7 +142,7 @@ class AdminDashboardController extends Controller
             });
 
         $chartLabels = $schemaCompletion->pluck('title');
-        $chartData   = $schemaCompletion->pluck('count');
+        $chartData = $schemaCompletion->pluck('count');
 
         return view('admin.dashboard', compact(
             'totalUsers',

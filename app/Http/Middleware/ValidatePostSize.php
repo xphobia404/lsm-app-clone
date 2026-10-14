@@ -38,17 +38,17 @@ class ValidatePostSize
     protected function getPostMaxSize(): int
     {
         $hardcoded = 210 * 1024 * 1024; // 210 MB
-        $iniRaw    = ini_get('post_max_size');
-        $iniBytes  = $this->iniToBytes($iniRaw);
+        $iniRaw = ini_get('post_max_size');
+        $iniBytes = $this->iniToBytes($iniRaw);
 
         return max($hardcoded, $iniBytes);
     }
 
     protected function iniToBytes(string $val): int
     {
-        $val  = trim($val);
+        $val = trim($val);
         $unit = strtolower(substr($val, -1));
-        $num  = (int) $val;
+        $num = (int) $val;
 
         return match ($unit) {
             'g' => $num * 1024 * 1024 * 1024,

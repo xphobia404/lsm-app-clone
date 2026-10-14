@@ -12,13 +12,17 @@ class QuizAttempt extends Model
         'section_id',
         'total_questions',
         'correct_answers',
+        'passing_score',
+        'is_passed',
         'attempted_at',
     ];
 
     protected $casts = [
-        'attempted_at'    => 'datetime',
+        'attempted_at' => 'datetime',
         'total_questions' => 'integer',
         'correct_answers' => 'integer',
+        'passing_score' => 'integer',
+        'is_passed' => 'boolean',
     ];
 
     // ── Relationships ───────────────────────────────────────────────
@@ -45,24 +49,44 @@ class QuizAttempt extends Model
         return $query->where('section_id', $sectionId);
     }
 
-    public function scopePassed($query, int $passingScore = 70)
+    public function scopePassed($query, ?int $passingScore = null)
     {
-        return $query->whereRaw(
-            'total_questions > 0 AND ROUND(correct_answers * 100.0 / total_questions) >= ?',
-            [$passingScore]
-        );
+        if ($passingScore !== null) {
+            return $query->whereRaw(
+                'total_questions > 0 AND ROUND(correct_answers * 100.0 / total_questions) >= ?',
+                [$passingScore]
+            );
+        }
+
+        return $query->where(function ($q) {
+            $q->where('is_passed', true)
+                ->orWhereRaw('total_questions > 0 AND ROUND(correct_answers * 100.0 / total_questions) >= COALESCE(passing_score, 70)');
+        });
     }
 
     // ── Helpers ─────────────────────────────────────────────────
 
     public function getScorePercentage(): int
     {
-        if ($this->total_questions === 0) return 0;
+        if ($this->total_questions === 0) {
+            return 0;
+        }
+
         return (int) round(($this->correct_answers / $this->total_questions) * 100);
     }
 
-    public function isPassed(int $passingScore = 70): bool
+    public function isPassed(?int $passingScore = null): bool
     {
-        return $this->getScorePercentage() >= $passingScore;
+        if ($passingScore !== null) {
+            return $this->getScorePercentage() >= $passingScore;
+        }
+
+        if ($this->is_passed !== null) {
+            return (bool) $this->is_passed;
+        }
+
+        $threshold = $this->passing_score ?? ($this->section?->passing_score ?? 70);
+
+        return $this->getScorePercentage() >= $threshold;
     }
 }

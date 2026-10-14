@@ -62,7 +62,7 @@
         </div>
 
         {{-- Total Quiz --}}
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <a href="{{ route('admin.quiz-attempts.index') }}" class="block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-indigo-300 hover:shadow-md transition">
             <div class="flex items-center justify-between mb-2">
                 <p class="text-xs text-slate-500">Quiz & Percobaan</p>
                 <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50">
@@ -71,9 +71,9 @@
             </div>
             <p class="text-2xl font-bold text-slate-800">{{ $totalQuizzes }}</p>
             <p class="text-xs text-slate-400 mt-0.5">
-                <span class="font-medium text-amber-600">{{ $totalAttempts }}x</span> dicoba
+                <span class="font-medium text-amber-600">{{ $totalAttempts }}x</span> dicoba &bull; <span class="text-indigo-600 font-medium">Lihat Hasil &rarr;</span>
             </p>
-        </div>
+        </a>
 
     </div>
 

@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Middleware\CheckUserActive;
+use App\Http\Middleware\RoleMiddleware;
+use App\Http\Middleware\ValidatePostSize;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,13 +17,13 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Ganti ValidatePostSize bawaan dengan custom yang izinkan 200 MB
         $middleware->replace(
-            \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
-            \App\Http\Middleware\ValidatePostSize::class,
+            Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
+            ValidatePostSize::class,
         );
 
         $middleware->alias([
-            'role'         => \App\Http\Middleware\RoleMiddleware::class,
-            'check.active' => \App\Http\Middleware\CheckUserActive::class,
+            'role' => RoleMiddleware::class,
+            'check.active' => CheckUserActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -62,11 +62,13 @@ class MateriPreviewController extends Controller
     {
         $this->ensureSectionBelongsToSchema($learningSchema, $section);
 
-        $quizzes = $section->quizzes()
+        $quizzesQuery = $section->quizzes()
             ->active()
-            ->with(['activeMedia' => fn ($q) => $q->where('media_type', 'image')])
-            ->orderBy('quiz_order')
-            ->get();
+            ->with(['activeMedia' => fn ($q) => $q->where('media_type', 'image')]);
+
+        $quizzes = $section->randomize_questions
+            ? $quizzesQuery->inRandomOrder()->get()
+            : $quizzesQuery->orderBy('quiz_order')->get();
 
         return view('user.quizzes.index', array_merge([
             'section' => $section,
@@ -81,7 +83,7 @@ class MateriPreviewController extends Controller
     {
         $this->ensureSectionBelongsToSchema($learningSchema, $section);
 
-        $quizzes = $section->quizzes()->active()->orderBy('quiz_order')->get();
+        $quizzes = $section->quizzes()->active()->get();
         $answers = $request->input('answers', []);
 
         $correctCount = 0;
@@ -98,7 +100,10 @@ class MateriPreviewController extends Controller
             ];
         }
 
-        $passed = $quizzes->isNotEmpty() && $correctCount === $quizzes->count();
+        $totalQuestions = $quizzes->count();
+        $scorePercent = $totalQuestions > 0 ? (int) round(($correctCount / $totalQuestions) * 100) : 0;
+        $passingScore = (int) ($section->passing_score ?? 70);
+        $passed = $totalQuestions > 0 && $scorePercent >= $passingScore;
 
         return view('user.quizzes.result', array_merge([
             'section' => $section,

@@ -20,8 +20,8 @@ class UserProgress extends Model
 
     protected $casts = [
         'progress_percentage' => 'decimal:2',
-        'started_at'          => 'datetime',
-        'completed_at'        => 'datetime',
+        'started_at' => 'datetime',
+        'completed_at' => 'datetime',
     ];
 
     // ── Relationships ───────────────────────────────────────────────

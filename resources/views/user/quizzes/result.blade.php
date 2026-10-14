@@ -66,7 +66,7 @@
                 {{-- Badge --}}
                 <div class="inline-flex items-center gap-1.5 rounded-full bg-white/20 text-white px-4 py-1.5 text-xs font-bold">
                     {{ $passed ? 'LULUS ✓' : 'BELUM LULUS' }}
-                    &nbsp;•&nbsp; Nilai Lulus: 100%
+                    &nbsp;•&nbsp; Nilai Lulus: {{ $section->passing_score ?? 70 }}%
                 </div>
             </div>
 

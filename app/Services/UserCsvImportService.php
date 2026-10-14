@@ -13,7 +13,6 @@ class UserCsvImportService
     /**
      * Import users from an uploaded CSV file.
      *
-     * @param  UploadedFile  $file
      * @param  array  $schemaIds  Learning schema IDs to enroll imported users into
      * @return array{success_count: int, errors: array<string>}
      */
@@ -171,8 +170,6 @@ class UserCsvImportService
 
     /**
      * Generate sample CSV template content.
-     *
-     * @return string
      */
     public function generateTemplateContent(): string
     {

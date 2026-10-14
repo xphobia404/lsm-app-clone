@@ -10,13 +10,13 @@ class MediaResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'        => $this->id,
-            'type'      => $this->type,
+            'id' => $this->id,
+            'type' => $this->type,
             'mime_type' => $this->mime_type,
-            'size'      => $this->size,
-            'url'       => asset('storage/' . $this->path),
-            'disk'      => $this->disk,
-            'order'     => $this->order,
+            'size' => $this->size,
+            'url' => asset('storage/'.$this->path),
+            'disk' => $this->disk,
+            'order' => $this->order,
         ];
     }
 }

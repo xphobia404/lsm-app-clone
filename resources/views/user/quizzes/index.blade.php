@@ -62,7 +62,7 @@
                         <p class="text-[10px] text-slate-400">Total Soal</p>
                     </div>
                     <div class="text-center">
-                        <p class="text-2xl font-extrabold text-green-600">100%</p>
+                        <p class="text-2xl font-extrabold text-green-600">{{ $section->passing_score ?? 70 }}%</p>
                         <p class="text-[10px] text-slate-400">Nilai Lulus</p>
                     </div>
                 </div>
@@ -119,17 +119,17 @@
 
                             {{-- Pilihan jawaban --}}
                             <div class="space-y-2">
-                                @foreach(['a','b','c','d'] as $opt)
-                                @php $val = $quiz->{'option_'.$opt}; @endphp
-                                @if($val)
+                                @php
+                                    $options = $quiz->getOptions($section->randomize_options ?? false);
+                                @endphp
+                                @foreach($options as $optKey => $optVal)
                                 <label class="flex items-start gap-3 cursor-pointer rounded-xl border border-slate-200 px-3 py-2.5 has-[:checked]:border-indigo-400 has-[:checked]:bg-indigo-50 transition">
                                     <input type="radio"
                                            name="answers[{{ $quiz->id }}]"
-                                           value="{{ $opt }}"
+                                           value="{{ $optKey }}"
                                            class="mt-0.5 accent-indigo-600">
-                                    <span class="text-sm text-slate-700">{{ strtoupper($opt) }}. {{ $val }}</span>
+                                    <span class="text-sm text-slate-700"><span class="font-bold">{{ chr(65 + $loop->index) }}.</span> {{ $optVal }}</span>
                                 </label>
-                                @endif
                                 @endforeach
                             </div>
                         </div>

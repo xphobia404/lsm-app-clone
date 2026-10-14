@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Content;
 use App\Models\Section;
 use Illuminate\Database\Seeder;
 
@@ -42,16 +41,18 @@ class ContentSeeder extends Seeder
 
         foreach ($contentMap as $sectionTitle => $contents) {
             $section = Section::where('title', $sectionTitle)->first();
-            if (! $section) continue;
+            if (! $section) {
+                continue;
+            }
 
             foreach ($contents as $data) {
                 $section->contents()->create([
-                    'title'         => $data['title'],
-                    'content_type'  => $data['type'],
-                    'body'          => $data['body'] ?? null,
-                    'url'           => $data['url'] ?? null,
+                    'title' => $data['title'],
+                    'content_type' => $data['type'],
+                    'body' => $data['body'] ?? null,
+                    'url' => $data['url'] ?? null,
                     'content_order' => $data['order'],
-                    'is_active'     => true,
+                    'is_active' => true,
                 ]);
             }
         }

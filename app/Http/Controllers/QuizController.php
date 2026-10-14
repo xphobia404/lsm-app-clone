@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\Section;
+use App\Services\QuizAttemptExportService;
+use App\Services\QuizCsvImportService;
 use App\Support\MateriPreviewContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class QuizController extends Controller
 {
@@ -42,7 +45,77 @@ class QuizController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return view('admin.quizzes.index', compact('section', 'quizzes', 'perPage'));
+        $attemptsCount = QuizAttempt::where('section_id', $section->id)->count();
+
+        return view('admin.quizzes.index', compact('section', 'quizzes', 'perPage', 'attemptsCount'));
+    }
+
+    public function downloadTemplate(QuizCsvImportService $importService): StreamedResponse
+    {
+        return response()->streamDownload(function () use ($importService) {
+            echo $importService->generateTemplateContent();
+        }, 'template_quiz.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function importCsv(Request $request, Section $section, QuizCsvImportService $importService)
+    {
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:4096',
+        ], [
+            'csv_file.required' => 'File CSV wajib diunggah.',
+            'csv_file.mimes' => 'File harus berformat CSV atau TXT.',
+            'csv_file.max' => 'Ukuran file maksimal 4MB.',
+        ]);
+
+        $result = $importService->import($request->file('csv_file'), $section);
+
+        $successCount = $result['success_count'];
+        $errors = $result['errors'];
+
+        $redirect = redirect()->route('admin.sections.quizzes.index', $section);
+
+        if ($successCount > 0 && empty($errors)) {
+            return $redirect->with('success', "Berhasil mengimpor {$successCount} soal quiz.");
+        }
+
+        if ($successCount > 0 && ! empty($errors)) {
+            return $redirect
+                ->with('success', "Berhasil mengimpor {$successCount} soal quiz.")
+                ->with('import_errors', $errors);
+        }
+
+        return $redirect
+            ->with('error', 'Gagal mengimpor soal quiz. Silakan periksa kembali file CSV Anda.')
+            ->with('import_errors', $errors);
+    }
+
+    public function updateSettings(Request $request, Section $section)
+    {
+        $validated = $request->validate([
+            'passing_score' => 'required|integer|min:0|max:100',
+            'randomize_questions' => 'sometimes|boolean',
+            'randomize_options' => 'sometimes|boolean',
+        ], [
+            'passing_score.required' => 'Minimal skor wajib diisi.',
+            'passing_score.integer' => 'Minimal skor harus berupa angka bulat.',
+            'passing_score.min' => 'Minimal skor minimal 0%.',
+            'passing_score.max' => 'Minimal skor maksimal 100%.',
+        ]);
+
+        $section->update([
+            'passing_score' => $validated['passing_score'],
+            'randomize_questions' => $request->boolean('randomize_questions'),
+            'randomize_options' => $request->boolean('randomize_options'),
+        ]);
+
+        return back()->with('success', 'Pengaturan kuis berhasil disimpan.');
+    }
+
+    public function exportAttempts(Section $section, QuizAttemptExportService $exportService): StreamedResponse
+    {
+        return $exportService->exportCsv($section);
     }
 
     public function create(Section $section)
@@ -181,11 +254,13 @@ class QuizController extends Controller
     {
         abort_if(! $section->is_active, 404);
 
-        $quizzes = $section->quizzes()
+        $quizzesQuery = $section->quizzes()
             ->active()
-            ->with(['activeMedia' => fn ($q) => $q->where('media_type', 'image')])
-            ->orderBy('quiz_order')
-            ->get();
+            ->with(['activeMedia' => fn ($q) => $q->where('media_type', 'image')]);
+
+        $quizzes = $section->randomize_questions
+            ? $quizzesQuery->inRandomOrder()->get()
+            : $quizzesQuery->orderBy('quiz_order')->get();
 
         $user = auth()->user();
 
@@ -224,7 +299,7 @@ class QuizController extends Controller
     {
         abort_if(! $section->is_active, 404);
 
-        $quizzes = $section->quizzes()->active()->orderBy('quiz_order')->get();
+        $quizzes = $section->quizzes()->active()->get();
         $answers = $request->input('answers', []);
 
         $correctCount = 0;
@@ -241,13 +316,18 @@ class QuizController extends Controller
             ];
         }
 
-        $passed = $correctCount === $quizzes->count();
+        $totalQuestions = $quizzes->count();
+        $scorePercent = $totalQuestions > 0 ? (int) round(($correctCount / $totalQuestions) * 100) : 0;
+        $passingScore = (int) ($section->passing_score ?? 70);
+        $passed = $totalQuestions > 0 && $scorePercent >= $passingScore;
 
         QuizAttempt::create([
             'user_id' => auth()->id(),
             'section_id' => $section->id,
-            'total_questions' => $quizzes->count(),
+            'total_questions' => $totalQuestions,
             'correct_answers' => $correctCount,
+            'passing_score' => $passingScore,
+            'is_passed' => $passed,
             'attempted_at' => now(),
         ]);
 

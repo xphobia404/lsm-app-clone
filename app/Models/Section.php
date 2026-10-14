@@ -13,11 +13,17 @@ class Section extends Model
         'title',
         'description',
         'section_order',
+        'passing_score',
+        'randomize_questions',
+        'randomize_options',
         'is_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'passing_score' => 'integer',
+        'randomize_questions' => 'boolean',
+        'randomize_options' => 'boolean',
     ];
 
     // ── Relationships ────────────────────────────────────────────────

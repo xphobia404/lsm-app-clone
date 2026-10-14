@@ -21,22 +21,22 @@ class UserProgressController extends Controller
     public function update(Request $request, Section $section)
     {
         $request->validate([
-            'slide_index'  => 'required|integer|min:0',
+            'slide_index' => 'required|integer|min:0',
             'total_slides' => 'required|integer|min:1',
-            'content_ids'  => 'sometimes|array',
-            'content_ids.*'=> 'integer',
-            'completed'    => 'sometimes|boolean',
+            'content_ids' => 'sometimes|array',
+            'content_ids.*' => 'integer',
+            'completed' => 'sometimes|boolean',
         ]);
 
-        $userId      = auth()->id();
-        $slideIndex  = (int) $request->slide_index;
+        $userId = auth()->id();
+        $slideIndex = (int) $request->slide_index;
         $totalSlides = (int) $request->total_slides;
         $forceComplete = (bool) $request->input('completed', false);
 
         $hasQuiz = $section->quizzes()->active()->exists();
 
         // Hitung persentase berdasar slide yang terbaca
-        $readCount  = $slideIndex + 1;
+        $readCount = $slideIndex + 1;
         $percentage = min(100, round(($readCount / $totalSlides) * 100, 2));
 
         // === ATURAN COMPLETED ===
@@ -55,38 +55,38 @@ class UserProgressController extends Controller
         }
 
         $progress = UserProgress::firstOrNew([
-            'user_id'    => $userId,
+            'user_id' => $userId,
             'section_id' => $section->id,
         ]);
 
         // Jangan turunkan persentase saat user mundur slide
-        $existingPct  = (float) ($progress->progress_percentage ?? 0);
+        $existingPct = (float) ($progress->progress_percentage ?? 0);
         $wasCompleted = $progress->exists && $progress->status === 'completed';
 
         // Jika sudah completed sebelumnya (misal dari quiz), jaga status itu
         if ($wasCompleted) {
             return response()->json([
-                'ok'         => true,
+                'ok' => true,
                 'percentage' => $existingPct,
-                'status'     => 'completed',
+                'status' => 'completed',
             ]);
         }
 
         $newPct = max($existingPct, $percentage);
 
         $progress->fill([
-            'status'              => $isCompleted ? 'completed' : 'in_progress',
+            'status' => $isCompleted ? 'completed' : 'in_progress',
             'progress_percentage' => $newPct,
-            'started_at'          => $progress->started_at ?? Carbon::now(),
-            'completed_at'        => $isCompleted ? Carbon::now() : $progress->completed_at,
+            'started_at' => $progress->started_at ?? Carbon::now(),
+            'completed_at' => $isCompleted ? Carbon::now() : $progress->completed_at,
         ]);
 
         $progress->save();
 
         return response()->json([
-            'ok'         => true,
+            'ok' => true,
             'percentage' => $newPct,
-            'status'     => $progress->status,
+            'status' => $progress->status,
         ]);
     }
 }

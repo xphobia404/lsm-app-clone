@@ -22,7 +22,7 @@ class EnrollmentController extends Controller
     public function update(Request $request, User $user)
     {
         $request->validate([
-            'schema_ids'   => 'nullable|array',
+            'schema_ids' => 'nullable|array',
             'schema_ids.*' => 'integer|exists:learning_schemas,id',
         ]);
 
@@ -51,6 +51,7 @@ class EnrollmentController extends Controller
     {
         $request->validate(['learning_schema_id' => 'required|integer|exists:learning_schemas,id']);
         $user->enroll((int) $request->learning_schema_id);
+
         return back()->with('success', 'User berhasil di-enroll.');
     }
 
@@ -59,6 +60,7 @@ class EnrollmentController extends Controller
     {
         $request->validate(['learning_schema_id' => 'required|integer|exists:learning_schemas,id']);
         $user->unenroll((int) $request->learning_schema_id);
+
         return back()->with('success', 'Enrollment berhasil dihapus.');
     }
 
@@ -67,9 +69,10 @@ class EnrollmentController extends Controller
     {
         $request->validate([
             'learning_schema_id' => 'required|integer|exists:learning_schemas,id',
-            'status'             => 'required|in:active,completed,dropped',
+            'status' => 'required|in:active,completed,dropped',
         ]);
         $user->updateEnrollmentStatus((int) $request->learning_schema_id, $request->status);
+
         return back()->with('success', 'Status enrollment diperbarui.');
     }
 }

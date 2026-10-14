@@ -156,6 +156,9 @@ class SectionController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
+            'passing_score' => 'nullable|integer|min:0|max:100',
+            'randomize_questions' => 'sometimes|boolean',
+            'randomize_options' => 'sometimes|boolean',
             'is_active' => 'sometimes|boolean',
             'learning_schema_ids' => 'nullable|array',
             'learning_schema_ids.*' => 'exists:learning_schemas,id',
@@ -164,6 +167,9 @@ class SectionController extends Controller
         $section = Section::create([
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
+            'passing_score' => $validated['passing_score'] ?? 70,
+            'randomize_questions' => $request->boolean('randomize_questions'),
+            'randomize_options' => $request->boolean('randomize_options'),
             'is_active' => $request->boolean('is_active'),
         ]);
 
@@ -196,6 +202,9 @@ class SectionController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
+            'passing_score' => 'nullable|integer|min:0|max:100',
+            'randomize_questions' => 'sometimes|boolean',
+            'randomize_options' => 'sometimes|boolean',
             'is_active' => 'sometimes|boolean',
             'learning_schema_ids' => 'nullable|array',
             'learning_schema_ids.*' => 'exists:learning_schemas,id',
@@ -204,6 +213,9 @@ class SectionController extends Controller
         $section->update([
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
+            'passing_score' => $validated['passing_score'] ?? 70,
+            'randomize_questions' => $request->boolean('randomize_questions'),
+            'randomize_options' => $request->boolean('randomize_options'),
             'is_active' => $request->boolean('is_active'),
         ]);
 

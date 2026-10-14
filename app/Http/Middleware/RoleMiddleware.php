@@ -10,7 +10,7 @@ class RoleMiddleware
 {
     public function handle(Request $request, Closure $next, string $role): Response
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return redirect()->route('login');
         }
 
@@ -18,11 +18,13 @@ class RoleMiddleware
             if (auth()->user()->role === 'admin') {
                 return redirect()->route('admin.dashboard');
             }
+
             return redirect()->route('user.dashboard');
         }
 
-        if (auth()->user()->role === 'user' && !auth()->user()->is_active) {
+        if (auth()->user()->role === 'user' && ! auth()->user()->is_active) {
             auth()->logout();
+
             return redirect()->route('login')->withErrors(['username' => 'Akun Anda telah dinonaktifkan.']);
         }
 

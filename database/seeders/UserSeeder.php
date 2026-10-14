@@ -12,11 +12,11 @@ class UserSeeder extends Seeder
     {
         // ── Admin ─────────────────────────────────────────────────────
         User::create([
-            'name'      => 'Super Admin',
-            'username'  => 'admin',
-            'email'     => 'admin@lsm.test',
-            'password'  => Hash::make('password'),
-            'role'      => 'admin',
+            'name' => 'Super Admin',
+            'username' => 'admin',
+            'email' => 'admin@lsm.test',
+            'password' => Hash::make('password'),
+            'role' => 'admin',
             'is_active' => true,
         ]);
 
@@ -35,8 +35,8 @@ class UserSeeder extends Seeder
 
         foreach ($users as $data) {
             User::create(array_merge([
-                'password'  => Hash::make('password'),
-                'role'      => 'user',
+                'password' => Hash::make('password'),
+                'role' => 'user',
                 'is_active' => true,
             ], $data));
         }

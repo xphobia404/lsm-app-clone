@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\Section;
 use App\Models\User;
@@ -23,20 +22,22 @@ class QuizAttemptSeeder extends Seeder
 
         foreach ($progresses as $progress) {
             $quizzes = $progress->section->quizzes->where('is_active', true);
-            if ($quizzes->isEmpty()) continue;
+            if ($quizzes->isEmpty()) {
+                continue;
+            }
 
             $totalQuestions = $quizzes->count();
             // Simulasi score: completed = 70-100%, in_progress = 30-70%
             $correctCount = $progress->status === 'completed'
-                ? rand((int)($totalQuestions * 0.7), $totalQuestions)
-                : rand((int)($totalQuestions * 0.3), (int)($totalQuestions * 0.7));
+                ? rand((int) ($totalQuestions * 0.7), $totalQuestions)
+                : rand((int) ($totalQuestions * 0.3), (int) ($totalQuestions * 0.7));
 
             QuizAttempt::create([
-                'user_id'         => $progress->user_id,
-                'section_id'      => $progress->section_id,
+                'user_id' => $progress->user_id,
+                'section_id' => $progress->section_id,
                 'total_questions' => $totalQuestions,
                 'correct_answers' => $correctCount,
-                'attempted_at'    => $progress->started_at
+                'attempted_at' => $progress->started_at
                     ? $progress->started_at->addMinutes(rand(10, 60))
                     : now()->subDays(rand(1, 20)),
             ]);

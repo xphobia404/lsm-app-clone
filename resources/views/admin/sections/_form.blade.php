@@ -78,6 +78,59 @@
     @enderror
 </div>
 
+{{-- Pengaturan Kuis --}}
+<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+    <div>
+        <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Pengaturan Kuis Section</h3>
+        <p class="text-xs text-slate-500">Konfigurasi passing grade dan pengacakan untuk kuis di section ini.</p>
+    </div>
+
+    {{-- Minimal Skor (Passing Score) --}}
+    <div class="space-y-1">
+        <label for="passing_score" class="block text-xs font-semibold text-slate-700">
+            Minimal Skor Kelulusan (%)
+        </label>
+        <div class="flex items-center gap-2 max-w-xs">
+            <input type="number" id="passing_score" name="passing_score"
+                   value="{{ old('passing_score', $section?->passing_score ?? 70) }}"
+                   min="0" max="100" required
+                   class="w-28 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm
+                          focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200
+                          @error('passing_score') border-red-400 bg-red-50 @enderror">
+            <span class="text-xs font-bold text-slate-500">%</span>
+        </div>
+        <p class="text-[11px] text-slate-400">User harus mencapai persentase nilai ini atau lebih untuk dinyatakan lulus.</p>
+        @error('passing_score')
+        <p class="text-xs text-red-500">{{ $message }}</p>
+        @enderror
+    </div>
+
+    {{-- Pengacakan Soal dan Jawaban --}}
+    <div class="space-y-2 pt-1 border-t border-slate-200">
+        <label class="block text-xs font-semibold text-slate-700">Pengacakan (Randomize)</label>
+        
+        <label class="flex items-center gap-2.5 cursor-pointer">
+            <input type="checkbox" name="randomize_questions" value="1"
+                   {{ old('randomize_questions', $section?->randomize_questions ?? false) ? 'checked' : '' }}
+                   class="h-4 w-4 rounded accent-indigo-600">
+            <div>
+                <span class="text-xs font-medium text-slate-700">Acak Urutan Pertanyaan</span>
+                <p class="text-[11px] text-slate-400">Urutan soal akan diacak setiap kali user membuka kuis.</p>
+            </div>
+        </label>
+
+        <label class="flex items-center gap-2.5 cursor-pointer">
+            <input type="checkbox" name="randomize_options" value="1"
+                   {{ old('randomize_options', $section?->randomize_options ?? false) ? 'checked' : '' }}
+                   class="h-4 w-4 rounded accent-indigo-600">
+            <div>
+                <span class="text-xs font-medium text-slate-700">Acak Urutan Pilihan Jawaban</span>
+                <p class="text-[11px] text-slate-400">Urutan pilihan A, B, C, D akan diacak untuk setiap soal.</p>
+            </div>
+        </label>
+    </div>
+</div>
+
 {{-- Status Aktif --}}
 <div class="space-y-1">
     <label class="block text-xs font-semibold text-slate-700">Status Section</label>

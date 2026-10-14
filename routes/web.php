@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\MateriPreviewController;
+use App\Http\Controllers\Admin\QuizAttemptController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\EnrollmentController;
@@ -143,7 +144,21 @@ Route::middleware(['auth', 'role:admin'])
             [ContentController::class, 'toggleActive'])->name('sections.contents.toggle-active');
 
         // ── Quizzes (nested under section) ────────────────────────────────
+        Route::get('sections/{section}/quizzes/template',
+            [QuizController::class, 'downloadTemplate'])->name('sections.quizzes.template');
+        Route::post('sections/{section}/quizzes/import',
+            [QuizController::class, 'importCsv'])->name('sections.quizzes.import');
+        Route::patch('sections/{section}/quizzes/settings',
+            [QuizController::class, 'updateSettings'])->name('sections.quizzes.settings');
+        Route::get('sections/{section}/quizzes/export-attempts',
+            [QuizController::class, 'exportAttempts'])->name('sections.quizzes.export-attempts');
         Route::resource('sections.quizzes', QuizController::class);
         Route::post('sections/{section}/quizzes/{quiz}/toggle-active',
             [QuizController::class, 'toggleActive'])->name('sections.quizzes.toggle-active');
+
+        // ── Quiz Attempts (Global) ────────────────────────────────────────
+        Route::get('quiz-attempts',
+            [QuizAttemptController::class, 'index'])->name('quiz-attempts.index');
+        Route::get('quiz-attempts/export',
+            [QuizAttemptController::class, 'export'])->name('quiz-attempts.export');
     });

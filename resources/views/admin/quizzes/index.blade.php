@@ -1,5 +1,5 @@
 <x-admin-layout title="Quiz – {{ $section->title }}">
-<div class="px-4 pt-5 pb-10 space-y-5">
+<div x-data="{ showImportModal: false, showSettings: false }" class="px-4 pt-5 pb-10 space-y-5">
 
     {{-- Breadcrumb --}}
     <div class="flex items-center gap-1.5 text-xs text-slate-400">
@@ -11,27 +11,240 @@
     </div>
 
     {{-- Header --}}
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
             <h2 class="text-base font-bold text-slate-800">Kelola Quiz</h2>
             <p class="text-xs text-slate-400 mt-0.5">
                 Section: <span class="font-medium text-indigo-600">{{ $section->title }}</span>
+                &bull; Nilai Lulus: <span class="font-semibold text-slate-700">{{ $section->passing_score ?? 70 }}%</span>
+                @if($section->randomize_questions)
+                    &bull; <span class="text-violet-600 font-medium">Soal Diacak</span>
+                @endif
+                @if($section->randomize_options)
+                    &bull; <span class="text-emerald-600 font-medium">Jawaban Diacak</span>
+                @endif
             </p>
         </div>
-        <a href="{{ route('admin.sections.quizzes.create', $section) }}"
-           class="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            Tambah Soal
-        </a>
+        <div class="flex flex-wrap items-center gap-2">
+            {{-- Tombol Pengaturan Kuis --}}
+            <button type="button"
+                    @click="showSettings = !showSettings"
+                    class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Atur Nilai & Acak
+            </button>
+
+            {{-- Download Template CSV --}}
+            <a href="{{ route('admin.sections.quizzes.template', $section) }}"
+               title="Download contoh template CSV untuk import soal dan pilihan jawaban"
+               class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Template CSV
+            </a>
+
+            {{-- Import Soal CSV --}}
+            <button type="button"
+                    @click="showImportModal = true"
+                    class="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-700 shadow-sm hover:bg-indigo-100 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                Import Soal
+            </button>
+
+            {{-- Export Hasil Kuis --}}
+            <a href="{{ route('admin.sections.quizzes.export-attempts', $section) }}"
+               title="Export hasil kuis yang dikerjakan user ke CSV"
+               class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-700 shadow-sm hover:bg-emerald-100 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Export Hasil ({{ $attemptsCount }})
+            </a>
+
+            {{-- Tambah Soal Manual --}}
+            <a href="{{ route('admin.sections.quizzes.create', $section) }}"
+               class="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                Tambah Soal
+            </a>
+        </div>
     </div>
 
-    {{-- Flash --}}
+    {{-- Flash & Alerts --}}
     @if(session('success'))
         <div class="flex items-center gap-2 rounded-2xl bg-green-50 border border-green-100 px-4 py-3 text-xs font-medium text-green-700">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
             {{ session('success') }}
         </div>
     @endif
+
+    @if(session('error'))
+        <div class="flex items-center gap-2 rounded-2xl bg-red-50 border border-red-100 px-4 py-3 text-xs font-medium text-red-700">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            {{ session('error') }}
+        </div>
+    @endif
+
+    @if(session('import_errors') && is_array(session('import_errors')))
+        <div class="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-xs space-y-2">
+            <div class="flex items-center gap-2 text-amber-800 font-bold">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <span>Catatan Import CSV (Beberapa baris dilewati):</span>
+            </div>
+            <ul class="list-disc list-inside space-y-1 text-amber-700 max-h-40 overflow-y-auto pl-1">
+                @foreach(session('import_errors') as $err)
+                    <li>{{ $err }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    {{-- Panel Pengaturan Kuis Section --}}
+    <div x-show="showSettings"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 -translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 -translate-y-2"
+         style="display: none;"
+         class="rounded-2xl border border-indigo-100 bg-white shadow-sm p-4 md:p-5">
+        <form method="POST" action="{{ route('admin.sections.quizzes.settings', $section) }}" class="space-y-4">
+            @csrf
+            @method('PATCH')
+
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800">Pengaturan Kuis Section Ini</h3>
+                    <p class="text-xs text-slate-400">Atur skor minimal kelulusan dan acak urutan soal maupun pilihan jawaban.</p>
+                </div>
+                <button type="button" @click="showSettings = false" class="text-slate-400 hover:text-slate-600 text-xs">
+                    Tutup &times;
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {{-- Passing Score --}}
+                <div class="space-y-1">
+                    <label for="passing_score_input" class="block text-xs font-semibold text-slate-700">
+                        Minimal Skor Kelulusan (%)
+                    </label>
+                    <div class="flex items-center gap-2">
+                        <input type="number"
+                               id="passing_score_input"
+                               name="passing_score"
+                               min="0"
+                               max="100"
+                               required
+                               value="{{ old('passing_score', $section->passing_score ?? 70) }}"
+                               class="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                        <span class="text-xs font-bold text-slate-500">%</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">Default: 70%. Rentang: 0 - 100%.</p>
+                </div>
+
+                {{-- Acak Pertanyaan --}}
+                <div class="flex items-start gap-2.5 pt-1">
+                    <input type="checkbox"
+                           id="randomize_questions_input"
+                           name="randomize_questions"
+                           value="1"
+                           {{ old('randomize_questions', $section->randomize_questions) ? 'checked' : '' }}
+                           class="mt-1 h-4 w-4 rounded accent-indigo-600">
+                    <label for="randomize_questions_input" class="cursor-pointer">
+                        <span class="block text-xs font-semibold text-slate-700">Acak Urutan Pertanyaan</span>
+                        <span class="block text-[11px] text-slate-400 leading-tight">Urutan soal akan diacak otomatis setiap kali user membuka kuis.</span>
+                    </label>
+                </div>
+
+                {{-- Acak Pilihan Jawaban --}}
+                <div class="flex items-start gap-2.5 pt-1">
+                    <input type="checkbox"
+                           id="randomize_options_input"
+                           name="randomize_options"
+                           value="1"
+                           {{ old('randomize_options', $section->randomize_options) ? 'checked' : '' }}
+                           class="mt-1 h-4 w-4 rounded accent-indigo-600">
+                    <label for="randomize_options_input" class="cursor-pointer">
+                        <span class="block text-xs font-semibold text-slate-700">Acak Urutan Pilihan Jawaban</span>
+                        <span class="block text-[11px] text-slate-400 leading-tight">Urutan pilihan A, B, C, D diacak untuk setiap pertanyaan.</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button type="button" @click="showSettings = false" class="rounded-full px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 transition">
+                    Batal
+                </button>
+                <button type="submit" class="rounded-full bg-indigo-600 px-5 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition">
+                    Simpan Pengaturan
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {{-- Modal Import Soal CSV --}}
+    <div x-show="showImportModal"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+         style="display: none;">
+        <div @click.away="showImportModal = false"
+             class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800">Import Soal Kuis via CSV</h3>
+                        <p class="text-xs text-slate-400">Tambahkan banyak soal sekaligus dengan cepat.</p>
+                    </div>
+                </div>
+                <button type="button" @click="showImportModal = false" class="text-slate-400 hover:text-slate-600 text-base">&times;</button>
+            </div>
+
+            <form method="POST" action="{{ route('admin.sections.quizzes.import', $section) }}" enctype="multipart/form-data" class="space-y-4">
+                @csrf
+
+                <div class="rounded-xl bg-slate-50 border border-slate-200 p-3.5 space-y-2 text-xs text-slate-600">
+                    <p class="font-semibold text-slate-800">Petunjuk Format CSV:</p>
+                    <ul class="list-disc list-inside space-y-1 text-slate-500">
+                        <li>Kolom wajib: <code class="bg-white px-1 py-0.5 rounded border border-slate-200 text-indigo-600 font-semibold">question</code>, <code class="bg-white px-1 py-0.5 rounded border border-slate-200 text-indigo-600 font-semibold">option_a</code>, <code class="bg-white px-1 py-0.5 rounded border border-slate-200 text-indigo-600 font-semibold">option_b</code>, <code class="bg-white px-1 py-0.5 rounded border border-slate-200 text-indigo-600 font-semibold">correct_answer</code></li>
+                        <li>Kolom opsional: <code class="bg-white px-1 py-0.5 rounded border border-slate-200 text-slate-700">option_c</code>, <code class="bg-white px-1 py-0.5 rounded border border-slate-200 text-slate-700">option_d</code>, <code class="bg-white px-1 py-0.5 rounded border border-slate-200 text-slate-700">explanation</code></li>
+                        <li>Isi kunci jawaban <code class="bg-white px-1 py-0.5 rounded border border-slate-200 font-semibold">correct_answer</code> dengan huruf: <strong>A, B, C, atau D</strong>.</li>
+                    </ul>
+                    <div class="pt-1">
+                        <a href="{{ route('admin.sections.quizzes.template', $section) }}" class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-semibold text-xs">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                            Unduh Contoh File Template CSV
+                        </a>
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="csv_file" class="block text-xs font-semibold text-slate-700">Pilih File CSV (.csv)</label>
+                    <input type="file"
+                           id="csv_file"
+                           name="csv_file"
+                           accept=".csv,text/csv,text/plain"
+                           required
+                           class="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+                    <p class="text-[11px] text-slate-400">Ukuran file maksimal 4MB.</p>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" @click="showImportModal = false" class="rounded-full px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 transition">
+                        Batal
+                    </button>
+                    <button type="submit" class="rounded-full bg-indigo-600 px-5 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition">
+                        Upload & Import Sekarang
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     {{-- Filter --}}
     <form method="GET" action="{{ route('admin.sections.quizzes.index', $section) }}" class="flex flex-wrap items-center gap-2">

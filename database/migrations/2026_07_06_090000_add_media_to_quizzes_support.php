@@ -19,6 +19,6 @@ return new class extends Migration
     public function down(): void
     {
         // Hapus semua media milik Quiz jika di-rollback
-        \DB::table('media')->where('mediable_type', 'App\\Models\\Quiz')->delete();
+        DB::table('media')->where('mediable_type', 'App\\Models\\Quiz')->delete();
     }
 };

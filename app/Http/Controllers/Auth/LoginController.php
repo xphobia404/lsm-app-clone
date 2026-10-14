@@ -38,14 +38,15 @@ class LoginController extends Controller
         }
 
         $credentials = [
-            'username'  => $request->username,
-            'password'  => $request->password,
+            'username' => $request->username,
+            'password' => $request->password,
             'is_active' => true,
         ];
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
             auth()->user()->touchLastLogin();
+
             return $this->redirectBasedOnRole();
         }
 
