@@ -314,3 +314,57 @@ test('non-admin user cannot export or modify quiz settings', function () {
     $this->actingAs($user)->get(route('admin.quiz-attempts.export'))
         ->assertRedirect(route('user.dashboard'));
 });
+
+test('quiz completion resolves user enrolled schema and allows proceeding to next section without 403', function () {
+    $user = User::factory()->create(['role' => 'user']);
+
+    // Schema 1: not enrolled by user
+    $schema1 = LearningSchema::create(['title' => 'Materi PHP', 'is_active' => true]);
+
+    // Schema 2: enrolled by user
+    $schema2 = LearningSchema::create(['title' => 'Materi Laravel', 'is_active' => true]);
+    $user->enroll($schema2->id);
+
+    // Section 1 attached to both schemas (schema 1 first, schema 2 second)
+    $section1 = Section::create(['title' => 'Section 1', 'is_active' => true, 'passing_score' => 70]);
+    $section1->learningSchemas()->attach($schema1->id, ['section_order' => 1]);
+    $section1->learningSchemas()->attach($schema2->id, ['section_order' => 1]);
+
+    // Section 2 attached to Schema 2 as next section
+    $section2 = Section::create(['title' => 'Section 2', 'is_active' => true, 'passing_score' => 70]);
+    $section2->learningSchemas()->attach($schema2->id, ['section_order' => 2]);
+
+    $quiz = Quiz::create([
+        'section_id' => $section1->id,
+        'question' => 'Apa itu Laravel?',
+        'option_a' => 'Framework PHP',
+        'option_b' => 'Bahasa Pemrograman',
+        'correct_answer' => 'a',
+        'quiz_order' => 1,
+        'is_active' => true,
+    ]);
+
+    // Submit quiz with schema context
+    $response = $this->actingAs($user)->post(route('user.quizzes.submit', [
+        'section' => $section1,
+        'schema' => $schema2->id,
+    ]), [
+        'answers' => [$quiz->id => 'a'],
+    ]);
+
+    $response->assertStatus(200);
+    $response->assertViewHas('learningSchema', fn ($schema) => $schema->id === $schema2->id);
+    $response->assertViewHas('nextSection', fn ($next) => $next->id === $section2->id);
+    $response->assertSee('Lanjut ke Materi Berikutnya');
+    $response->assertSee(route('user.sections.show', [$schema2, $section2]));
+
+    // Proceeding to next section should NOT return 403
+    $nextResponse = $this->actingAs($user)->get(route('user.sections.show', [$schema2, $section2]));
+    $nextResponse->assertStatus(200);
+    $nextResponse->assertSee('Section 2');
+
+    // Visiting schema page should NOT return 403
+    $schemaResponse = $this->actingAs($user)->get(route('user.schemas.show', $schema2));
+    $schemaResponse->assertStatus(200);
+    $schemaResponse->assertSee('Materi Laravel');
+});

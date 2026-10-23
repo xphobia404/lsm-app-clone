@@ -72,14 +72,27 @@
 
             {{-- Action Button --}}
             @if($passed)
-                @if($learningSchema)
-                <a href="{{ $schemaShowUrl }}"
-                   class="w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold text-white transition active:opacity-80"
+                @if(isset($nextSection) && $nextSection)
+                <a href="{{ $sectionShowUrl($nextSection) }}"
+                   class="w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold text-white transition active:opacity-80 shadow-md"
                    style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
-                    Kembali ke Materi
+                    Lanjut ke Materi Berikutnya
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                     </svg>
+                </a>
+                @endif
+
+                @if($learningSchema)
+                <a href="{{ $schemaShowUrl }}"
+                   class="w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold {{ (isset($nextSection) && $nextSection) ? 'text-slate-600 bg-white border border-slate-200 hover:bg-slate-50' : 'text-white' }} transition active:opacity-80"
+                   @if(!isset($nextSection) || !$nextSection) style="background:linear-gradient(135deg,#6366f1,#8b5cf6)" @endif>
+                    {{ (isset($nextSection) && $nextSection) ? 'Kembali ke Daftar Materi' : 'Kembali ke Materi' }}
+                    @if(!isset($nextSection) || !$nextSection)
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+                    </svg>
+                    @endif
                 </a>
                 @endif
             @else

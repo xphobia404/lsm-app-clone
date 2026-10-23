@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LearningSchema;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\Section;
+use App\Models\UserProgress;
 use App\Services\QuizAttemptExportService;
 use App\Services\QuizCsvImportService;
 use App\Support\MateriPreviewContext;
@@ -250,7 +252,7 @@ class QuizController extends Controller
 
     // ── USER-FACING ────────────────────────────────────────────────────────────────────────────
 
-    public function userIndex(Section $section)
+    public function userIndex(Request $request, Section $section)
     {
         abort_if(! $section->is_active, 404);
 
@@ -269,7 +271,7 @@ class QuizController extends Controller
             ->latest('attempted_at')
             ->first();
 
-        $learningSchema = $section->learningSchemas()->first();
+        $learningSchema = $this->resolveLearningSchema($section, $request);
 
         return view('user.quizzes.index', array_merge(
             compact('section', 'quizzes', 'lastAttempt', 'learningSchema'),
@@ -277,7 +279,7 @@ class QuizController extends Controller
         ));
     }
 
-    public function userShow(Section $section, Quiz $quiz)
+    public function userShow(Request $request, Section $section, Quiz $quiz)
     {
         abort_if(! $section->is_active || ! $quiz->is_active, 404);
         $this->authorizeQuiz($section, $quiz);
@@ -290,7 +292,7 @@ class QuizController extends Controller
         $next = $currentIndex < $allQuizzes->count() - 1 ? $allQuizzes[$currentIndex + 1] : null;
         $total = $allQuizzes->count();
 
-        $learningSchema = $section->learningSchemas()->first();
+        $learningSchema = $this->resolveLearningSchema($section, $request);
 
         return view('user.quizzes.show', compact('section', 'quiz', 'prev', 'next', 'currentIndex', 'total', 'learningSchema'));
     }
@@ -353,17 +355,72 @@ class QuizController extends Controller
         ]);
 
         if ($passed) {
-            auth()->user()->progresses()
-                ->where('section_id', $section->id)
-                ->update(['status' => 'completed', 'completed_at' => now()]);
+            UserProgress::updateOrCreate(
+                [
+                    'user_id' => auth()->id(),
+                    'section_id' => $section->id,
+                ],
+                [
+                    'status' => 'completed',
+                    'progress_percentage' => 100,
+                    'completed_at' => now(),
+                ]
+            );
         }
 
-        $learningSchema = $section->learningSchemas()->first();
+        $learningSchema = $this->resolveLearningSchema($section, $request);
+
+        $nextSection = null;
+        if ($learningSchema) {
+            $allSections = $learningSchema->sections()
+                ->where('sections.is_active', true)
+                ->orderBy('learning_schema_section.section_order')
+                ->get(['sections.id', 'sections.title']);
+
+            $currentIndex = $allSections->search(fn ($s) => $s->id === $section->id);
+            if ($currentIndex !== false && $currentIndex < $allSections->count() - 1) {
+                $nextSection = $allSections[$currentIndex + 1];
+            }
+        }
 
         return view('user.quizzes.result', array_merge(
-            compact('section', 'quizzes', 'results', 'correctCount', 'passed', 'learningSchema'),
+            compact('section', 'quizzes', 'results', 'correctCount', 'passed', 'learningSchema', 'nextSection'),
             MateriPreviewContext::variables($learningSchema, false),
         ));
+    }
+
+    private function resolveLearningSchema(Section $section, ?Request $request = null): ?LearningSchema
+    {
+        $schemaId = $request?->query('schema') ?? $request?->input('schema_id');
+        $user = auth()->user();
+
+        // 1. Jika ada schema_id spesifik di request, periksa apakah section terkait
+        if ($schemaId) {
+            $schema = $section->learningSchemas()
+                ->where('learning_schemas.id', $schemaId)
+                ->first();
+
+            if ($schema) {
+                if (! $user || $user->isEnrolledIn($schema->id)) {
+                    return $schema;
+                }
+            }
+        }
+
+        // 2. Jika user terautentikasi, prioritaskan schema yang di-enroll oleh user
+        if ($user) {
+            $enrolledSchema = $section->learningSchemas()
+                ->whereHas('users', fn ($q) => $q->where('users.id', $user->id))
+                ->first();
+
+            if ($enrolledSchema) {
+                return $enrolledSchema;
+            }
+        }
+
+        // 3. Fallback ke schema aktif pertama, atau schema pertama yang terhubung
+        return $section->learningSchemas()->where('is_active', true)->first()
+            ?? $section->learningSchemas()->first();
     }
 
     // ── PRIVATE ────────────────────────────────────────────────────────────────────────────

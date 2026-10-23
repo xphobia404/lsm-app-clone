@@ -97,7 +97,7 @@
             @foreach($continueSections as $progress)
             @php
                 $sec    = $progress->section;
-                $schema = $sec ? $sec->learningSchemas->first() : null;
+                $schema = $sec ? ($sec->learningSchemas->first(fn ($s) => auth()->user()->isEnrolledIn($s->id)) ?? $sec->learningSchemas->first()) : null;
             @endphp
             @if($sec && $schema)
             <a href="{{ route('user.sections.show', [$schema, $sec]) }}"

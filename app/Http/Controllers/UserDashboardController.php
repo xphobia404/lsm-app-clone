@@ -17,7 +17,7 @@ class UserDashboardController extends Controller
 
         // Semua progress user
         $allProgress = UserProgress::forUser($user->id)
-            ->with('section:id,title')
+            ->with(['section.learningSchemas'])
             ->get();
 
         $totalSections = $allProgress->count();

@@ -37,9 +37,11 @@ class MateriPreviewContext
             'adminPreview' => false,
             'previewExitUrl' => route('user.schemas.index'),
             'schemaShowUrl' => $schemaShowUrl,
-            'sectionShowUrl' => fn (Section $targetSection) => route('user.sections.show', [$learningSchema, $targetSection]),
-            'quizIndexUrl' => fn (Section $targetSection) => route('user.quizzes.index', $targetSection),
-            'quizSubmitUrl' => fn (Section $targetSection) => route('user.quizzes.submit', $targetSection),
+            'sectionShowUrl' => fn (Section $targetSection) => $learningSchema !== null
+                ? route('user.sections.show', [$learningSchema, $targetSection])
+                : route('user.schemas.index'),
+            'quizIndexUrl' => fn (Section $targetSection) => route('user.quizzes.index', array_filter(['section' => $targetSection, 'schema' => $learningSchema?->id])),
+            'quizSubmitUrl' => fn (Section $targetSection) => route('user.quizzes.submit', array_filter(['section' => $targetSection, 'schema' => $learningSchema?->id])),
         ];
     }
 }

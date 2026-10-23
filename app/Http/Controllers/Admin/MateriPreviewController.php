@@ -105,6 +105,16 @@ class MateriPreviewController extends Controller
         $passingScore = (int) ($section->passing_score ?? 70);
         $passed = $totalQuestions > 0 && $scorePercent >= $passingScore;
 
+        $allSections = $learningSchema->sections()
+            ->where('sections.is_active', true)
+            ->orderBy('learning_schema_section.section_order')
+            ->get(['sections.id', 'sections.title']);
+
+        $currentIndex = $allSections->search(fn ($s) => $s->id === $section->id);
+        $nextSection = ($currentIndex !== false && $currentIndex < $allSections->count() - 1)
+            ? $allSections[$currentIndex + 1]
+            : null;
+
         return view('user.quizzes.result', array_merge([
             'section' => $section,
             'quizzes' => $quizzes,
@@ -112,6 +122,7 @@ class MateriPreviewController extends Controller
             'correctCount' => $correctCount,
             'passed' => $passed,
             'learningSchema' => $learningSchema,
+            'nextSection' => $nextSection,
             'adminPreview' => true,
         ], MateriPreviewContext::variables($learningSchema, true)));
     }

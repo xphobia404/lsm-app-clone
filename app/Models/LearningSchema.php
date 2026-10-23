@@ -52,6 +52,11 @@ class LearningSchema extends Model
             ->orderByPivot('enrolled_at', 'desc');
     }
 
+    public function users(): BelongsToMany
+    {
+        return $this->enrolledUsers();
+    }
+
     public function activeEnrollments(): BelongsToMany
     {
         return $this->enrolledUsers()->wherePivot('status', 'active');

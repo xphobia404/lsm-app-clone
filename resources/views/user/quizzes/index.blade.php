@@ -76,6 +76,9 @@
             @else
             <form action="{{ $quizSubmitUrl($section) }}" method="POST" id="quiz-form">
                 @csrf
+                @if($learningSchema)
+                <input type="hidden" name="schema_id" value="{{ $learningSchema->id }}">
+                @endif
                 <div class="space-y-4">
                     @foreach($quizzes as $i => $quiz)
                     <div class="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">

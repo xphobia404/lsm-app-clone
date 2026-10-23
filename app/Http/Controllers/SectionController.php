@@ -13,6 +13,17 @@ class SectionController extends Controller
 {
     public function userShow(LearningSchema $learningSchema, Section $section)
     {
+        abort_unless(
+            auth()->user()->isEnrolledIn($learningSchema->id),
+            403,
+            'Kamu belum terdaftar di materi ini.'
+        );
+
+        abort_unless(
+            $learningSchema->sections()->where('sections.id', $section->id)->exists(),
+            404
+        );
+
         $allSections = $learningSchema->sections()
             ->where('is_active', true)
             ->orderBy('learning_schema_section.section_order')
